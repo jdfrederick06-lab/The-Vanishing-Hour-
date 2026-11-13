@@ -385,8 +385,10 @@
   const rv = { q: '', show: 'all' };
   const RV = {
     reply: { yes: 'Coming', maybe: 'Maybe', no: 'Not coming' },
-    size: { lead: 'Lead', support: 'Supporting', cameo: 'Cameo' },
-    world: { guest: 'Guest', fbi: 'FBI', crew: 'Art crew', staff: 'Staff', any: 'Surprise me' }
+    /* the invitation asks "Leading or large supporting?" (cameo was on the old form) */
+    size: { lead: 'Leading', support: 'Large supporting', cameo: 'Cameo (old form)' },
+    /* the invitation asks "Which best describes you?"; each answer quietly points to a side */
+    world: { guest: 'Guest (spotlight)', fbi: 'FBI (asks questions)', crew: 'Crew (has a plan)', staff: 'Staff (unnoticed)', any: 'Surprise me' }
   };
   const rsvps = s => Object.entries(s.rsvp || {}).map(([id, r]) => Object.assign({ id }, r)).sort((a, b) => b.at - a.at);
   function rsvpHead(s) {
@@ -396,7 +398,7 @@
     const fb = (k, l) => `<button class="btn small ghost seg-btn" data-rvshow="${k}" aria-pressed="${rv.show === k}">${l}</button>`;
     return panel('Replies', `<a class="btn small" href="index.html" target="_blank" rel="noopener">Open the invitation page</a> <button class="btn small" data-act="rvcsv">Download spreadsheet</button>`, `
       <div class="stats"><div class="stat"><small>Coming</small><b>${n('yes')}</b></div><div class="stat"><small>Maybe</small><b>${n('maybe')}</b></div><div class="stat"><small>Not coming</small><b>${n('no')}</b></div><div class="stat"><small>Cast so far</small><b>${castN}<em class="rv-of"> / ${coming.length}</em></b></div></div>
-      <div class="mg-games rv-tally"><span><b>Part</b> ${Object.entries(RV.size).map(([k, l]) => `${l} ${cnt('size', k)}`).join(' · ')}</span><span><b>Wants</b> ${Object.entries(RV.world).map(([k, l]) => `${l} ${cnt('world', k)}`).join(' · ')}</span>${noPhone ? `<span class="warn-t"><b>No phone</b> ${noPhone}: plan a paper version for them</span>` : ''}</div>
+      <div class="mg-games rv-tally"><span><b>Part</b> ${Object.entries(RV.size).filter(([k]) => k !== 'cameo' || cnt('size', k)).map(([k, l]) => `${l} ${cnt('size', k)}`).join(' · ')}</span><span><b>Wants</b> ${Object.entries(RV.world).map(([k, l]) => `${l} ${cnt('world', k)}`).join(' · ')}</span>${noPhone ? `<span class="warn-t"><b>No phone</b> ${noPhone}: plan a paper version for them</span>` : ''}</div>
       <div class="pp-head rv-head2"><div class="pp-search">${I('<circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4-4"/>')}<input class="field" id="rvq" placeholder="Search names, emails, notes" value="${esc(rv.q)}" autocomplete="off" aria-label="Search replies"></div>
         <div class="filters">${fb('all', 'All')}${fb('yes', 'Coming')}${fb('maybe', 'Maybe')}${fb('no', 'Not coming')}${fb('uncast', 'Not cast yet')}${fb('archived', 'Archived')}</div></div>`);
   }
