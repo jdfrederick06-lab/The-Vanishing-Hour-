@@ -107,7 +107,8 @@ const NW = (() => {
   const say = (ui, key, msg) => { ui.err = msg; ui.errFor = key; };
   const handleLine = (s, me, w) => `<div class="nw-hd"><span><b>●</b> 3 relays · ${80 + (Date.now() / 7000 | 0) % 60} ms</span><span class="nw-amber">auto-wipe 23:59</span></div><div class="nw-handle">handle <b>${esc(wname(w))}</b>${me.group === 'crew' ? ' · client verified' : ''}</div>`;
   function subs(me, ui) {
-    const list = me.group === 'crew' ? [['market', 'MARKET'], ['wallet', 'WALLET'], ['sale', 'SALE'], ['burner', 'BURNER']] : [['market', 'MARKET'], ['wallet', 'WALLET']];
+    const list = (me.group === 'crew' ? [['market', 'MARKET'], ['wallet', 'WALLET'], ['sale', 'SALE'], ['burner', 'BURNER']] : [['market', 'MARKET'], ['wallet', 'WALLET']])
+      .concat(typeof Casino !== 'undefined' && Casino.allowed(me) ? [['casino', 'CASINO']] : []);
     return `<div class="nw-tabs" style="grid-template-columns:repeat(${list.length},1fr)">${list.map(([k, l]) => `<button data-nw-sub="${k}" aria-current="${ui.sub === k}">${l}</button>`).join('')}</div>`;
   }
   function walletCard(s, w) {
@@ -195,6 +196,8 @@ const NW = (() => {
   }
   function render(s, me, ui) {
     const w = walletOf(me); if (!w) return '<div class="nw-card">No NIGHTWIRE account.</div>';
+    /* the crew and Vivienne bet from their own wallet; the casino keeps its own look */
+    if (ui.sub === 'casino' && typeof Casino !== 'undefined' && Casino.allowed(me)) return `<div class="nw">${handleLine(s, me, w)}${subs(me, ui)}</div><div class="nb nb-casino nw-casino">${Casino.render(s, me, ui, w)}</div>`;
     const body = ui.sub === 'wallet' ? walletView(s, me, ui) : ui.sub === 'sale' && me.group === 'crew' ? saleView(s, me, ui) : ui.sub === 'burner' && me.group === 'crew' ? burnerView(s, me, ui) : marketView(s, me, ui);
     const why = blockedWhy(s, me, w);
     return `<div class="nw">${handleLine(s, me, w)}${subs(me, ui)}${why ? `<div class="nw-card nw-lock"><b>! ${isOut(s, me.id) ? 'ACCESS REVOKED' : 'WALLET FROZEN'}</b><span>${esc(why)}</span></div>` : ''}${body}</div>`;
@@ -217,7 +220,7 @@ const NW = (() => {
 
   function renderBank(s, me, ui) {
     const w = walletOf(me); if (!w) return '<div class="nb"><div class="nb-panel">No NightBank account.</div></div>';
-    const tabs = [['acct', 'Account'], ['casino', 'Casino']].concat(isLender(me) ? [['lend', 'Lending']] : []);
+    const tabs = [['acct', 'Account']].concat(typeof Casino !== 'undefined' && Casino.allowed(me) ? [['casino', 'Casino']] : [], isLender(me) ? [['lend', 'Lending']] : []);
     if (!tabs.some(t => t[0] === ui.bsub)) ui.bsub = 'acct';
     const why = blockedWhy(s, me, w), out = isOut(s, me.id), cs = ui.bsub === 'casino';
     const body = cs ? (typeof Casino !== 'undefined' ? Casino.render(s, me, ui, w) : '') : ui.bsub === 'lend' ? lendView(s, me, ui, w) : acctView(s, me, ui, w);
@@ -372,7 +375,7 @@ const NW = (() => {
     const err = (key, m) => { say(ui, key, m); return done(); };
     if ((el = q('[data-nw-sub]'))) { ui.sub = el.dataset.nwSub; ui.err = ''; return done(); }
     if ((el = q('[data-nb-sub]'))) { ui.bsub = el.dataset.nbSub; ui.err = ''; window.scrollTo(0, 0); return done(); }
-    if (typeof Casino !== 'undefined' && ui.bsub === 'casino' && Casino.onClick(e, ctx)) return true;
+    if (typeof Casino !== 'undefined' && (ui.bsub === 'casino' || ui.sub === 'casino') && Casino.onClick(e, ctx)) return true;
     if ((el = q('[data-nw-lq]'))) { ui.lend.amt = Number(el.dataset.nwLq).toLocaleString('en-US'); return done(); }
     if (q('[data-nw-freeup]')) {
       const s = DB.fresh(), w = walletOf(me), cfg = fuCfg(w);

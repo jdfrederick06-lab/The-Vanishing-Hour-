@@ -264,7 +264,10 @@ const STORY = {
        minBet / maxBet are per round (all chips on the table together). */
     casino: { name: 'The Saint-Clair Foundation Casino', short: 'Saint-Clair Casino', beneficiary: 'dominique', feeTo: 'harper', harperCut: 0.10,
               minBet: 1000, maxBet: 5000000, chips: [1000, 10000, 100000, 1000000, 5000000],
-              opens: 'act1', closes: 'vote', bigWin: 250000 },
+              opens: 'act1', closes: 'vote', bigWin: 250000,
+              /* who may play (Jacob, Nov 12): NOT the FBI. The crew and Vivienne play from NIGHTWIRE
+                 (a CASINO tab there, betting from their own wallet); guests and staff from NightBank. */
+              groups: ['guest', 'staff', 'crew', 'thief'] },
     /* Cameron's loans (Jacob, Nov 12): his call on the rate. An unpaid loan past its due time lets
        him freeze the borrower's account by court order and name them publicly. Repaying lifts
        a court freeze. Being thrown out of the gala is the host's call (host terminal > People). */

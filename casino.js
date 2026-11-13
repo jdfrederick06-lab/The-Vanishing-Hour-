@@ -9,7 +9,7 @@
                 no splits, no insurance: about 2-3%.
      Lucky dice every bet pays below its true odds: 11% to 17%.
    Whatever the house wins on a round goes to Dominique's foundation, less
-   Harper's event fee (story.js > nightwire.casino).
+   Harper's event fee (story.js > nightwire.casino). No sound.
 
    Money: the stake leaves the player's account when the round starts (like
    putting chips down). When it ends the casino pays out any winnings, and
@@ -27,6 +27,8 @@ const Casino = (() => {
   const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
   const rounds = s => Object.entries(N(s).rounds || {}).map(([id, r]) => Object.assign({ id }, r)).sort((a, b) => b.at - a.at);
 
+  /** Who may play (story.js > casino.groups). The FBI may not. */
+  const allowed = me => !!me && (CFG().groups || ['guest', 'staff', 'crew', 'thief']).includes(me.group);
   function isOpen(s) {
     const m = N(s).casinoMode; if (m === 'open') return true; if (m === 'closed') return false;
     const r = Clock.read(s), c = CFG(); if (r.state === 'before' || r.state === 'over') return false;
@@ -35,34 +37,8 @@ const Casino = (() => {
   }
   const opensLabel = () => (STORY.phases.find(p => p.id === CFG().opens) || {}).name || 'the gala';
 
-  /* ---------- sound (made in the browser, no files) ---------- */
-  const SFX = (() => {
-    let ac = null;
-    const on = () => { try { return localStorage.getItem('vh:sfx') !== 'off'; } catch (e) { return true; } };
-    const set = v => { try { localStorage.setItem('vh:sfx', v ? 'on' : 'off'); } catch (e) { } };
-    const ctx = () => { if (!on()) return null; try { if (!ac) { const A = window.AudioContext || window.webkitAudioContext; if (!A) return null; ac = new A(); } if (ac.state === 'suspended') ac.resume(); return ac; } catch (e) { return null; } };
-    function tone(c, t, f, d, type, v) { const o = c.createOscillator(), g = c.createGain(); o.type = type || 'sine'; o.frequency.setValueAtTime(f, t); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(v, t + .008); g.gain.exponentialRampToValueAtTime(0.0001, t + d); o.connect(g).connect(c.destination); o.start(t); o.stop(t + d + .05); }
-    function hiss(c, t, d, v, hp) {
-      const n = Math.max(1, Math.ceil(c.sampleRate * d)), b = c.createBuffer(1, n, c.sampleRate), ch = b.getChannelData(0);
-      for (let i = 0; i < n; i++) ch[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, 2);
-      const src = c.createBufferSource(), f = c.createBiquadFilter(), g = c.createGain(); src.buffer = b; f.type = 'highpass'; f.frequency.value = hp || 1500; g.gain.value = v;
-      src.connect(f).connect(g).connect(c.destination); src.start(t);
-    }
-    return {
-      on, set,
-      chip() { const c = ctx(); if (!c) return; const t = c.currentTime; hiss(c, t, .045, .35, 3500); tone(c, t, 2600 + Math.random() * 400, .06, 'triangle', .04); },
-      card(delay = 0) { const c = ctx(); if (!c) return; const t = c.currentTime + delay / 1000; hiss(c, t, .09, .22, 1200); },
-      spin(ms) {
-        const c = ctx(); if (!c) return; const t = c.currentTime, D = ms / 1000, ticks = 56;
-        /* the ball clicks past the frets, slowing like the wheel (ease-out) */
-        for (let k = 0; k < ticks; k++) { const p = k / ticks; hiss(c, t + D * .8 * (1 - Math.pow(1 - p, 1 / 2.4)), .018, .16, 2800); }
-        [.74, .8, .87].forEach((x, i) => { tone(c, t + D * x, 1700 - i * 200, .07, 'triangle', .06); hiss(c, t + D * x, .03, .3, 2500); });
-      },
-      dice(ms) { const c = ctx(); if (!c) return; const t = c.currentTime; for (let k = 0; k < 9; k++) hiss(c, t + k * .055, .04, .25, 1800); [ms * .62, ms * .75, ms * .9].forEach(x => { hiss(c, t + x / 1000, .03, .4, 900); tone(c, t + x / 1000, 300, .05, 'square', .02); }); },
-      win(big) { const c = ctx(); if (!c) return; const t = c.currentTime; (big ? [523, 659, 784, 1047, 1319] : [659, 784, 1047]).forEach((f, i) => tone(c, t + i * .085, f, .32, 'triangle', .07)); },
-      lose() { const c = ctx(); if (!c) return; const t = c.currentTime; tone(c, t, 196, .25, 'sine', .06); tone(c, t + .14, 165, .35, 'sine', .05); }
-    };
-  })();
+  /* No sound (Jacob, Nov 12). The calls stay so the tables keep their timing; they do nothing. */
+  const SFX = { on: () => false, set() { }, chip() { }, card() { }, spin() { }, dice() { }, win() { }, lose() { } };
   const buzz = p => { try { if (navigator.vibrate && navigator.userActivation && navigator.userActivation.hasBeenActive) navigator.vibrate(p); } catch (e) { } };
 
   /* ---------- roulette (American: 0 and 00; 37 stands for 00) ---------- */
@@ -223,8 +199,6 @@ const Casino = (() => {
 
   /* ---------- screens ---------- */
   const ICON = {
-    on: '<svg viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9z"/><path d="M16 9a4 4 0 0 1 0 6M18.5 6.5a8 8 0 0 1 0 11"/></svg>',
-    off: '<svg viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9z"/><path d="M17 9l5 6M22 9l-5 6"/></svg>',
     rules: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.3-1 .9-1 1.7M12 17h.01"/></svg>'
   };
   const fresh = (at, ms) => at && Date.now() - at < ms;
@@ -305,6 +279,7 @@ const Casino = (() => {
   }
 
   function render(s, me, ui, w) {
+    if (!allowed(me)) return '<div class="cs"><div class="cs-rules"><b>Members only</b><p>The casino isn\'t open to you tonight.</p></div></div>';
     const c = S(ui), cfg = CFG(), open = isOpen(s), bal = NW.balance(s, w), blocked = NW.blockedWhy(s, me, w);
     if (!c.chip) c.chip = chipsFor()[1] || chipsFor()[0];
     recover(s, me, c);
@@ -323,7 +298,7 @@ const Casino = (() => {
     return `<div class="cs cs-g-${g}">
       <div class="cs-bar"><div class="cs-brand"><span class="cs-crest">SC</span><div><small>The Saint-Clair Foundation</small><b>Casino</b></div></div>
         <div class="cs-bal"><small>Your chips</small><b>${money(bal)}</b><em class="${myNet > 0 ? 'up' : myNet < 0 ? 'down' : ''}">${mine.length ? `tonight ${myNet >= 0 ? '+' : '−'}${short(Math.abs(myNet))}` : 'no bets yet'}</em></div>
-        <div class="cs-icons"><button type="button" class="cs-ico" data-cs-sfx aria-label="Sound ${SFX.on() ? 'on' : 'off'}" aria-pressed="${SFX.on()}">${SFX.on() ? ICON.on : ICON.off}</button><button type="button" class="cs-ico" data-cs-rules aria-label="House rules" aria-pressed="${c.rules}">${ICON.rules}</button></div></div>
+        <div class="cs-icons"><button type="button" class="cs-ico" data-cs-rules aria-label="House rules" aria-pressed="${c.rules}">${ICON.rules}</button></div></div>
       ${ticker(s)}
       <div class="cs-games" role="tablist">${[['roulette', 'Roulette', '0 · 00'], ['blackjack', 'Blackjack', '6 to 5'], ['dice', 'Lucky dice', 'up to 15:1']].map(([k, l, sub]) => `<button type="button" role="tab" data-cs-game="${k}" aria-selected="${g === k}" ${c.busy || (c.bj && (c.bj.phase === 'play' || c.bj.phase === 'dealer')) ? 'disabled' : ''}><b>${l}</b><small>${sub}</small></button>`).join('')}</div>
       ${c.rules ? rulesCard(g) : ''}
@@ -485,7 +460,7 @@ const Casino = (() => {
   function onClick(e, ctx) {
     const { ui } = ctx, c = S(ui), q = sel => e.target.closest(sel); let el;
     const done = () => { ctx.redraw(true); return true; };
-    if (q('[data-cs-sfx]')) { SFX.set(!SFX.on()); if (SFX.on()) SFX.chip(); return done(); }
+    if (!allowed(ctx.me)) return false;
     if (q('[data-cs-rules]')) { c.rules = !c.rules; return done(); }
     if ((el = q('[data-cs-game]'))) { if (c.busy || (c.bj && (c.bj.phase === 'play' || c.bj.phase === 'dealer'))) return true; c.game = el.dataset.csGame; c.err = ''; c.res = null; return done(); }
     if ((el = q('[data-cs-chip]'))) { c.chip = Number(el.dataset.csChip); c.err = ''; SFX.chip(); return done(); }
@@ -528,5 +503,5 @@ const Casino = (() => {
     };
   }
 
-  return { render, mount, onClick, onInput, isOpen, rounds, stats, SFX };
+  return { render, mount, onClick, onInput, isOpen, allowed, rounds, stats, SFX };
 })();
