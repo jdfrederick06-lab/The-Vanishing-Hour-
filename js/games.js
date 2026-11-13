@@ -539,9 +539,19 @@ const Games = (() => {
   }
   function onClick(e, me) {
     if (e.target.closest('[data-mg-close]')) { ui.open = null; return 'redraw'; }
-    const c = e.target.closest('[data-mg]'); if (c) { const d = def(c.dataset.mg), st = status(DB.get(), d); if (st === 'locked' || st === 'closed') return true; ui.open = d.id; return 'redraw'; }
+    const c = e.target.closest('[data-mg]'); if (c) {
+      const d = def(c.dataset.mg), st = status(DB.get(), d);
+      if (st === 'locked' || st === 'closed') {
+        /* say why instead of doing nothing */
+        note(st === 'closed' ? `"${d.name}" is closed.` : `"${d.name}" opens at ${wall(startMin(d))}${d.opens.phase ? ' (when "' + STORY.phases[PH(d.opens.phase)].short + '" starts)' : ''}. The host can open it early.`);
+        c.classList.remove('nudge'); void c.offsetWidth; c.classList.add('nudge');
+        return true;
+      }
+      ui.open = d.id; return 'redraw';
+    }
     return false;
   }
+  function note(text) { document.querySelectorAll('.toast.mg-note').forEach(t => t.remove()); const t = h('div', 'toast mg-note'); t.setAttribute('role', 'status'); t.textContent = text; document.body.appendChild(t); setTimeout(() => t.remove(), 3500); }
   addEventListener('keydown', e => { if (e.key === 'Escape' && ui.open && !(typeof Ask !== 'undefined' && Ask.isOpen())) { ui.open = null; mount(false); } });
   /* timers inside the games (the camera window, the decrypt animation) run even between redraws */
   const live = () => sheet && sheet.classList.contains('on') && inst[ui.open];
@@ -560,8 +570,9 @@ const Games = (() => {
 
   /* ---------- the host's controls ---------- */
   function hostPanel(s) {
-    const r = Clock.read(s);
-    return '<div class="mgh-grid">' + DEFS().map(d => {
+    const allOpen = DEFS().every(d => M(s, d.id).mode === 'open' || M(s, d.id).solved);
+    const bar = `<div class="mgh-all"><span>${allOpen ? 'Every game is open early.' : 'Games open on the night\'s clock. To try them now, open them all.'}</span><button class="btn small ${allOpen ? '' : 'primary'}" data-mgh="${allOpen ? 'clockall' : 'openall'}:all">${allOpen ? 'Put all back on the clock' : 'Open all now'}</button></div>`;
+    return bar + '<div class="mgh-grid">' + DEFS().map(d => {
       const st = status(s, d), m = M(s, d.id);
       const who = d.who.map(t => t.startsWith('g:') ? (STORY.groups[t.slice(2)] || {}).name || t : (G.byId(t) || {}).name || t).join(', ');
       const prog = d.id === 'camera' ? `${Object.keys(m.looped || {}).length}/6 looped · ${m.wrong || 0} wrong` : d.id === 'decrypt' ? `${Object.keys(m.got || {}).length}/3 keys` : d.id === 'ledger' ? `${Object.keys(m.hits || {}).length}/3 found` : d.id === 'messages' ? (m.started ? 'extraction run' : 'not started') : d.id === 'doorlog' ? `${m.tries || 0} wrong name${m.tries === 1 ? '' : 's'}` : '';
@@ -575,7 +586,9 @@ const Games = (() => {
   }
   function hostClick(e, toast) {
     const b = e.target.closest('[data-mgh]'); if (!b) return false;
-    const [a, id] = b.dataset.mgh.split(':'), d = def(id), s = DB.get(), m = M(s, id), u = {};
+    const [a, id] = b.dataset.mgh.split(':'), s = DB.get(), u = {};
+    if (a === 'openall' || a === 'clockall') { DEFS().forEach(g => { u['mg/' + g.id + '/mode'] = a === 'openall' ? 'open' : null; }); Clock.log(u, 'host', a === 'openall' ? 'Opened every mini-game early.' : 'Put every mini-game back on the clock.'); DB.update(u); toast(a === 'openall' ? 'All games open' : 'Back on the clock'); return true; }
+    const d = def(id), m = M(s, id);
     if (a === 'open') { u['mg/' + id + '/mode'] = m.mode === 'open' ? null : 'open'; Clock.log(u, 'host', `${m.mode === 'open' ? 'Returned' : 'Opened'} "${d.name}"${m.mode === 'open' ? ' to the clock' : ' early'}.`); DB.update(u); toast(m.mode === 'open' ? 'Back on the clock' : 'Opened'); }
     else if (a === 'close') { u['mg/' + id + '/mode'] = m.mode === 'closed' ? null : 'closed'; Clock.log(u, 'host', `${m.mode === 'closed' ? 'Reopened' : 'Closed'} "${d.name}".`); DB.update(u); toast(m.mode === 'closed' ? 'Back on the clock' : 'Closed'); }
     else if (a === 'solve') { if (!Ask.sure(`Mark "${d.name}" solved for everyone?${d.clue ? ' Clue ' + d.clue + ' will be marked found.' : ''}`, () => hostClick(e, toast), { title: 'Mini-games', ok: 'Mark solved' })) return true; u['mg/' + id + '/solved'] = { by: 'host', at: now() }; if (d.clue) u['clues/' + d.clue] = { at: now(), by: 'Host' }; if (id === 'vault') u['feed/' + uid('g')] = { to: ['g:crew'], title: 'The vault', text: 'Maintenance override: the vault door is open.', at: now(), kind: 'msg' }; Clock.log(u, 'host', `Marked "${d.name}" solved.`); DB.update(u); toast('Marked solved'); }

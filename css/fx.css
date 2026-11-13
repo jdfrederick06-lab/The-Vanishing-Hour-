@@ -1091,7 +1091,7 @@ textarea.rv-in { resize: vertical; min-height: 54px; line-height: 1.35; }
 @media (max-width: 420px) { .rv-card { padding: 28px 20px 24px; } .rv .rv-stage { padding-top: 40px; } }
 /* =================== IN-PAGE CONFIRMATIONS (Ask, in core.js) ===================
    Replaces the browser's "Are you sure?" popups. Takes each world's colors. */
-.ask { position: fixed; inset: 0; z-index: 200; display: grid; place-items: center; padding: 20px; background: rgba(5,7,12,.55); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); animation: askIn .18s ease-out both; }
+.ask { position: fixed; inset: 0; z-index: 500; display: grid; place-items: center; padding: 20px; background: rgba(5,7,12,.55); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); animation: askIn .18s ease-out both; }
 .ask.out { animation: askOut .18s ease-in both; }
 @keyframes askIn { from { opacity: 0; } } @keyframes askOut { to { opacity: 0; } }
 .ask-card { width: min(400px, 100%); padding: 22px 22px 18px; border-radius: 20px; background: var(--card, #161a22); color: var(--text, #f1f1f1); border: 1px solid var(--line, rgba(255,255,255,.12));

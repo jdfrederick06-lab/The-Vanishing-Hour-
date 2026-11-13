@@ -271,3 +271,10 @@ html.mg-lock, html.mg-lock body { overflow: hidden; }
 .evr a:hover { border-color: var(--accent); transform: translateX(2px); }
 .evr a span { flex: none; font-family: var(--mono); font-size: 10.5px; font-weight: 700; padding: 3px 7px; border-radius: 3px; background: linear-gradient(160deg, #e6cf98, #c6a666); color: #3a2a10; clip-path: polygon(10% 0, 100% 0, 100% 100%, 10% 100%, 0 50%); padding-left: 10px; }
 .evr a small { margin-left: auto; color: var(--mute); font-size: 12px; }
+
+/* host: open every game at once (testing) */
+.mgh-all{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:12px 14px;margin-bottom:12px;border:1px dashed var(--line,rgba(255,255,255,.18));border-radius:12px;font-size:13px;opacity:.95}
+/* a locked card shakes once when tapped */
+.mg-card.nudge{animation:mgNudge .38s ease}
+@keyframes mgNudge{20%{transform:translateX(-5px)}45%{transform:translateX(4px)}70%{transform:translateX(-2px)}100%{transform:none}}
+@media (prefers-reduced-motion:reduce){.mg-card.nudge{animation:none}}
