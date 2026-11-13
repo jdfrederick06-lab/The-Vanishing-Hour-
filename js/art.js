@@ -23,9 +23,86 @@ const Art = (() => {
   }
 
   /* ---------- June Ellery, "Mother and Child", 2001 ----------
-     A young mother by a window, in a blue shawl, her head bent over the baby in her arms.
-     Loose, warm, a student's brave brushwork. Portrait, 600 x 780. */
+     Painted in the manner of the Dutch masters: a dark room, light from a window on the left,
+     a young mother in a white headscarf and an ultramarine mantle, in profile, bowed over the
+     swaddled baby in her arms. Soft modelling, raised brushwork, canvas weave, fine cracks and
+     an old varnish. Portrait, 600 x 780. */
   function painting() {
+    const r = rng(2001);
+    /* fine cracks in the paint */
+    let cracks = '';
+    for (let i = 0; i < 120; i++) { let x = r() * 600, y = r() * 780, d = `M${x.toFixed(1)} ${y.toFixed(1)}`; for (let k = 0; k < 4; k++) { x += (r() - .5) * 26; y += (r() - .5) * 26; d += `L${x.toFixed(1)} ${y.toFixed(1)}`; } cracks += `<path d="${d}"/>`; }
+    const soft = (b, inner) => `<g filter="url(#b${b})">${inner}</g>`;
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 780" width="600" height="780">
+  <defs>
+    <filter id="b1" x="-10%" y="-10%" width="120%" height="120%"><feGaussianBlur stdDeviation="1.2"/></filter>
+    <filter id="b3" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="3"/></filter>
+    <filter id="b8" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="8"/></filter>
+    <filter id="b20" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="20"/></filter>
+    <!-- the oil: painterly edges, then raised brushwork lit from the window side -->
+    <filter id="oil" x="0" y="0" width="100%" height="100%">
+      <feTurbulence type="fractalNoise" baseFrequency=".022 .045" numOctaves="3" seed="11" result="w"/>
+      <feDisplacementMap in="SourceGraphic" in2="w" scale="7" xChannelSelector="R" yChannelSelector="G" result="p"/>
+      <feTurbulence type="fractalNoise" baseFrequency=".16 .26" numOctaves="3" seed="4" result="t"/>
+      <feDiffuseLighting in="t" surfaceScale="1.05" lighting-color="#fff6e4" result="l"><feDistantLight azimuth="225" elevation="52"/></feDiffuseLighting>
+      <feBlend in="p" in2="l" mode="multiply"/>
+    </filter>
+    <pattern id="weave" width="4" height="4" patternUnits="userSpaceOnUse"><path d="M0 1h4M1 0v4" stroke="#000" stroke-opacity=".07" stroke-width=".8"/></pattern>
+    <radialGradient id="room" cx=".18" cy=".2" r="1"><stop offset="0" stop-color="#b48a52"/><stop offset=".28" stop-color="#6b4a2a"/><stop offset=".62" stop-color="#2c1d11"/><stop offset="1" stop-color="#120b06"/></radialGradient>
+    <linearGradient id="glass" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fbf3dc"/><stop offset=".55" stop-color="#d8d0b4"/><stop offset="1" stop-color="#8e8a72"/></linearGradient>
+    <linearGradient id="shaft" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff2cf" stop-opacity=".42"/><stop offset="1" stop-color="#fff2cf" stop-opacity="0"/></linearGradient>
+    <linearGradient id="face" x1="0" y1="0" x2="1" y2=".25"><stop offset="0" stop-color="#f7e1c4"/><stop offset=".45" stop-color="#e3bc94"/><stop offset="1" stop-color="#8e6142"/></linearGradient>
+    <linearGradient id="linen" x1="0" y1="0" x2="1" y2=".4"><stop offset="0" stop-color="#fbf5e6"/><stop offset=".5" stop-color="#e2d6bc"/><stop offset="1" stop-color="#7f725c"/></linearGradient>
+    <linearGradient id="mantle" x1="0" y1="0" x2="1" y2=".3"><stop offset="0" stop-color="#4f71ad"/><stop offset=".4" stop-color="#2a4682"/><stop offset=".8" stop-color="#16264a"/><stop offset="1" stop-color="#0d1630"/></linearGradient>
+    <linearGradient id="bodice" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#d9a64e"/><stop offset=".6" stop-color="#9a6a26"/><stop offset="1" stop-color="#4f3412"/></linearGradient>
+    <radialGradient id="babyface" cx=".35" cy=".4" r=".7"><stop offset="0" stop-color="#fbe6cf"/><stop offset=".7" stop-color="#e8c3a0"/><stop offset="1" stop-color="#b98a66"/></radialGradient>
+    <radialGradient id="vig" cx=".42" cy=".45" r=".72"><stop offset=".55" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".62"/></radialGradient>
+  </defs>
+  <g filter="url(#oil)">
+    <rect width="600" height="780" fill="url(#room)"/>
+    <!-- the window, high on the left, and the light it lets in -->
+    ${soft(3, `<rect x="34" y="70" width="150" height="250" fill="url(#glass)"/><path d="M109 70v250M34 158h150M34 240h150" stroke="#4a3520" stroke-width="6"/><rect x="28" y="64" width="162" height="262" fill="none" stroke="#2a1b10" stroke-width="10"/>`)}
+    ${soft(20, `<path d="M70 300 L520 560 L470 780 L110 780 Z" fill="url(#shaft)"/>`)}
+    ${soft(20, `<ellipse cx="250" cy="420" rx="230" ry="260" fill="#c79a5c" opacity=".22"/>`)}
+    <!-- a dark table edge, lower left, with a cloth -->
+    ${soft(3, `<path d="M0 640 L210 610 L240 780 L0 780 Z" fill="#2a1a10"/><path d="M0 652 C60 640 140 632 214 624 L224 680 C150 690 70 700 0 712 Z" fill="#7a2e22" opacity=".85"/>`)}
+    <g transform="translate(-92 -78) scale(1.24)">
+    <!-- the mantle: deep ultramarine, falling from her shoulders over her lap -->
+    ${soft(3, `<path d="M330 360 C400 360 470 400 500 470 C540 560 560 680 570 780 L170 780 C190 700 230 640 270 600 C300 560 300 460 330 360 Z" fill="url(#mantle)"/>`)}
+    ${soft(8, `<path d="M372 420 C420 470 440 560 450 700" stroke="#6d8fcb" stroke-width="16" fill="none" opacity=".55"/><path d="M430 450 C470 520 492 620 500 760" stroke="#0b1226" stroke-width="22" fill="none" opacity=".6"/><path d="M300 620 C340 650 380 700 400 780" stroke="#5a7cbb" stroke-width="12" fill="none" opacity=".45"/>`)}
+    <!-- an ochre bodice glimpsed at her chest -->
+    ${soft(3, `<path d="M326 400 C352 392 386 398 404 424 C398 452 388 474 370 488 C350 490 330 480 318 462 Z" fill="url(#bodice)" opacity=".8"/>`)}
+    <!-- the white headscarf, over her head and down her back -->
+    ${soft(3, `<path d="M300 246 C318 206 380 196 420 226 C452 250 462 300 452 352 C446 392 430 430 404 452 C420 400 422 350 404 312 C392 290 370 280 352 282 C330 284 314 268 300 246 Z" fill="url(#linen)"/>`)}
+    ${soft(8, `<path d="M392 236 C430 262 444 320 430 392" stroke="#8b7e66" stroke-width="10" fill="none" opacity=".5"/>`)}
+    <!-- her face in profile, bowed toward the child, lit from the window -->
+    ${soft(1, `<path d="M306 252 C300 262 296 272 294 284 C292 292 286 300 282 310 C278 318 276 324 280 328 C284 330 288 330 288 334 C286 338 288 342 292 344 C290 348 292 352 296 356 C300 364 306 370 316 372 C326 374 338 370 346 362 C352 340 356 316 352 296 C346 280 330 264 306 252 Z" fill="url(#face)"/>`)}
+    ${soft(3, `<path d="M300 300 q8 4 16 2" stroke="#6b3f2a" stroke-width="2.4" fill="none"/><ellipse cx="318" cy="322" rx="14" ry="9" fill="#d68a72" opacity=".28"/><path d="M292 344 q5 2 9 0" stroke="#8a4a3a" stroke-width="2" fill="none" opacity=".8"/>`)}
+    ${soft(8, `<path d="M330 372 C344 392 352 410 350 430" stroke="#5a3a26" stroke-width="16" fill="none" opacity=".45"/>`)}
+    <!-- the neck and a sliver of hair under the scarf -->
+    ${soft(1, `<path d="M320 366 C330 384 336 404 334 424 L366 424 C362 400 354 380 348 362 Z" fill="#c99a72"/><path d="M304 254 C318 246 336 250 344 262 C330 260 316 262 306 268 Z" fill="#3a2214"/>`)}
+    <!-- the child, swaddled in linen, cradled in her arms -->
+    ${soft(3, `<path d="M170 548 C176 500 236 470 300 478 C360 486 400 520 402 560 C404 600 360 624 300 624 C232 626 166 600 170 548 Z" fill="url(#linen)"/>`)}
+    ${soft(8, `<path d="M196 590 C250 604 330 604 384 580" stroke="#7f725c" stroke-width="12" fill="none" opacity=".5"/><path d="M230 500 C270 520 330 528 380 520" stroke="#fffaf0" stroke-width="10" fill="none" opacity=".6"/>`)}
+    ${soft(1, `<ellipse cx="240" cy="512" rx="34" ry="30" fill="url(#babyface)"/>`)}
+    ${soft(3, `<path d="M226 508 q6 2 11 0M248 506 q6 2 11 0" stroke="#8a5a40" stroke-width="2" fill="none" opacity=".75"/><path d="M236 528 q5 2 9 0" stroke="#a5604a" stroke-width="2" fill="none" opacity=".7"/><ellipse cx="226" cy="520" rx="8" ry="5" fill="#e09a84" opacity=".3"/>`)}
+    ${soft(3, `<path d="M206 494 C220 474 262 470 280 488 C264 482 236 482 216 498 Z" fill="#f4ecdc"/>`)}
+    <!-- her hands: one under him, one resting on the linen -->
+    ${soft(1, `<path d="M346 540 C366 528 396 532 404 548 C398 562 372 566 350 560 Z" fill="url(#face)"/><path d="M180 590 C196 582 220 586 230 600 C218 610 194 610 180 604 Z" fill="#c99a72"/>`)}
+    <!-- the highlights: where the window light lands -->
+    ${soft(3, `<path d="M290 296 C286 306 282 314 282 322" stroke="#fff3df" stroke-width="3" fill="none" opacity=".7"/><path d="M196 530 C210 512 240 500 262 498" stroke="#fffaf0" stroke-width="5" fill="none" opacity=".55"/><path d="M308 236 C330 214 370 208 400 222" stroke="#fffaf2" stroke-width="5" fill="none" opacity=".5"/>`)}
+    </g>
+    ${strokes(r, 140, [0, 0, 600, 360, -.6], ['#6b4a2a', '#4a3220', '#8a6238'], 26, 7, .14)}
+    ${strokes(r, 90, [180, 620, 380, 160, 1.3], ['#2a4682', '#16264a', '#4f71ad'], 30, 7, .22)}
+  </g>
+  <rect width="600" height="780" fill="url(#weave)"/>
+  <g fill="none" stroke="#1a0f06" stroke-opacity=".16" stroke-width=".6">${cracks}</g>
+  <rect width="600" height="780" fill="#8a5a1c" opacity=".14" style="mix-blend-mode:multiply"/>
+  <rect width="600" height="780" fill="url(#vig)"/>
+  <text x="30" y="756" font-family="'Homemade Apple','Caveat',cursive" font-size="17" fill="#d9b88a" opacity=".55" transform="rotate(-2 30 756)">J. Ellery 2001</text>
+</svg>`;
+  }
+  function paintingOld() {
     const r = rng(2001);
     return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 780" width="600" height="780">
   <defs>

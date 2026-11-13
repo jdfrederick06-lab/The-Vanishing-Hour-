@@ -10,10 +10,11 @@
    Replies are saved as rsvp/{id} and listed on the host terminal (RSVPs tab).
    A reply is never deleted: changing it keeps the earlier version.
    This page doesn't load story.js, so it can go online before the game does.
-     rsvp/{id} = { first, last, reply: yes|maybe|no, size: lead|support, world, phone, email,
-                   with, notes, at, updated?, history?: [earlier versions], token }
-     world is the answer to "Which best describes you?" and quietly maps to a side of the
-     story (guest, fbi, crew, staff, any); only the host sees which is which.
+     rsvp/{id} = { first, last, pronouns, photo (small JPEG data URL), reply: yes|maybe|no,
+                   size: lead|support, email, with, notes,
+                   plus: { first, last, pronouns, email, size } | null,
+                   at, updated?, history?: [earlier versions], token }
+     (Older replies may also carry world and phone from the earlier form.)
    ===================================================================== */
 (function () {
   const I = CONFIG.INVITE || {};
@@ -26,8 +27,6 @@
   const DOOR = 'gala/';
 
   const SIZES = [['lead', 'A leading role', 'At the heart of the story: the biggest secrets and the hardest choices.'], ['support', 'A large supporting role', 'Still deep in the plot, with a little more room to breathe.']];
-  /* "Which best describes you?" Each answer quietly points at a side of the story (the value). */
-  const WORLDS = [['guest', 'The one everyone is watching', 'Charming, connected, a little dramatic.'], ['fbi', 'The one asking the questions', 'You notice what others miss and can\'t leave a puzzle alone.'], ['crew', 'The one with a plan', 'Calm under pressure. Rules are more like suggestions.'], ['staff', 'The one nobody notices', 'Quietly in the background, hearing everything.'], ['any', 'Surprise me', 'Cast me wherever the story needs me.']];
   const REPLIES = [['yes', 'Accepts with pleasure'], ['maybe', 'Hopes to attend'], ['no', 'Declines with regret']];
 
   /* the house rules (nothing that gives the story away). third value = remember this one */
@@ -52,7 +51,15 @@
     ['I already have a code word. Where do I go?', 'Use "Enter the gala" above, or "I have a code word" at the top of the page. Type it in and your phone becomes your character\'s.']
   ];
 
-  const st = { step: 'form', err: '', f: { first: '', last: '', reply: '', size: '', world: '', phone: '', email: '', with: '', notes: '' } };
+  const blank = () => ({ first: '', last: '', pronouns: '', photo: '', reply: '', size: '', email: '', with: '', notes: '', plus: '', pfirst: '', plast: '', ppronouns: '', pemail: '', psize: '' });
+  const st = { step: 'form', err: '', f: blank() };
+  /* a photo is shrunk on the phone before it's saved (max 480 px, JPEG), so a reply stays small */
+  function readPhoto(file, cb) {
+    if (!file || !/^image\//.test(file.type)) return cb(null);
+    const fr = new FileReader();
+    fr.onload = () => { const img = new Image(); img.onload = () => { const k = Math.min(1, 480 / Math.max(img.width, img.height)); const c = document.createElement('canvas'); c.width = Math.round(img.width * k); c.height = Math.round(img.height * k); c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); try { cb(c.toDataURL('image/jpeg', .82)); } catch (e) { cb(null); } }; img.onerror = () => cb(null); img.src = fr.result; };
+    fr.onerror = () => cb(null); fr.readAsDataURL(file);
+  }
   const prev = mine(); if (prev) { const s = DB.get(), r = s.rsvp && s.rsvp[prev.id]; if (r && r.token === prev.token) { st.step = 'done'; st.saved = Object.assign({ id: prev.id }, r); } }
 
   /* ---------- drawn pieces (one set of gradients, shared) ---------- */
@@ -107,6 +114,30 @@
   /* the same emblem, in gold line, for Victor's letterhead */
   const crest = `<svg viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="22" fill="none" stroke="#9c7428" stroke-width="1.2"/><circle cx="24" cy="24" r="18.5" fill="none" stroke="#9c7428" stroke-width=".6"/><g transform="translate(24 24)" fill="none" stroke="#7a5719" stroke-width="1.3" stroke-linecap="round"><path d="M-7 -11 H7 M-7 11 H7 M-5.4 -11 C-5.4 -4 -1.2 -2 -1.2 0 C-1.2 2 -5.4 4 -5.4 11 M5.4 -11 C5.4 -4 1.2 -2 1.2 0 C1.2 2 5.4 4 5.4 11"/></g><path d="M20 34.5 Q24 30 28 34.5 Z" fill="#9c7428"/></svg>`;
 
+  /* a hand-torn (deckled) paper edge, as a clip-path */
+  function deckle() {
+    const pts = [], n = 26, j = () => (Math.random() * .7).toFixed(2);
+    for (let i = 0; i <= n; i++) pts.push(`${(i / n * 100).toFixed(2)}% ${j()}%`);
+    for (let i = 1; i <= n; i++) pts.push(`calc(100% - ${j()}%) ${(i / n * 100).toFixed(2)}%`);
+    for (let i = n - 1; i >= 0; i--) pts.push(`${(i / n * 100).toFixed(2)}% calc(100% - ${j()}%)`);
+    for (let i = n - 1; i > 0; i--) pts.push(`${j()}% ${(i / n * 100).toFixed(2)}%`);
+    return `polygon(${pts.join(',')})`;
+  }
+  /* a banknote-style guilloche, drawn once as a background */
+  function guilloche() {
+    const W = 360, H = 120, lines = [];
+    for (let k = 0; k < 9; k++) {
+      let d = ''; for (let x = 0; x <= W; x += 4) { const y = H / 2 + Math.sin(x / W * Math.PI * 4 + k * .7) * (22 + k * 3) + Math.sin(x / W * Math.PI * 10 + k) * 6; d += (x ? 'L' : 'M') + x + ' ' + y.toFixed(1); }
+      lines.push(`<path d="${d}" fill="none" stroke="#d8b25e" stroke-opacity="${(.05 + (k % 3) * .02).toFixed(2)}" stroke-width=".8"/>`);
+    }
+    return `url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='${W}' height='${H}'>${lines.join('')}</svg>`)}")`;
+  }
+  /* a barcode for the stub (decorative) */
+  function barcode() {
+    const r = (s => () => (s = (s * 16807) % 2147483647) / 2147483647)(1874); let x = 0, bars = '';
+    while (x < 92) { const w = 1 + Math.floor(r() * 3); bars += `<rect x="${x}" y="0" width="${w}" height="28" fill="#d8b25e"/>`; x += w + 1 + Math.floor(r() * 3); }
+    return `<svg class="tk-bar" viewBox="0 0 92 28" preserveAspectRatio="none" aria-hidden="true">${bars}</svg>`;
+  }
   let k = 0;
   const title = CONFIG.TITLE.split(' ').map(w => `<span class="w">${w.split('').map(ch => `<span class="c" style="--k:${k++}">${esc(ch)}</span>`).join('')}</span>`).join(' ');
   const rope = `<svg viewBox="0 0 1200 120" preserveAspectRatio="none" aria-hidden="true">
@@ -140,16 +171,18 @@
     <section class="gal" id="evening"><div class="gal-in">
       ${head('I', 'The evening', 'You are cordially <em>invited</em>')}
       <div class="evening">
-        <article class="letter reveal"><div class="lh">${crest}<div><b>Victor J. Ashgrove</b><span>The Ashgrove Collection</span></div></div>
+        <div class="letter-wrap reveal"><div class="envelope" aria-hidden="true"><i class="flap"></i><span>${esc(CONFIG.EVENT)}</span></div>
+        <article class="letter" style="clip-path:${deckle()}"><i class="fold f1" aria-hidden="true"></i><i class="fold f2" aria-hidden="true"></i><div class="wm" aria-hidden="true">${crest}</div>
+          <div class="lh"><div class="lh-crest">${crest}</div><b>Victor J. Ashgrove</b><span>The Ashgrove Collection · Harbor Hill</span></div>
           <p class="dear">My dear friend,</p>
           <p>For one evening this spring, I am opening the Ashgrove Collection to a few of the most interesting people I know. There will be music, champagne, and conversation. Some of the guests are old friends. A few, I suspect, are not.</p>
           <p>I hear every guest arrives with a story. I'd ask you to bring one too: come as someone else. Everyone else will.</p>
           <p>Do stay for my toast. It's the reason for the whole affair.</p>
-          <div class="sig"><i>Until then,</i><b>Victor Ashgrove</b></div>
+          <div class="sig"><div><i>Until then,</i><b>Victor Ashgrove</b></div><div class="sig-seal">${waxSeal()}</div></div>
           <p class="ps">P.S. Keep this invitation to yourself. Not everyone made the list.</p>
-        </article>
+        </article></div>
         <div class="reveal" style="transition-delay:.12s"><p class="steps-h">How the night works</p><ol class="steps">
-          <li><b>Reply</b><p>Tell us you're coming, how big a part you'd like, and which kind of person you are. We'll do the rest.</p></li>
+          <li><b>Reply</b><p>Tell us you're coming, how big a part you'd like, and whether you're bringing a plus-one. We'll do the rest.</p></li>
           <li><b>Become someone else</b><p>About a week before, your character arrives by email: a name, a past, secrets worth keeping, goals worth chasing, and a code word.</p></li>
           <li><b>Play the night</b><p>Your phone becomes your character's. Talk, trade, bargain and dig. At the end, everyone gives their verdict, and the truth comes out.</p></li>
         </ol></div>
@@ -158,15 +191,16 @@
 
     <section class="gal" id="where"><div class="gal-in">
       ${head('II', 'When and where', 'Admit one')}
-      <div class="ticket reveal"><div class="main">
-        <div class="tk-top"><b>${esc(CONFIG.EVENT)}</b><small>${esc(CONFIG.SEASON)}</small></div>
+      <div class="ticket reveal"><div class="tk-main" style="background-image:${guilloche()}">
+        <div class="tk-head"><div class="tk-crest">${crest}</div><div><small>The Ashgrove Collection requests your presence at</small><b>${esc(CONFIG.EVENT)}</b><em>One night only · ${esc(CONFIG.SEASON)}</em></div></div>
         <div class="tk-grid">
           <div><small>Date</small><b>${esc(I.DATE || '')}</b></div>
           <div><small>Doors</small><b>${esc(I.TIME || '')}</b></div>
           <div><small>Place</small><b>${esc(I.PLACE || '')}</b><span>The evening moves between several rooms. Directions come with your character.</span></div>
           <div><small>Dress</small><b>${esc(I.DRESS || '')}</b></div>
-        </div></div>
-        <div class="stub"><div><span class="adm">Admit one</span><small>No. ${String(1874).padStart(6, '0')}</small></div></div>
+        </div>
+        <div class="tk-foot"><span>By invitation only · not transferable</span><span>Series A · Hall I</span></div></div>
+        <div class="tk-stub"><div class="tk-adm">Admit<br>one</div>${barcode()}<small>No. 001874</small></div>
       </div>
       <div class="bring reveal">${BRING.map(([h, p], i) => `<div><small>Bring ${['i', 'ii', 'iii', 'iv'][i]}</small><b>${esc(h)}</b><span>${esc(p)}</span></div>`).join('')}</div>
     </div></section>
@@ -192,23 +226,34 @@
       return `<div class="card">${waxSeal()}<div class="done">
         <svg class="tick" viewBox="0 0 52 52" aria-hidden="true"><circle cx="26" cy="26" r="24"/><path d="M15 27l7 7 15-16"/></svg>
         <h3>${r.reply === 'no' ? 'We\'ll miss you' : 'Your reply is in'}</h3>
-        <p class="who"><span>M</span>${esc(r.first)} ${esc(r.last)}</p>
+        ${r.photo ? `<img class="me-photo" src="${r.photo}" alt="">` : ''}
+        <p class="who">${esc(r.first)} ${esc(r.last)}${r.pronouns ? `<small>${esc(r.pronouns)}</small>` : ''}</p>
         <p class="rep">${esc(rep)}</p>
         ${r.reply === 'no' ? '<p>Thank you for letting us know. If your plans change, you can change your reply here.</p>'
           : `<p>About a week before the night you'll receive your character: who you are, what you're hiding, and the code word that lets you in. ${r.email ? 'It goes to <b>' + esc(r.email) + '</b>.' : 'Your host will hand it to you.'}</p>
-            <ul class="sum"><li><span>Part</span>${esc(label(SIZES, r.size) || 'To be decided')}</li><li><span>You are</span>${esc(label(WORLDS, r.world) || 'To be decided')}</li></ul>`}
+            <ul class="sum"><li><span>Part</span>${esc(label(SIZES, r.size) || 'To be decided')}</li>${r.plus ? `<li><span>Plus-one</span>${esc(r.plus.first)} ${esc(r.plus.last)}</li>` : ''}</ul>`}
         <p class="refno">Reply no. ${esc(ref(r.id))}</p>
         <button type="button" class="linkbtn" data-iv="edit">Change my reply</button></div></div>`;
     }
+    const bringing = f.plus === 'yes';
     return `<form class="card" id="rvf" novalidate>${waxSeal()}
       <div class="card-head"><small>The favour of a reply</small><b>${esc(CONFIG.EVENT)}</b><span>${esc(I.RSVP_BY || '')}</span></div>
-      <div class="name"><span class="m" aria-hidden="true">M</span><input class="fld" name="first" placeholder="First name" value="${esc(f.first)}" autocomplete="given-name" aria-label="First name"><input class="fld" name="last" placeholder="Last name" value="${esc(f.last)}" autocomplete="family-name" aria-label="Last name"></div>
+      <div class="name"><input class="fld" name="first" placeholder="First name" value="${esc(f.first)}" autocomplete="given-name" aria-label="First name"><input class="fld" name="last" placeholder="Last name" value="${esc(f.last)}" autocomplete="family-name" aria-label="Last name"></div>
+      <label class="lab">Pronouns <i>(optional)</i><input class="fld" name="pronouns" placeholder="she/her, he/him, they/them…" value="${esc(f.pronouns)}" maxlength="40" list="pron"></label>
+      <datalist id="pron"><option value="she/her"><option value="he/him"><option value="they/them"><option value="she/they"><option value="he/they"></datalist>
       <fieldset class="set replies"><legend>Your reply</legend>${REPLIES.map(([v, l]) => opt('reply', v, l, '', f.reply === v)).join('')}</fieldset>
       ${coming ? `
         <fieldset class="set"><legend>How big a part would you like?</legend><span class="hint">Every part is a real part. This is about how much of the spotlight you want.</span>${SIZES.map(([v, l, d]) => opt('size', v, l, d, f.size === v)).join('')}</fieldset>
-        <fieldset class="set"><legend>Which best describes you?</legend><span class="hint">Answer honestly. It helps us cast you.</span><div class="grid2">${WORLDS.map(([v, l, d]) => opt('world', v, l, d, f.world === v)).join('')}</div></fieldset>
-        <fieldset class="set"><legend>Will you have a smartphone with you?</legend><div class="row2">${opt('phone', 'yes', 'Yes', '', f.phone === 'yes')}${opt('phone', 'no', 'No', '', f.phone === 'no')}</div></fieldset>
+        <div class="set photo-set"><span class="leg">A photo of you <i>(optional)</i></span>
+          <div class="photo-pick">${f.photo ? `<img src="${f.photo}" alt="Your photo">` : '<span class="ph-empty" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="9" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg></span>'}
+            <div><label class="btn small-btn">${f.photo ? 'Change photo' : 'Add a photo'}<input type="file" name="photofile" accept="image/*" hidden></label>${f.photo ? '<button type="button" class="linkbtn" data-iv="nophoto">Remove</button>' : ''}<small>It helps us put a face to your name when we cast the night. Only the hosts see it.</small></div></div></div>
         <label class="lab">Email <i>(your character is sent here)</i><input class="fld" type="email" name="email" placeholder="you@example.com" value="${esc(f.email)}" autocomplete="email"></label>
+        <fieldset class="set"><legend>Bringing a plus-one?</legend><span class="hint">They'll get a character of their own.</span><div class="row2">${opt('plus', 'yes', 'Yes', '', f.plus === 'yes')}${opt('plus', 'no', 'Just me', '', f.plus === 'no')}</div></fieldset>
+        ${bringing ? `<div class="plus-box"><span class="leg">Your plus-one</span>
+          <div class="name"><input class="fld" name="pfirst" placeholder="First name" value="${esc(f.pfirst)}" aria-label="Plus-one's first name"><input class="fld" name="plast" placeholder="Last name" value="${esc(f.plast)}" aria-label="Plus-one's last name"></div>
+          <label class="lab">Their pronouns <i>(optional)</i><input class="fld" name="ppronouns" placeholder="she/her, he/him, they/them…" value="${esc(f.ppronouns)}" maxlength="40" list="pron"></label>
+          <label class="lab">Their email <i>(their character is sent here)</i><input class="fld" type="email" name="pemail" placeholder="them@example.com" value="${esc(f.pemail)}"></label>
+          <fieldset class="set"><legend>How big a part for them?</legend>${SIZES.map(([v, l]) => opt('psize', v, l, '', f.psize === v)).join('')}</fieldset></div>` : ''}
         <label class="lab">Anyone you'd love a storyline with? <i>(optional)</i><input class="fld" name="with" placeholder="A friend, a roommate…" value="${esc(f.with)}" maxlength="140"></label>
         <label class="lab">Allergies, access needs, anything we should know? <i>(optional)</i><textarea class="fld" name="notes" rows="2" maxlength="400" placeholder="Stairs, food, anything your character shouldn't do…">${esc(f.notes)}</textarea></label>` : ''}
       <div class="err" role="alert">${esc(st.err)}</div>
@@ -313,28 +358,43 @@
   /* keep typed answers without redrawing (so the keyboard stays put) */
   document.addEventListener('input', e => { const n = e.target.name; if (n && n in st.f && e.target.type !== 'radio') st.f[n] = e.target.value; });
   document.addEventListener('change', e => {
+    if (e.target.name === 'photofile') {
+      readPhoto(e.target.files && e.target.files[0], url => { if (url) { st.f.photo = url; st.err = ''; } else st.err = 'That photo couldn\'t be read. Try a JPEG or PNG.'; drawCard(); });
+      return;
+    }
     const n = e.target.name; if (!n || !(n in st.f) || e.target.type !== 'radio') return;
     const was = st.f[n]; st.f[n] = e.target.value; st.err = '';
-    /* the extra questions appear once you say you're coming */
-    if (n === 'reply' && ((was === 'yes' || was === 'maybe') !== (st.f.reply === 'yes' || st.f.reply === 'maybe'))) drawCard();
+    /* the extra questions appear once you say you're coming (and the plus-one's once you say you're bringing one) */
+    if ((n === 'reply' && ((was === 'yes' || was === 'maybe') !== (st.f.reply === 'yes' || st.f.reply === 'maybe'))) || (n === 'plus' && was !== st.f.plus)) drawCard();
     else $$('input[name="' + n + '"]').forEach(x => x.closest('.opt').classList.toggle('on', x.checked));
   });
   document.addEventListener('click', e => {
     const b = e.target.closest('[data-iv]'); if (!b) return;
-    if (b.dataset.iv === 'edit') { const r = st.saved; st.f = { first: r.first, last: r.last, reply: r.reply, size: SIZES.some(x => x[0] === r.size) ? r.size : '', world: r.world || '', phone: r.phone || '', email: r.email || '', with: r.with || '', notes: r.notes || '' }; st.step = 'form'; drawCard(); }
+    if (b.dataset.iv === 'nophoto') { st.f.photo = ''; drawCard(); }
+    if (b.dataset.iv === 'edit') {
+      const r = st.saved, p = r.plus || {};
+      st.f = Object.assign(blank(), { first: r.first, last: r.last, pronouns: r.pronouns || '', photo: r.photo || '', reply: r.reply, size: SIZES.some(x => x[0] === r.size) ? r.size : '', email: r.email || '', with: r.with || '', notes: r.notes || '',
+        plus: r.plus ? 'yes' : (r.reply === 'no' ? '' : 'no'), pfirst: p.first || '', plast: p.last || '', ppronouns: p.pronouns || '', pemail: p.email || '', psize: p.size || '' });
+      st.step = 'form'; drawCard();
+    }
   });
   document.addEventListener('submit', e => {
     if (e.target.id !== 'rvf') return; e.preventDefault();
     const f = st.f, coming = f.reply === 'yes' || f.reply === 'maybe';
     const fail = m => { st.err = m; drawCard(); const er = $('#rvf .err'); if (er) er.scrollIntoView({ block: 'center', behavior: calm ? 'auto' : 'smooth' }); };
-    f.first = f.first.trim(); f.last = f.last.trim(); f.email = f.email.trim();
+    ['first', 'last', 'email', 'pronouns', 'pfirst', 'plast', 'pemail', 'ppronouns'].forEach(k => { f[k] = (f[k] || '').trim(); });
+    const okMail = m => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(m);
     if (!f.first || !f.last) return fail('Please write your first and last name.');
     if (!f.reply) return fail('Please choose your reply.');
     if (coming && !f.size) return fail('How big a part would you like?');
-    if (coming && !f.world) return fail('Which best describes you?');
-    if (coming && !f.phone) return fail('Will you have a smartphone with you?');
-    if (f.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(f.email)) return fail('That email doesn\'t look right.');
-    const rec = { first: f.first, last: f.last, reply: f.reply, size: coming ? f.size : null, world: coming ? f.world : null, phone: coming ? f.phone : null, email: f.email || null, with: coming ? f.with.trim() || null : null, notes: coming ? f.notes.trim() || null : null };
+    if (f.email && !okMail(f.email)) return fail('That email doesn\'t look right.');
+    if (coming && !f.plus) return fail('Are you bringing a plus-one?');
+    const plus = coming && f.plus === 'yes';
+    if (plus && (!f.pfirst || !f.plast)) return fail('Please write your plus-one\'s first and last name.');
+    if (plus && !f.psize) return fail('How big a part would your plus-one like?');
+    if (plus && f.pemail && !okMail(f.pemail)) return fail('Your plus-one\'s email doesn\'t look right.');
+    const rec = { first: f.first, last: f.last, pronouns: f.pronouns || null, photo: f.photo || null, reply: f.reply, size: coming ? f.size : null, email: f.email || null, with: coming ? f.with.trim() || null : null, notes: coming ? f.notes.trim() || null : null,
+      plus: plus ? { first: f.pfirst, last: f.plast, pronouns: f.ppronouns || null, email: f.pemail || null, size: f.psize } : null };
     const s = DB.fresh(), u = {};
     let id;
     if (st.saved && s.rsvp && s.rsvp[st.saved.id]) {

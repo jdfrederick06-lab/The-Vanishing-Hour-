@@ -128,7 +128,7 @@ const Games = (() => {
       diff: 3, mins: '5–8', par: { sec: 360, miss: 2 },
       goal: 'Prove whether the "Harbor at Dusk" on the wall is the real painting.',
       rules: ['<b>Seven</b> things are different between the 2019 catalogue photo and the painting on the wall tonight.',
-        'Tap a difference on either picture. Point at a picture (or press and hold on a phone) to look through the loupe.',
+        'Tap a difference on either picture. Look closely: some are very small.',
         'Four wrong taps in a row and your eyes need a ten-second rest.'],
       hints: ['Start with the sky: the sun, and the birds.',
         'Count things: the lighthouse\'s red bands, the lines of light on the water.',
@@ -687,7 +687,7 @@ const Games = (() => {
     let found; try { found = JSON.parse(localStorage.getItem(KEY)) || []; } catch (e) { found = []; }
     let streak = 0, coolUntil = 0, last = '', press = null;
     const src = { o: Art.uri(Art.harbor(false)), c: Art.uri(Art.harbor(true)) };
-    el.innerHTML = `<div class="mgf-wall"><div class="mgf-pair">${[['o', 'Museum catalogue · 2019'], ['c', 'On the wall · tonight']].map(([k, cap]) => `<figure><div class="mgf-img" data-f="${k}"><img alt="" src="${src[k]}" draggable="false"><svg viewBox="0 0 480 340" data-f="m${k}"></svg><div class="mgf-loupe" data-f="L${k}" style="background-image:url('${src[k]}')"></div></div><figcaption>${cap}</figcaption></figure>`).join('')}</div></div>
+    el.innerHTML = `<div class="mgf-wall"><div class="mgf-pair">${[['o', 'Museum catalogue · 2019'], ['c', 'On the wall · tonight']].map(([k, cap]) => `<figure><div class="mgf-img" data-f="${k}"><img alt="" src="${src[k]}" draggable="false"><svg viewBox="0 0 480 340" data-f="m${k}"></svg></div><figcaption>${cap}</figcaption></figure>`).join('')}</div></div>
       <div class="mgf-bar"><div class="mgf-pips" data-f="pips"></div><span data-f="msg" role="status"></span></div><ol class="mgf-list" data-f="list"></ol>`;
     const q = k => el.querySelector(`[data-f="${k}"]`);
     const marks = () => found.map(i => { const dd = D[i]; return `<circle cx="${dd.x}" cy="${dd.y}" r="${dd.r}" class="mgf-ring"/>`; }).join('');
@@ -714,21 +714,12 @@ const Games = (() => {
       }
       draw();
     }
-    function loupe(k, e, on) {
-      const L = q('L' + k), img = q(k).querySelector('img'), b = img.getBoundingClientRect(), Z = 2.6, S = 132;
-      if (!on) { L.classList.remove('on'); return; }
-      const x = e.clientX - b.left, y = e.clientY - b.top;
-      if (x < 0 || y < 0 || x > b.width || y > b.height) { L.classList.remove('on'); return; }
-      L.style.backgroundSize = `${b.width * Z}px ${b.height * Z}px`; L.style.backgroundPosition = `${-(x * Z - S / 2)}px ${-(y * Z - S / 2)}px`;
-      L.style.transform = `translate(${x + (img.offsetLeft) - S / 2}px, ${y + img.offsetTop - S / 2 - (e.pointerType === 'mouse' ? 0 : 70)}px)`; L.classList.add('on');
-    }
+    /* a tap is a tap (a drag or scroll isn't) */
     ['o', 'c'].forEach(k => {
       const box = q(k);
-      box.addEventListener('pointermove', e => { if (e.pointerType === 'mouse' || (press && press.k === k && press.held)) loupe(k, e, true); if (press && Math.hypot(e.clientX - press.x, e.clientY - press.y) > 10) { press.moved = true; } });
-      box.addEventListener('pointerleave', () => { loupe(k, null, false); });
-      box.addEventListener('pointerdown', e => { press = { k, x: e.clientX, y: e.clientY, t: now(), held: false, moved: false }; if (e.pointerType !== 'mouse') { press.timer = setTimeout(() => { if (press) { press.held = true; loupe(k, e, true); } }, 260); try { box.setPointerCapture(e.pointerId); } catch (er) { } } });
-      box.addEventListener('pointerup', e => { const p = press; press = null; if (!p) return; clearTimeout(p.timer); if (e.pointerType !== 'mouse') loupe(k, null, false); if (!p.held && !p.moved) tapAt(k, e); });
-      box.addEventListener('pointercancel', () => { if (press) clearTimeout(press.timer); press = null; loupe(k, null, false); });
+      box.addEventListener('pointerdown', e => { press = { k, x: e.clientX, y: e.clientY }; });
+      box.addEventListener('pointerup', e => { const p = press; press = null; if (p && p.k === k && Math.hypot(e.clientX - p.x, e.clientY - p.y) < 10) tapAt(k, e); });
+      box.addEventListener('pointercancel', () => { press = null; });
     });
     return { el, sync: draw, tick: () => { if (coolUntil) draw(); }, prog: () => [found.length, N, found.length + ' of ' + N] };
   }
