@@ -144,8 +144,8 @@
     return `<div class="dk-cols me"><div class="dk-b sticky">${idCard(s)}
       <div class="sec-title">What everyone knows about you</div>
       <div class="card">${esc(ME.profile)}</div></div><div class="dk-a">
-      <div class="sec-title">Your dossier</div>
-      <div class="card dossier">${d ? d : '<div class="empty-rich"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h3"/></svg><div><b>Sealed until the night</b><span>Your full dossier (your backstory, secrets, goals and who to find) will appear here before the night.</span></div></div>'}</div>
+      ${d && typeof Dossier !== 'undefined' ? Dossier.render(d, ME, WORLD) : `<div class="sec-title">Your dossier</div>
+      <div class="card dossier">${'<div class="empty-rich"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h3"/></svg><div><b>Sealed until the night</b><span>Your full dossier (your backstory, secrets, goals and who to find) will appear here before the night.</span></div></div>'}</div>`}
       <button class="btn" data-act="out">Sign out</button></div></div>`;
   }
 
@@ -205,6 +205,7 @@
 
   document.addEventListener('click', e => {
     const t = e.target.closest('[data-tab]'); if (t) { const changed = tab !== t.dataset.tab; tab = t.dataset.tab; window.scrollTo(0, 0); render(true); if (changed) enter(); return; }
+    if (tab === 'me' && typeof Dossier !== 'undefined' && Dossier.onClick(e)) return;
     if (onBebbit() && Bebbit.onClick(e, bctx)) return;
     if (onFBI() && FBI.onClick(e, fctx)) return;
     if (onNW() && NW.onClick(e, nctx)) return;

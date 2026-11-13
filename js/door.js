@@ -49,7 +49,7 @@
           </form>
         </div>
         ${seal}
-        <p class="gl-fine">Your code word is printed on your invitation.<br>${esc(CONFIG.TITLE)} · ${esc(CONFIG.SEASON)}</p>
+        <p class="gl-fine">Your code word is printed on your invitation.<br>No code word yet? <a class="gl-rsvp" href="${ROOT}rsvp.html">Read the invitation and reply</a><br>${esc(CONFIG.TITLE)} · ${esc(CONFIG.SEASON)}</p>
       </main>
       <div class="gl-floor"><svg class="gl-rope" viewBox="0 0 1200 120" preserveAspectRatio="none" aria-hidden="true"><defs><linearGradient id="rope" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#b3202f"/><stop offset="1" stop-color="#5a0a14"/></linearGradient><linearGradient id="brass" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#7a5a1c"/><stop offset=".5" stop-color="#f2d58a"/><stop offset="1" stop-color="#7a5a1c"/></linearGradient></defs>
         <path d="M40 30 C 300 118, 900 118, 1160 30" fill="none" stroke="url(#rope)" stroke-width="12" stroke-linecap="round"/>

@@ -388,6 +388,6 @@ const STORY = {
       notes: ['State inspection, 2007: heating failures, understaffing.'] }
   ],
 
-  /* ---- full dossiers plug in here later, keyed by character id ---- */
+  /* ---- full dossiers live in settings/dossiers.js (STORY.dossiers.<character id>) ---- */
   dossiers: {}
 };
