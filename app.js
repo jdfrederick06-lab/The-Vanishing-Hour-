@@ -164,6 +164,8 @@
     if (force || !typing) {
       const bv = () => Bebbit.render(s, ME, bebUI);
       patch($('#main'), tab === 'now' ? nowView(s) : tab === 'world' ? (WORLD === 'bebbit' ? bv() : WORLD === 'fbi' ? FBI.render(s, ME, fbiUI) : WORLD === 'nightwire' ? NW.render(s, ME, nwUI) : worldView()) : tab === 'bank' ? NW.renderBank(s, ME, nwUI) : tab === 'beb' ? `<div class="beb-skin">${bv()}</div>` : tab === 'people' ? peopleView(s) : meView(s));
+      /* the casino's wheel and dice are kept alive between redraws (a spin never restarts) */
+      if (typeof Casino !== 'undefined') Casino.mount();
     }
     const b = (id, label, ic, badge) => `<button data-tab="${id}" aria-current="${tab === id}">${ic}${label}${badge ? `<span class="badge">${badge}</span>` : ''}</button>`;
     const items = [b('now', 'Now', icons.now, unseen), b('world', W.tab, icons.world)];

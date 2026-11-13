@@ -355,12 +355,15 @@
   }
   /* the casino, Cameron's loans, freed-up money, freezes and who's been thrown out */
   function moneyGames(s) {
-    const cs = STORY.nightwire.casino || {}, bets = NW.bets(s), house = -bets.reduce((n, b) => n + b.net, 0);
-    const lost = bets.filter(b => !b.won).reduce((n, b) => n + b.stake, 0), fee = Math.round(lost * (cs.harperCut || 0));
+    const cs = STORY.nightwire.casino || {}, st0 = Casino.stats(s), mode = (s.nw || {}).casinoMode || 'auto';
     const loans = NW.loans(s), frozen = Object.entries((s.nw || {}).frozen || {}), out = STORY.characters.filter(c => NW.isOut(s, c.id));
     const st = l => l.status === 'active' ? (NW.isLate(s, l) ? '<span class="chip bad">overdue</span>' : `<span class="chip">due ${hmm(l.due)}</span>`) : `<span class="chip ${l.status === 'paid' ? 'ok' : ''}">${l.status}</span>`;
-    return panel('Money games', `casino ${NW.casinoOpen(s) ? '<span class="live-t">open</span>' : 'closed'}`, `
-      <div class="stats mg-stats"><div class="stat"><small>Bets</small><b>${bets.length}</b></div><div class="stat"><small>House net</small><b>${house >= 0 ? '' : '−'}${NW.money(Math.abs(house))}</b></div><div class="stat"><small>To ${esc(G.byId(cs.beneficiary) ? G.byId(cs.beneficiary).name.split(' ')[0] : 'foundation')}</small><b>${NW.money(lost - fee)}</b></div><div class="stat"><small>Harper's fee</small><b>${NW.money(fee)}</b></div></div>
+    const neg = n => (n < 0 ? '−' : '') + NW.money(Math.abs(n));
+    const best = st0.best && st0.best.net > 0 ? `${esc(G.byId(st0.best.by) ? G.byId(st0.best.by).name : st0.best.by)} +${NW.money(st0.best.net)} (${st0.best.game})` : 'nobody yet';
+    return panel('Money games', `casino ${Casino.isOpen(s) ? '<span class="live-t">open</span>' : 'closed'}`, `
+      <div class="mg-mode"><span>Casino</span>${[['auto', 'Follow the clock'], ['open', 'Force open'], ['closed', 'Force closed']].map(([k, l]) => `<button class="btn small ${mode === k ? '' : 'ghost'}" data-csmode="${k}" aria-pressed="${mode === k}">${l}</button>`).join('')}</div>
+      <div class="stats mg-stats"><div class="stat"><small>Rounds</small><b>${st0.rounds}${st0.open ? ` <em>+${st0.open} live</em>` : ''}</b></div><div class="stat"><small>Wagered</small><b>${NW.money(st0.wagered)}</b></div><div class="stat"><small>House net</small><b>${neg(st0.houseNet)}</b></div><div class="stat"><small>To ${esc(G.byId(cs.beneficiary) ? G.byId(cs.beneficiary).name.split(' ')[0] : 'foundation')}</small><b>${NW.money(st0.foundation)}</b></div><div class="stat"><small>Harper's fee</small><b>${NW.money(st0.fee)}</b></div></div>
+      <div class="mg-games">${st0.games.map(x => `<span><b>${x.g === 'dice' ? 'Lucky dice' : x.g[0].toUpperCase() + x.g.slice(1)}</b> ${x.n} rounds · house ${neg(x.house)}</span>`).join('')}<span><b>Biggest win</b> ${best}</span></div>
       <div class="mg-h">Loans · ${loans.length}</div>
       ${loans.map(l => `<div class="sys"><div style="flex:1;min-width:0"><b>${esc(NW.bname(l))} · ${NW.money(l.amt)} at ${l.rate}%</b><small>repays ${NW.money(l.owed)}${l.court ? ' · frozen by court order' : ''}${l.named ? ' · named publicly' : ''}</small></div>${st(l)}</div>`).join('') || '<div class="empty">No loans yet.</div>'}
       <div class="mg-h">Frozen accounts · ${frozen.length}</div>
@@ -492,6 +495,12 @@
       if (!fz && !confirm(`Freeze ${NW.wname(w)}? They can still receive money, but can't send, bid, bet or borrow.`)) return;
       if (fz) NW.unfreeze(u, w, 'host'); else NW.freeze(u, w, 'host', null);
       DB.update(u); return toast(`${NW.wname(w)} ${fz ? 'unfrozen' : 'frozen'}`);
+    }
+    if ((t = q('[data-csmode]'))) {
+      const m = t.dataset.csmode, u = { 'nw/casinoMode': m === 'auto' ? null : m };
+      Clock.log(u, 'host', m === 'auto' ? 'The casino follows the clock again.' : `Casino forced ${m}.`);
+      if (m !== 'auto') u['feed/' + uid('m')] = { to: ['all'], title: 'The Saint-Clair Casino', text: m === 'open' ? 'The tables are open. Find the Casino in your NightBank.' : 'The tables are closed for now.', at: Date.now(), kind: 'msg' };
+      DB.update(u); return toast(m === 'auto' ? 'Casino follows the clock' : `Casino ${m}`);
     }
     if ((t = q('[data-nwfast]'))) { const w = t.dataset.nwfast, u = {}; NW.arriveNow(u, w); DB.update(u); return toast(`${NW.wname(w)}: freed-up money arrived`); }
     if ((t = q('[data-out]'))) {
