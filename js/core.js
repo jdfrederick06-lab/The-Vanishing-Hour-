@@ -121,6 +121,7 @@ const Clock = {
     const s = DB.fresh(), n = STORY.phases.length, u = {};
     if (i >= n) { u.clock = { i: n }; Clock.log(u, 'clock', 'The night is over.'); return DB.update(u); }
     for (let k = i; k < n; k++) STORY.phases[k].cues.forEach((c, j) => { u['feed/' + STORY.phases[k].id + '_' + j] = null; });
+    const from = Clock.startOf(s, i); ((STORY.bebbit && STORY.bebbit.chatter) || []).forEach((c, j) => { if (c.at >= from) u['chatter/' + j] = null; });
     u.clock = { i, startedAt: Date.now(), len: Clock.mins(s, i) * 60000 / Clock.speed(s), paused: false, pausedAt: 0 };
     Clock.log(u, 'clock', 'Phase started: ' + STORY.phases[i].name);
     DB.update(u);
@@ -138,6 +139,9 @@ const Clock = {
       const id = r.phase.id + '_' + j;
       if (c.at <= r.elapsedMin && !(s.feed && s.feed[id])) Clock.cue(u, r.phase, j);
     });
+    /* background chatter on Bebbit (non-characters), so the real posts are harder to spot */
+    const ch = (STORY.bebbit && STORY.bebbit.chatter) || [];
+    if (typeof Bebbit !== 'undefined') ch.forEach((c, j) => { if (c.at <= r.nightMin && !(s.chatter && s.chatter[j])) { u['chatter/' + j] = Date.now(); Bebbit.post(u, { by: c.by, text: c.text, plant: true }); } });
     /* NightBank: freed-up money arriving, loans going overdue */
     if (typeof NW !== 'undefined' && NW.tick) NW.tick(s, u);
     if (Object.keys(u).length) DB.update(u);

@@ -8,7 +8,11 @@
 (function () {
   /* host "Open as" links: app.html?as=CODE */
   const as = new URLSearchParams(location.search).get('as');
-  if (as) { Session.signIn(as); history.replaceState(null, '', location.pathname); }
+  /* the host terminal's live view: app.html?watch=CODE shows that player's phone exactly as they see it,
+     without signing anyone in here and without counting as them being online */
+  const watch = new URLSearchParams(location.search).get('watch'), watched = watch && G.byCode(watch);
+  if (watched) { Session.player = () => watched; document.documentElement.classList.add('watching'); }
+  else if (as) { Session.signIn(as); history.replaceState(null, '', location.pathname); }
 
   const ME = Session.player();
   if (!ME) { location.replace(ROOT + 'gala/'); return; }
@@ -247,8 +251,10 @@
 
   /* presence: tell the host this phone is here */
   const beat = () => DB.update({ ['players/' + ME.id + '/seen']: Date.now(), ['players/' + ME.id + '/world']: WORLD });
-  if (!(DB.get().players && DB.get().players[ME.id])) { const u = {}; Clock.log(u, 'join', ME.name + ' signed in.'); DB.update(u); }
-  beat(); setInterval(beat, 20000);
+  if (!watched) {
+    if (!(DB.get().players && DB.get().players[ME.id])) { const u = {}; Clock.log(u, 'join', ME.name + ' signed in.'); DB.update(u); }
+    beat(); setInterval(beat, 20000);
+  }
 
   DB.on(s => { watchAlerts(s); render(); });
   enter();

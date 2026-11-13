@@ -16,6 +16,7 @@
   const I = p => `<svg viewBox="0 0 24 24" aria-hidden="true">${p}</svg>`;
   const ICON = {
     tonight: I('<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>'),
+    watch: I('<path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="3"/>'),
     people: I('<circle cx="9" cy="8.5" r="3.2"/><path d="M3 19.5c.6-3.3 3-5 6-5s5.4 1.7 6 5"/><path d="M16 5.5a3 3 0 010 6M17.5 14.5c1.9.6 3 2.2 3.4 5"/>'),
     messages: I('<path d="M4 5h16v11H9.5L5 19.5V16H4z"/><path d="M8 9.5h8M8 12.5h5"/>'),
     fbi: I('<path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6z"/><path d="M9 12l2 2 4-4"/>'),
@@ -56,8 +57,9 @@
   const cueId = (p, j) => p.id + '_' + j;
   const isLive = r => r.state === 'live' || r.state === 'paused';
   const clockNow = () => new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' });
-  const tabList = () => [['tonight', 'Tonight'], ['people', 'People'], ['messages', 'Messages'], ['fbi', 'FBI'], ['bebbit', 'Bebbit'], ['nightwire', 'NIGHTWIRE'], ['games', 'Games'], ['rsvps', 'RSVPs'], ['setup', 'Setup']]
-    .filter(t => (ME.role === 'main' || (t[0] !== 'setup' && t[0] !== 'rsvps')) && (t[0] !== 'fbi' || !scope() || scope().includes('fbi')) && (t[0] !== 'nightwire' || !scope() || scope().includes('crew')));
+  /* the main host gets every section; a co-host only what their own group needs to succeed */
+  const tabList = () => [['tonight', 'Tonight'], ['watch', 'Watch'], ['people', scope() ? 'My team' : 'People'], ['messages', 'Messages'], ['fbi', 'FBI'], ['bebbit', 'Bebbit'], ['nightwire', 'NIGHTWIRE'], ['games', 'Games'], ['rsvps', 'RSVPs'], ['setup', 'Setup']]
+    .filter(t => (ME.role === 'main' || !['setup', 'rsvps', 'bebbit'].includes(t[0])) && (t[0] !== 'fbi' || !scope() || scope().includes('fbi')) && (t[0] !== 'nightwire' || !scope() || scope().includes('crew')));
   const panel = (title, aside, body, cls) => `<section class="card ${cls || ''}"><div class="card-h"><span>${title}</span>${aside ? `<span class="card-a">${aside}</span>` : ''}</div>${body}</section>`;
 
   /* ---------- toasts: a short note after every action ---------- */
@@ -256,8 +258,87 @@
         <td class="mono code">${esc(c.code)}</td>
         <td>${(() => { const w = NW.walletOf(c); return w ? `<button class="money-cell" data-nwgrant="${w}" title="Add or take money: ${esc(NW.wname(w))}"><span class="mono">${NW.money(NW.balance(s, w))}</span>${NW.wallets()[w].personal ? '' : `<small>${esc(NW.wname(w))}</small>`}<i>±</i></button>` : '<span class="mute">none</span>'; })()}</td>
         <td class="mute">${ns ? 'No-show' : p ? (o ? '<span class="live-t">online</span>' : ago(p.seen, now)) : 'Never'}${s.fbi && s.fbi.detained && s.fbi.detained[c.id] ? ' <span class="chip bad">detained</span>' : ''}${NW.isOut(s, c.id) ? ' <span class="chip bad">thrown out</span>' : ''}</td>
-        <td><div class="acts"><a class="btn small" href="app.html?as=${encodeURIComponent(c.code)}" target="_blank" rel="noopener">Open as</a><button class="btn small" data-msg="${c.id}">Message</button><button class="btn small ghost" data-noshow="${c.id}">${ns ? 'Undo no-show' : 'No-show'}</button><button class="btn small ${NW.isOut(s, c.id) ? '' : 'ghost'}" data-out="${c.id}" title="Thrown out: no vote at the end, and no money moves">${NW.isOut(s, c.id) ? 'Let back in' : 'Throw out'}</button></div></td></tr>`; }).join('') || '<tr><td colspan="8" class="empty">Nobody matches.</td></tr>'}
+        <td><div class="acts"><button class="btn small primary" data-watch="${c.id}">Watch</button><a class="btn small" href="app.html?as=${encodeURIComponent(c.code)}" target="_blank" rel="noopener">Open as</a><button class="btn small" data-msg="${c.id}">Message</button><button class="btn small ghost" data-noshow="${c.id}">${ns ? 'Undo no-show' : 'No-show'}</button><button class="btn small ${NW.isOut(s, c.id) ? '' : 'ghost'}" data-out="${c.id}" title="Thrown out: no vote at the end, and no money moves">${NW.isOut(s, c.id) ? 'Let back in' : 'Throw out'}</button></div></td></tr>`; }).join('') || '<tr><td colspan="8" class="empty">Nobody matches.</td></tr>'}
       </tbody></table></div>`);
+  }
+
+  /* ---------- Watch: every player, everything they do, and a live view of their phone ----------
+     The main host sees everyone and every system. A co-host sees only their own groups. */
+  const W = { id: null, q: '', type: 'all', locked: true };
+  const nm = id => (G.byId(id) || {}).name || id;
+  const first = id => nm(id).split(' ')[0];
+  const secs = ts => new Date(ts).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' });
+  const members = w => { try { return NW.membersOf(w) || []; } catch (e) { return []; } };
+  const TYPES = [['all', 'Everything'], ['messages', 'Messages'], ['bebbit', 'Bebbit'], ['money', 'Money'], ['chat', 'Crew chat'], ['fbi', 'FBI'], ['games', 'Games'], ['evidence', 'Evidence'], ['system', 'System']];
+  const TLABEL = { messages: 'message', bebbit: 'bebbit', money: 'money', chat: 'crew chat', fbi: 'fbi', games: 'game', evidence: 'evidence', system: 'system' };
+  /** Everything that has happened tonight, newest first. who = the characters it involves. */
+  function stream(s) {
+    const out = [], push = (at, type, text, who) => { if (at) out.push({ at, type, text, who: [].concat(who || []).filter(Boolean) }); };
+    const named = t => STORY.characters.filter(c => t && t.includes(c.name)).map(c => c.id);
+    Object.values(s.log || {}).filter(l => !/^Planted post as /.test(l.text || '')).forEach(l => push(l.at, l.tag === 'game' ? 'games' : l.tag === 'fbi' ? 'fbi' : 'system', l.text, named(l.text)));
+    Object.values(s.feed || {}).filter(f => f.kind === 'msg').forEach(f => push(f.at, 'messages', `To ${G.toLabel(f.to)}: ${f.title ? f.title + ' · ' : ''}${f.text}`, [].concat(f.to || []).filter(t => G.byId(t))));
+    if (typeof Bebbit !== 'undefined') Bebbit.list(s).forEach(p => { const a = Bebbit.who(p.by), r = Bebbit.who(p.real); push(p.at, 'bebbit', `${Bebbit.shown(a)}${p.hacked ? ' (really ' + r.name + ')' : ''}: ${p.text || '[photo]'}${p.deleted ? ' · removed' : ''}`, [p.by, p.real].filter(id => G.byId(id))); });
+    if (typeof NW !== 'undefined') NW.txs(s).forEach(t => push(t.at, 'money', `${NW.wname(t.from)} → ${NW.wname(t.to)} · ${NW.money(t.amt)}${t.memo ? ' · ' + t.memo : ''}`, [t.by].concat(members(t.from), members(t.to)).filter(id => G.byId(id))));
+    Object.values((s.nw && s.nw.chat) || {}).forEach(m => push(m.at, 'chat', `${first(m.by)}: ${m.text}`, [m.by]));
+    if (typeof FBI !== 'undefined') FBI.lookups(s).forEach(l => push(l.at, 'fbi', `${FBI.first(l.by)} looked up "${l.q}"${l.rec ? ' → ' + FBI.rec(l.rec).title : ''}`, [l.by]));
+    Object.values((s.fbi && s.fbi.statements) || {}).forEach(x => push(x.at, 'fbi', `Statement from ${nm(x.subject)}, logged by ${first(x.by)}: "${x.text}"${x.withdrawn ? ' · withdrawn' : ''}`, [x.subject, x.by]));
+    Object.entries(s.ev || {}).forEach(([code, x]) => { const e = (STORY.evidence || []).find(z => z.code === code); push(x.at, 'evidence', `${x.by && G.byId(x.by) ? first(x.by) : 'Someone'} scanned ${e ? e.title : code}`, [x.by]); });
+    return out.sort((a, b) => b.at - a.at);
+  }
+  const lnRow = x => `<div class="ln t-${x.type}"><span class="t">${esc(secs(x.at))}</span><span class="g">${TLABEL[x.type] || x.type}</span><span class="x">${esc(x.text)}</span></div>`;
+  function watchHead() {
+    return `<div class="pp-head"><div class="pp-search">${I('<circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4-4"/>')}<input class="field" id="wq" placeholder="Find a player" value="${esc(W.q)}" autocomplete="off" aria-label="Find a player"></div>
+      <span class="mute" style="font-size:12.5px">Click anyone to watch their phone live and see everything they've done.</span></div>`;
+  }
+  function watchGrid(s, now) {
+    const q = W.q.trim().toLowerCase(), all = stream(s);
+    const list = cast().filter(c => !q || [c.name, c.role, c.code].join(' ').toLowerCase().includes(q));
+    const last = id => all.find(x => x.who.includes(id));
+    return panel(`Players · ${list.length}`, `<span class="mono">${list.filter(c => G.online(s, c.id, now)).length}</span> on their phones`, `<div class="wt-grid">${list.map(c => {
+      const o = G.online(s, c.id, now), w = NW.walletOf(c), l = last(c.id), fz = w && NW.frozen(s, w);
+      const flags = [c.key ? '<i class="f key">key</i>' : '', G.noshow(s, c.id) ? '<i class="f">no-show</i>' : '', NW.isOut(s, c.id) ? '<i class="f bad">thrown out</i>' : '', fz ? '<i class="f bad">frozen</i>' : '', s.fbi && s.fbi.detained && s.fbi.detained[c.id] ? '<i class="f bad">detained</i>' : ''].join('');
+      return `<button class="wt-card ${W.id === c.id ? 'on' : ''} ${G.noshow(s, c.id) ? 'gone' : ''}" data-watch="${c.id}" style="--g:${gcol(c.group)}">
+        <span class="wt-top"><span class="wt-av">${esc(initials(c.name))}<i class="${o ? 'on' : ''}"></i></span><span class="wt-nm"><b>${esc(c.name)}</b><small>${esc(c.role)}</small></span>${w ? `<span class="wt-money mono">${NW.money(NW.balance(s, w))}</span>` : ''}</span>
+        <span class="wt-last">${l ? `<em>${esc(ago(l.at, now))}</em> ${esc(l.text)}` : '<em>Quiet so far</em>'}</span>${flags ? `<span class="wt-flags">${flags}</span>` : ''}</button>`;
+    }).join('') || '<div class="empty">Nobody matches.</div>'}</div>`, 'wt-panel');
+  }
+  function streamPanel(s) {
+    const ids = new Set(cast().map(c => c.id));
+    let items = stream(s).filter(x => !scope() || x.who.some(id => ids.has(id)));
+    const n = items.length;
+    if (W.type !== 'all') items = items.filter(x => x.type === W.type);
+    return panel(`Everything happening · ${n}`, scope() ? 'your groups only' : 'every system, live', `<div class="filters wt-types">${TYPES.map(([k, l]) => `<button class="btn small ghost seg-btn" data-wtype="${k}" aria-pressed="${W.type === k}">${l}</button>`).join('')}</div>
+      <div class="log wt-log">${items.slice(0, 200).map(lnRow).join('') || '<div class="empty">Nothing yet.</div>'}</div>`, 'wt-stream');
+  }
+  /* the drawer: one player, their phone, their timeline, and the levers */
+  function drawerHead(s, now) {
+    const c = G.byId(W.id); if (!c) return '';
+    const o = G.online(s, c.id, now), p = s.players && s.players[c.id], w = NW.walletOf(c), fz = w && NW.frozen(s, w), main = ME.role === 'main';
+    return `<div class="wd-h" style="--g:${gcol(c.group)}"><span class="wt-av big">${esc(initials(c.name))}<i class="${o ? 'on' : ''}"></i></span>
+      <div class="wd-id"><b>${esc(c.name)}</b><small>${esc(c.role)} · <span class="grpc">${esc(STORY.groups[c.group].name)}</span> · <span class="mono code">${esc(c.code)}</span></small>
+        <small>${o ? '<span class="live-t">On their phone now</span>' : p ? 'Last seen ' + esc(ago(p.seen, now)) : 'Never signed in'}${w ? ` · NightBank <b class="mono">${NW.money(NW.balance(s, w))}</b>${fz ? ' <span class="chip bad">frozen</span>' : ''}` : ''}</small></div>
+      <button class="btn small ghost wd-x" data-act="wclose" aria-label="Close">✕</button></div>
+      <div class="wd-acts"><button class="btn small primary" data-wmsg="${c.id}">Message</button><a class="btn small" href="app.html?as=${encodeURIComponent(c.code)}" target="_blank" rel="noopener">Open as them</a>
+        ${main ? `<button class="btn small" data-wpost="${c.id}">Post on Bebbit as them</button>${w ? `<button class="btn small" data-nwgrant="${w}">± Money</button><button class="btn small ${fz ? '' : 'ghost'}" data-nwfreeze="${w}">${fz ? 'Unfreeze' : 'Freeze account'}</button>` : ''}<button class="btn small ghost" data-noshow="${c.id}">${G.noshow(s, c.id) ? 'Undo no-show' : 'No-show'}</button><button class="btn small ${NW.isOut(s, c.id) ? '' : 'ghost'}" data-out="${c.id}">${NW.isOut(s, c.id) ? 'Let back in' : 'Throw out'}</button>` : ''}</div>`;
+  }
+  function drawerSide(s) {
+    const c = G.byId(W.id); if (!c) return '';
+    const mine = stream(s).filter(x => x.who.includes(c.id));
+    const solved = Object.values(s.mg || {}).filter(m => m.solved && m.solved.by === c.id).length, scans = Object.values(s.ev || {}).filter(x => x.by === c.id).length;
+    const posts = typeof Bebbit !== 'undefined' ? Bebbit.list(s).filter(p => p.real === c.id || p.by === c.id).length : 0;
+    return `<div class="stats wd-stats">${stat(mine.length, 'things done')}${stat(posts, 'Bebbit posts')}${stat(solved, 'games solved')}${stat(scans, 'evidence scanned')}</div>
+      <div class="deck-lbl" style="margin:14px 0 6px">Everything ${esc(first(c.id))} has done</div><div class="log wd-log">${mine.map(lnRow).join('') || '<div class="empty">Nothing yet.</div>'}</div>`;
+  }
+  function drawer(s, now) {
+    const d = $('#wd'); if (!d) return;
+    const show = !!(W.id && G.byId(W.id) && (tab === 'watch' || tab === 'people'));
+    d.hidden = !show; document.body.classList.toggle('wd-open', show);
+    if (!show) return;
+    const f = $('#wdf'), c = G.byId(W.id), src = `app.html?watch=${encodeURIComponent(c.code)}`;
+    if (f.dataset.src !== src) { f.dataset.src = src; f.src = src; }
+    d.classList.toggle('locked', W.locked);
+    const lb = d.querySelector('.wd-lock'), lt = W.locked ? 'Take control of their phone' : 'Lock (watch only)'; if (lb.textContent !== lt) lb.textContent = lt;
+    patch($('#wdh'), drawerHead(s, now)); patch($('#wds'), drawerSide(s));
   }
 
   /* ---------- Messages ---------- */
@@ -346,7 +427,9 @@
       const fu = !cfg ? '' : !f ? ` · ${NW.money(cfg.amt)} tied up` : NW.fuReady(s, f) ? ` · freed ${NW.money(f.amt)}` : ` · freeing ${NW.money(f.amt)}, arrives ${hmm(f.ready)}`;
       return `<div class="sys ${fz ? 'frozen' : ''}"><div style="flex:1;min-width:0"><b>${esc(NW.wname(w))}${fz ? ` <span class="chip bad">frozen · ${esc(fz.by)}</span>` : ''}</b><small>${all[w].personal ? 'Personal account' : esc([].concat(all[w].members).map(m => m.startsWith('g:') ? STORY.groups[m.slice(2)].name : G.byId(m).name).join(', '))}${p ? ` · ${p.void ? 'client payment VOID' : NW.money(p.amount) + ' due on delivery'}` : ''}${fu}</small></div><span class="mono money">${NW.money(NW.balance(s, w))}</span>${f && !NW.fuReady(s, f) ? `<button class="btn small" data-nwfast="${w}" title="Make the freed-up money arrive now">Arrive now</button>` : ''}<button class="btn small ghost" data-nwfreeze="${w}">${fz ? 'Unfreeze' : 'Freeze'}</button><button class="btn small ghost" data-nwgrant="${w}">± money</button></div>`;
     };
-    const special = Object.keys(all).filter(w => !all[w].personal), personal = Object.keys(all).filter(w => all[w].personal).sort((a, b) => NW.balance(s, b) - NW.balance(s, a));
+    /* a co-host sees only their own groups' accounts */
+    const mineW = w => !scope() || members(w).some(id => { const c = G.byId(id); return c && scope().includes(c.group); }) || [].concat(all[w].members || []).some(m => m.startsWith('g:') && scope().includes(m.slice(2)));
+    const special = Object.keys(all).filter(w => !all[w].personal && mineW(w)), personal = Object.keys(all).filter(w => all[w].personal && mineW(w)).sort((a, b) => NW.balance(s, b) - NW.balance(s, a));
     const pct = sale && sale.sold ? Math.min(100, sale.sold.amt / NWc.goal * 100) : 0;
     return panel('Special accounts', 'crew, thief and buyers', special.map(row).join(''))
       + panel(`Everyone's NightBank · ${personal.length}`, 'spending money follows net worth · story.js', `<div class="acct-list">${personal.map(row).join('')}</div>`)
@@ -376,7 +459,7 @@
   function nwRight(s) {
     const n = s.nw || {}, chat = Object.values(n.chat || {}).sort((a, b) => b.at - a.at).slice(0, 40);
     const buys = NW.txs(s).filter(t => t.to === 'market'), rest = NW.txs(s).filter(t => t.to !== 'market' && t.from !== 'casino' && t.to !== 'casino');
-    return moneyGames(s) + panel(`Market purchases · ${buys.length}`, '', `<div class="log mono">${buys.map(t => `<div class="ln t-money"><span class="t">${esc(wallTime(t.at))}</span><span class="g">${esc(G.byId(t.by) ? G.byId(t.by).name.split(' ')[0] : t.by)}</span><span class="x">"${esc(t.memo)}" · ${NW.money(t.amt)} from ${esc(NW.wname(t.from))}</span></div>`).join('') || '<div class="empty">Nothing bought yet.</div>'}</div>`)
+    return (scope() ? '' : moneyGames(s)) + panel(`Market purchases · ${buys.length}`, '', `<div class="log mono">${buys.map(t => `<div class="ln t-money"><span class="t">${esc(wallTime(t.at))}</span><span class="g">${esc(G.byId(t.by) ? G.byId(t.by).name.split(' ')[0] : t.by)}</span><span class="x">"${esc(t.memo)}" · ${NW.money(t.amt)} from ${esc(NW.wname(t.from))}</span></div>`).join('') || '<div class="empty">Nothing bought yet.</div>'}</div>`)
       + panel(`NightBank transfers · ${rest.length}`, '', `<div class="log mono">${rest.map(t => `<div class="ln t-money"><span class="t">${esc(wallTime(t.at))}</span><span class="g">${esc(NW.wname(t.from))}</span><span class="x">→ ${esc(NW.wname(t.to))} ${NW.money(t.amt)}${t.memo ? ` "${esc(t.memo)}"` : ''}</span></div>`).join('') || '<div class="empty">No transfers yet.</div>'}</div>`)
       + panel('Crew burner chat', '', `<div class="log mono">${chat.map(m => `<div class="ln t-join"><span class="t">${esc(wallTime(m.at))}</span><span class="g">${esc(G.byId(m.by).name.split(' ')[0])}</span><span class="x">${esc(m.text)}</span></div>`).join('') || '<div class="empty">Quiet.</div>'}</div>`);
   }
@@ -393,40 +476,48 @@
   const rsvps = s => Object.entries(s.rsvp || {}).map(([id, r]) => Object.assign({ id }, r)).sort((a, b) => b.at - a.at);
   function rsvpHead(s) {
     const all = rsvps(s), live = all.filter(r => !r.archived), n = k => live.filter(r => r.reply === k).length;
-    const coming = live.filter(r => r.reply !== 'no'), cnt = (f, v) => coming.filter(r => r[f] === v).length;
-    const castN = coming.filter(r => r.cast).length, noPhone = coming.filter(r => r.phone === 'no').length;
+    const coming = live.filter(r => r.reply !== 'no'), pluses = coming.filter(r => r.plus);
+    /* parts asked for, counting plus-ones too */
+    const sizes = coming.map(r => r.size).concat(pluses.map(r => r.plus.size)), cnt = v => sizes.filter(x => x === v).length;
+    const castN = coming.filter(r => r.cast).length + pluses.filter(r => r.plus.cast).length, heads = coming.length + pluses.length;
     const fb = (k, l) => `<button class="btn small ghost seg-btn" data-rvshow="${k}" aria-pressed="${rv.show === k}">${l}</button>`;
     return panel('Replies', `<a class="btn small" href="index.html" target="_blank" rel="noopener">Open the invitation page</a> <button class="btn small" data-act="rvcsv">Download spreadsheet</button>`, `
-      <div class="stats"><div class="stat"><small>Coming</small><b>${n('yes')}</b></div><div class="stat"><small>Maybe</small><b>${n('maybe')}</b></div><div class="stat"><small>Not coming</small><b>${n('no')}</b></div><div class="stat"><small>Cast so far</small><b>${castN}<em class="rv-of"> / ${coming.length}</em></b></div></div>
-      <div class="mg-games rv-tally"><span><b>Part</b> ${Object.entries(RV.size).filter(([k]) => k !== 'cameo' || cnt('size', k)).map(([k, l]) => `${l} ${cnt('size', k)}`).join(' · ')}</span><span><b>Wants</b> ${Object.entries(RV.world).map(([k, l]) => `${l} ${cnt('world', k)}`).join(' · ')}</span>${noPhone ? `<span class="warn-t"><b>No phone</b> ${noPhone}: plan a paper version for them</span>` : ''}</div>
+      <div class="stats"><div class="stat"><small>Coming</small><b>${n('yes')}</b></div><div class="stat"><small>Maybe</small><b>${n('maybe')}</b></div><div class="stat"><small>Plus-ones</small><b>${pluses.length}</b></div><div class="stat"><small>Not coming</small><b>${n('no')}</b></div><div class="stat"><small>Cast so far</small><b>${castN}<em class="rv-of"> / ${heads}</em></b></div></div>
+      <div class="mg-games rv-tally"><span><b>Part</b> ${Object.entries(RV.size).filter(([k]) => k !== 'cameo' || cnt(k)).map(([k, l]) => `${l} ${cnt(k)}`).join(' · ')}</span><span><b>Headcount</b> ${heads} (${coming.length} replies + ${pluses.length} plus-ones)</span></div>
       <div class="pp-head rv-head2"><div class="pp-search">${I('<circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4-4"/>')}<input class="field" id="rvq" placeholder="Search names, emails, notes" value="${esc(rv.q)}" autocomplete="off" aria-label="Search replies"></div>
         <div class="filters">${fb('all', 'All')}${fb('yes', 'Coming')}${fb('maybe', 'Maybe')}${fb('no', 'Not coming')}${fb('uncast', 'Not cast yet')}${fb('archived', 'Archived')}</div></div>`);
   }
   function rsvpList(s) {
     const all = rsvps(s), q = rv.q.trim().toLowerCase();
-    const taken = {}; all.forEach(r => { if (r.cast && !r.archived) taken[r.cast] = r.id; });
+    /* who already has which character (plus-ones included), so nobody is cast twice */
+    const taken = {}; all.forEach(r => { if (r.archived) return; if (r.cast) taken[r.cast] = r.id; if (r.plus && r.plus.cast) taken[r.plus.cast] = r.id + ':plus'; });
     const dupe = r => all.filter(x => x.id !== r.id && !x.archived && (x.first + ' ' + x.last).toLowerCase() === (r.first + ' ' + r.last).toLowerCase()).length > 0;
-    const list = all.filter(r => (rv.show === 'archived' ? r.archived : !r.archived) && (rv.show === 'all' || rv.show === 'archived' || (rv.show === 'uncast' ? r.reply !== 'no' && !r.cast : r.reply === rv.show))
-      && (!q || [r.first, r.last, r.email, r.with, r.notes].join(' ').toLowerCase().includes(q)));
+    const list = all.filter(r => (rv.show === 'archived' ? r.archived : !r.archived) && (rv.show === 'all' || rv.show === 'archived' || (rv.show === 'uncast' ? r.reply !== 'no' && (!r.cast || (r.plus && !r.plus.cast)) : r.reply === rv.show))
+      && (!q || [r.first, r.last, r.email, r.with, r.notes, r.pronouns, r.plus && r.plus.first, r.plus && r.plus.last].join(' ').toLowerCase().includes(q)));
     const chars = STORY.characters.slice().sort((a, b) => a.name.localeCompare(b.name));
-    const pick = r => r.reply === 'no' ? '<span class="mute">—</span>' : `<select class="field rv-cast" data-rvcast="${r.id}" aria-label="Cast ${esc(r.first)} as"><option value="">Not cast</option>${Object.keys(STORY.groups).map(g => `<optgroup label="${esc(STORY.groups[g].name)}">${chars.filter(c => c.group === g).map(c => `<option value="${c.id}" ${r.cast === c.id ? 'selected' : ''} ${taken[c.id] && taken[c.id] !== r.id ? 'disabled' : ''}>${esc(c.name)}${taken[c.id] && taken[c.id] !== r.id ? ' (taken)' : ''}</option>`).join('')}</optgroup>`).join('')}</select>${r.cast && G.byId(r.cast) ? `<small class="mono rv-code">${esc(G.byId(r.cast).code)}</small>` : ''}`;
-    return panel(`${rv.show === 'archived' ? 'Archived replies' : 'Every reply'} · ${list.length}`, 'never deleted; changes keep the earlier version', `<div class="tbl-wrap"><table class="tbl rv-tbl"><thead><tr><th>Name</th><th>Reply</th><th>Part</th><th>Wants</th><th>Phone</th><th>Email</th><th>Notes</th><th>Character</th><th>Replied</th><th></th></tr></thead><tbody>
-      ${list.map(r => `<tr class="${r.archived ? 'gone' : ''}"><td><b>${esc(r.first)} ${esc(r.last)}</b>${r.updated ? ` <span class="chip" title="Changed ${(r.history || []).length} time(s)">changed</span>` : ''}${dupe(r) ? ' <span class="chip bad">same name twice?</span>' : ''}</td>
+    const pick = (key, cur, who) => `<select class="field rv-cast" data-rvcast="${key}" aria-label="Cast ${esc(who)} as"><option value="">Not cast</option>${Object.keys(STORY.groups).map(g => `<optgroup label="${esc(STORY.groups[g].name)}">${chars.filter(c => c.group === g).map(c => { const t = taken[c.id] && taken[c.id] !== key; return `<option value="${c.id}" ${cur === c.id ? 'selected' : ''} ${t ? 'disabled' : ''}>${esc(c.name)}${t ? ' (taken)' : ''}</option>`; }).join('')}</optgroup>`).join('')}</select>${cur && G.byId(cur) ? `<small class="mono rv-code">${esc(G.byId(cur).code)}</small>` : ''}`;
+    const face = r => r.photo && /^data:image\/(jpeg|png|webp);base64,/.test(r.photo) ? `<img class="rv-ph" src="${esc(r.photo)}" alt="">` : `<span class="rv-ph none">${esc(initials(r.first + ' ' + r.last))}</span>`;
+    return panel(`${rv.show === 'archived' ? 'Archived replies' : 'Every reply'} · ${list.length}`, 'never deleted; changes keep the earlier version', `<div class="tbl-wrap"><table class="tbl rv-tbl"><thead><tr><th>Name</th><th>Reply</th><th>Part</th><th>Email</th><th>Notes</th><th>Character</th><th>Replied</th><th></th></tr></thead><tbody>
+      ${list.map(r => `<tr class="${r.archived ? 'gone' : ''}"><td><div class="rv-who">${face(r)}<div><b>${esc(r.first)} ${esc(r.last)}</b>${r.pronouns ? `<small>${esc(r.pronouns)}</small>` : ''}${r.updated ? ` <span class="chip" title="Changed ${(r.history || []).length} time(s)">changed</span>` : ''}${dupe(r) ? ' <span class="chip bad">same name twice?</span>' : ''}</div></div></td>
         <td><span class="chip ${r.reply === 'yes' ? 'ok' : r.reply === 'no' ? 'bad' : ''}">${RV.reply[r.reply] || ''}</span></td>
-        <td>${RV.size[r.size] || '<span class="mute">—</span>'}</td><td>${RV.world[r.world] || '<span class="mute">—</span>'}</td>
-        <td>${r.phone === 'no' ? '<span class="chip bad">no phone</span>' : r.phone ? 'Yes' : '<span class="mute">—</span>'}</td>
+        <td>${RV.size[r.size] || '<span class="mute">—</span>'}${r.world ? `<small class="mute" style="display:block">old form: ${esc(RV.world[r.world] || r.world)}</small>` : ''}</td>
         <td class="mute">${r.email ? esc(r.email) : '—'}</td>
         <td class="rv-notes">${r.with ? `<div><b>With:</b> ${esc(r.with)}</div>` : ''}${r.notes ? `<div>${esc(r.notes)}</div>` : ''}${!r.with && !r.notes ? '<span class="mute">—</span>' : ''}</td>
-        <td><div class="rv-castcell">${pick(r)}</div></td>
+        <td><div class="rv-castcell">${r.reply === 'no' ? '<span class="mute">—</span>' : pick(r.id, r.cast, r.first)}</div></td>
         <td class="mute">${esc(new Date(r.updated || r.at).toLocaleDateString([], { month: 'short', day: 'numeric' }))}</td>
-        <td><button class="btn small ghost" data-rvarch="${r.id}">${r.archived ? 'Restore' : 'Archive'}</button></td></tr>`).join('') || `<tr><td colspan="10" class="empty">${all.length ? 'Nobody matches.' : 'No replies yet. Share the invitation page to collect them.'}</td></tr>`}
+        <td><button class="btn small ghost" data-rvarch="${r.id}">${r.archived ? 'Restore' : 'Archive'}</button></td></tr>
+        ${r.plus && r.reply !== 'no' ? `<tr class="rv-plus ${r.archived ? 'gone' : ''}"><td><div class="rv-who"><span class="rv-ph none plus">+1</span><div><b>${esc(r.plus.first)} ${esc(r.plus.last)}</b><small>plus-one of ${esc(r.first)}${r.plus.pronouns ? ' · ' + esc(r.plus.pronouns) : ''}</small></div></div></td><td></td><td>${RV.size[r.plus.size] || '—'}</td><td class="mute">${r.plus.email ? esc(r.plus.email) : '—'}</td><td></td><td><div class="rv-castcell">${pick(r.id + ':plus', r.plus.cast, r.plus.first)}</div></td><td></td><td></td></tr>` : ''}`).join('') || `<tr><td colspan="8" class="empty">${all.length ? 'Nobody matches.' : 'No replies yet. Share the invitation page to collect them.'}</td></tr>`}
       </tbody></table></div>`);
   }
   /** Everything as a spreadsheet (archived replies included, marked). */
   function rsvpCSV() {
     const s = DB.get(), cell = v => `"${String(v == null ? '' : v).replace(/"/g, '""')}"`;
-    const rows = [['First', 'Last', 'Reply', 'Part', 'Wants to play', 'Phone', 'Email', 'Storyline with', 'Notes', 'Character', 'Code word', 'Replied', 'Changed', 'Archived']]
-      .concat(rsvps(s).map(r => [r.first, r.last, RV.reply[r.reply], RV.size[r.size], RV.world[r.world], r.phone, r.email, r.with, r.notes, r.cast && G.byId(r.cast) ? G.byId(r.cast).name : (r.cast || ''), r.cast && G.byId(r.cast) ? G.byId(r.cast).code : '', new Date(r.at).toLocaleString(), r.updated ? new Date(r.updated).toLocaleString() : '', r.archived ? 'yes' : '']));
+    const ch = id => id && G.byId(id) ? G.byId(id) : null;
+    const rows = [['First', 'Last', 'Pronouns', 'Reply', 'Part', 'Plus-one of', 'Email', 'Storyline with', 'Notes', 'Has photo', 'Character', 'Code word', 'Replied', 'Changed', 'Archived']];
+    rsvps(s).forEach(r => {
+      rows.push([r.first, r.last, r.pronouns, RV.reply[r.reply], RV.size[r.size], '', r.email, r.with, r.notes, r.photo ? 'yes' : '', ch(r.cast) ? ch(r.cast).name : (r.cast || ''), ch(r.cast) ? ch(r.cast).code : '', new Date(r.at).toLocaleString(), r.updated ? new Date(r.updated).toLocaleString() : '', r.archived ? 'yes' : '']);
+      if (r.plus) rows.push([r.plus.first, r.plus.last, r.plus.pronouns, RV.reply[r.reply], RV.size[r.plus.size], r.first + ' ' + r.last, r.plus.email, '', '', '', ch(r.plus.cast) ? ch(r.plus.cast).name : '', ch(r.plus.cast) ? ch(r.plus.cast).code : '', new Date(r.at).toLocaleString(), '', r.archived ? 'yes' : '']);
+    });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([rows.map(r => r.map(cell).join(',')).join('\r\n')], { type: 'text/csv' }));
     a.download = 'Vanishing Hour RSVPs.csv'; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
@@ -459,6 +550,7 @@
   /* ---------- page ---------- */
   function shell() {
     root.innerHTML = `<div class="ht" id="ht"><aside class="ht-rail" id="rail"></aside><div class="ht-body"><header class="ht-bar" id="top"></header><main class="h-wrap" id="wrap"></main></div></div><div class="ht-toast" id="toast" role="status" aria-live="polite"></div><div class="ht-keys" id="keys" hidden></div>
+      <aside class="wd" id="wd" hidden aria-label="Watching a player"><div id="wdh"></div><div class="wd-cols"><div class="wd-phone"><div class="wd-frame"><iframe id="wdf" title="Live view of their phone"></iframe><div class="wd-shield"></div></div><button class="btn small wd-lock" data-act="wlock"></button><small class="wd-note">Locked: you're only watching. Take control to tap around their phone as them (anything you do really happens).</small></div><div class="wd-side" id="wds"></div></div></aside>
       <div class="ht-privacy" id="privacy" hidden><button data-act="privacy" aria-label="Show the screen"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3l18 18M10.6 5.1A10.6 10.6 0 0 1 12 5c5 0 9 4.5 10 7-.4 1-1.3 2.5-2.7 3.8M6.5 6.6C4.4 7.9 2.8 10 2 12c1 2.5 5 7 10 7 1.8 0 3.5-.6 5-1.5M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg><b>Screen hidden</b><small>Press <kbd>P</kbd> or click to show it again</small></button></div>`;
     setPrivate(sessionStorage.getItem('vh:private') === '1');
     render();
@@ -492,20 +584,24 @@
       w.dataset.view = tab;
       w.innerHTML = tab === 'tonight' ? `<div id="t0"></div><div class="h-cols"><div class="h-main">${col('t1')}</div><div class="h-side">${col('t2')}${col('t3')}${col('t4')}</div></div>`
         : tab === 'people' ? `${col('p0')}${col('p1')}`
+        : tab === 'watch' ? `${col('p0')}<div class="wt-cols">${col('p1')}${col('p2')}</div>`
         : tab === 'rsvps' ? `${col('p1')}${col('p2')}`
         : tab === 'bebbit' ? `<div class="grid2"><div class="col">${col('p1')}${col('p3')}</div>${col('p2')}</div>`
         : `<div class="grid2">${col('p1')}${col('p2')}</div>`;
       if (tab === 'tonight') patch($('#t3'), quickMsg());
       if (tab === 'people') patch($('#p0'), peopleHead(s, now));
+      if (tab === 'watch') patch($('#p0'), watchHead());
     }
+    drawer(s, now);
     if (tab === 'tonight') { patch($('#t0'), track(s, r)); patch($('#t1'), deck(s, r) + cuesCard(s, r) + evidence(s)); patch($('#t2'), needs(s, r, now)); patch($('#t4'), groupCards(s, now) + systems(s, now) + activity(s)); }
     else if (tab === 'people') { if (!keep('p0')) patch($('#p0'), peopleHead(s, now)); patch($('#p1'), people(s, now)); }
+    else if (tab === 'watch') { patch($('#p1'), watchGrid(s, now)); patch($('#p2'), streamPanel(s)); }
     else if (tab === 'messages') { if (!keep('p1')) patch($('#p1'), composer()); patch($('#p2'), sent(s)); }
     else if (tab === 'fbi') { patch($('#p1'), fbiLeft(s)); patch($('#p2'), fbiRight(s)); }
     else if (tab === 'nightwire') { patch($('#p1'), nwLeft(s)); patch($('#p2'), nwRight(s)); }
     else if (tab === 'bebbit') { if (!keep('p1')) patch($('#p1'), bebCompose()); patch($('#p3'), bebStats(s)); patch($('#p2'), bebList(s)); }
     else if (tab === 'rsvps') { if (!keep('p1')) patch($('#p1'), rsvpHead(s)); patch($('#p2'), rsvpList(s)); }
-    else if (tab === 'games') { patch($('#p1'), panel('Mini-games', 'open, close, solve or nudge', typeof Games !== 'undefined' ? Games.hostPanel(s) : '')); patch($('#p2'), printedEvidence(s)); }
+    else if (tab === 'games') { patch($('#p1'), panel('Mini-games', scope() ? 'your groups\' games' : 'open, close, solve or nudge', typeof Games !== 'undefined' ? Games.hostPanel(s, scope()) : '')); patch($('#p2'), scope() ? '' : printedEvidence(s)); }
     else if (tab === 'setup') { if (!document.activeElement || !document.activeElement.matches('[data-len]')) patch($('#p1'), setupLen(s)); patch($('#p2'), setupTools(s, r)); }
   }
   function go(t) { if (tab === t) return; tab = t; render(); pulse('enter', 800); }
@@ -529,6 +625,8 @@
     else if (a === 'back') { if (ME.role !== 'main' || !(r.i > 0)) return; if (Ask.sure('Go back and restart the previous phase? Its cues will be sent again.', () => act('back'), { title: 'The clock', ok: 'Go back' })) Clock.start(r.i - 1); }
     else if (a === 'reset') { if (Ask.sure('Reset the whole night on this computer? This clears the clock, messages and sign-ins.', () => act('reset'), { title: 'Reset', ok: 'Reset everything', danger: true })) { DB.reset(); toast('The night was reset'); } }
     else if (a === 'fbibonus') { const u = { 'fbi/bonus': ((s.fbi && s.fbi.bonus) || 0) + 1 }; Clock.log(u, 'host', 'Gave the FBI one extra lookup.'); DB.update(u); toast('The FBI got one extra lookup'); }
+    else if (a === 'wclose') { W.id = null; render(); }
+    else if (a === 'wlock') { W.locked = !W.locked; render(); toast(W.locked ? 'Watching only' : 'You control their phone now', W.locked ? '' : 'warn'); }
     else if (a === 'privacy') setPrivate(!document.body.classList.contains('ht-private'));
     else if (a === 'keys') { const k = $('#keys'); if (k.hidden) { k.innerHTML = keysSheet(); k.hidden = false; } else k.hidden = true; }
     else if (a === 'signout') { Session.signOut(); ME = null; login(); }
@@ -540,6 +638,13 @@
     let t;
     if (e.target.id === 'keys') { $('#keys').hidden = true; return; }
     if (typeof Games !== 'undefined' && Games.hostClick(e, toast)) return;
+    if ((t = q('[data-watch]'))) { W.id = W.id === t.dataset.watch ? null : t.dataset.watch; W.locked = true; return render(); }
+    if ((t = q('[data-wtype]'))) { W.type = t.dataset.wtype; return render(); }
+    if ((t = q('[data-wmsg]'))) { const id = t.dataset.wmsg; return Ask.input(`A message to ${nm(id)}'s phone.`, '', v => { if (!v.trim()) return; sendMessage(id, v.trim(), ME.role === 'main' ? 'From the host' : 'From your handler'); toast('Sent to ' + first(id)); }, { title: 'Message', ok: 'Send' }); }
+    if ((t = q('[data-wpost]'))) {
+      const id = t.dataset.wpost;
+      return Ask.input(`Post on Bebbit as ${nm(id)}. It appears under their name on every phone.`, '', v => { if (!v.trim()) return; const u = {}; Bebbit.post(u, { by: id, text: v.trim(), plant: true }); Clock.log(u, 'host', `Posted on Bebbit as ${nm(id)}.`); DB.update(u); toast('Posted as ' + first(id)); }, { title: 'Post as them', ok: 'Post' });
+    }
     if ((t = q('[data-filter]'))) { filter = t.dataset.filter; if (t.dataset.tab) { tab = t.dataset.tab; pulse('enter', 800); } $('#p0') && ($('#p0')._html = null); return render(); }
     if ((t = q('[data-tab]'))) return go(t.dataset.tab);
     if ((t = q('[data-jump]'))) { const i = Number(t.dataset.jump), r = Clock.read(DB.get()); if (i === r.i && isLive(r)) return; if (Ask.sure(`Jump to "${STORY.phases[i].name}" and start it now?`, () => hostClick(e), { title: 'The clock', ok: 'Jump there' })) Clock.start(i); return; }
@@ -626,6 +731,7 @@
   document.addEventListener('input', e => {
     if (e.target.id === 'btx') hb.text = e.target.value;
     if (e.target.id === 'pq') { pq = e.target.value; render(); }
+    if (e.target.id === 'wq') { W.q = e.target.value; render(); }
     if (e.target.id === 'rvq') { rv.q = e.target.value; render(); }
   });
   document.addEventListener('change', e => {
@@ -633,8 +739,8 @@
     if (t.id === 'bas') { hb.as = t.value; return; }
     if (t.matches('[data-rvcast]')) {
       /* cast a guest who replied as a character (the code word goes on their printed invitation) */
-      const id = t.dataset.rvcast, ch = t.value || null, r0 = (DB.get().rsvp || {})[id], u = { ['rsvp/' + id + '/cast']: ch };
-      Clock.log(u, 'host', ch ? `Cast ${r0.first} ${r0.last} as ${G.byId(ch).name}.` : `Uncast ${r0.first} ${r0.last}.`);
+      const [id, plus] = t.dataset.rvcast.split(':'), ch = t.value || null, r0 = (DB.get().rsvp || {})[id], who = plus ? r0.plus : r0, u = { ['rsvp/' + id + (plus ? '/plus' : '') + '/cast']: ch };
+      Clock.log(u, 'host', ch ? `Cast ${who.first} ${who.last} as ${G.byId(ch).name}.` : `Uncast ${who.first} ${who.last}.`);
       DB.update(u); return toast(ch ? `Cast as ${G.byId(ch).name}` : 'Casting cleared');
     }
     if (t.id === 'bph') { const f = t.files && t.files[0]; if (f) Bebbit.shrink(f).then(src => { hb.photo = src; hb.err = ''; }).catch(err => { hb.err = err.message; }).then(() => { $('#p1')._html = null; document.activeElement.blur(); render(); }); return; }

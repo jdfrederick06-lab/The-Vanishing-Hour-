@@ -958,9 +958,11 @@ const Games = (() => {
   };
 
   /* ---------- the host's controls ---------- */
-  function hostPanel(s) {
+  function hostPanel(s, groups) {
+    /* a co-host sees only the games their own groups play */
+    const DEFS = () => STORY.games.filter(d => !groups || G.touches(d.who, groups) || (d.backup && G.touches(d.backup, groups)));
     const allOpen = DEFS().every(d => M(s, d.id).mode === 'open' || M(s, d.id).solved);
-    const bar = `<div class="mgh-all"><span>${allOpen ? 'Every game is open early.' : 'Games open on the night\'s clock. To try them now, open them all.'}</span><button class="btn small ${allOpen ? '' : 'primary'}" data-mgh="${allOpen ? 'clockall' : 'openall'}:all">${allOpen ? 'Put all back on the clock' : 'Open all now'}</button></div>`;
+    const bar = groups ? '' : `<div class="mgh-all"><span>${allOpen ? 'Every game is open early.' : 'Games open on the night\'s clock. To try them now, open them all.'}</span><button class="btn small ${allOpen ? '' : 'primary'}" data-mgh="${allOpen ? 'clockall' : 'openall'}:all">${allOpen ? 'Put all back on the clock' : 'Open all now'}</button></div>`;
     return bar + '<div class="mgh-grid">' + DEFS().map(d => {
       const st = status(s, d), m = M(s, d.id);
       const who = d.who.map(t => t.startsWith('g:') ? (STORY.groups[t.slice(2)] || {}).name || t : (G.byId(t) || {}).name || t).join(', ');

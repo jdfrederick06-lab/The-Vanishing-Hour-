@@ -41,8 +41,42 @@ const STORY = {
     readOnly: ['fbi'],
     accounts: {
       mod:     { name: 'thegala_mod',     role: 'b/thegala moderator',   profile: 'The official feed of tonight\'s Ashgrove Gala.' },
-      archive: { name: 'ledger_archives', role: 'Harbor Ledger archive', profile: 'Photos from fifty years of the Harbor Ledger.' }
+      archive: { name: 'ledger_archives', role: 'Harbor Ledger archive', profile: 'Photos from fifty years of the Harbor Ledger.' },
+      /* background guests: not characters, just noise in the feed */
+      cityscene: { name: 'thecityscene',       role: 'Society column, City Magazine', profile: 'Who wore what, who left with whom.' },
+      eats:      { name: 'harborhill_eats',    role: 'Food blogger',                  profile: 'Eating my way through every party in town.' },
+      champagne: { name: 'champagne_problems', role: 'Guest (a donor\'s plus-one)',    profile: 'Here for the bubbles.' },
+      nora:      { name: 'nora.paints',        role: 'Art student',                    profile: 'Oils, mostly. Coffee, always.' },
+      bev:       { name: 'grandma_bev',        role: 'Retired museum docent',          profile: '22 years of tours. Ask me anything.' },
+      cliff:     { name: 'cliff_is_lost',      role: 'Guest',                          profile: 'Bad with directions.' },
+      axel:      { name: 'artbro_axel',        role: 'Aspiring collector',             profile: 'Buying low. Hot takes high.' },
+      serverk:   { name: 'server_k',           role: 'Catering staff (agency)',         profile: 'Carrying trays since 2019.' },
+      marcus:    { name: 'marcusinmarketing',  role: 'Guest',                          profile: 'Brand storyteller. Open-bar enthusiast.' }
     },
+    /* background chatter: posted automatically by the clock at these night minutes (0 = doors).
+       It mixes in with the real posts so the important ones are harder to spot. */
+    chatter: [
+      { at: 2,   by: 'cityscene', text: 'Arrivals at the Ashgrove Gala. Spotted so far: a city councilmember, a film star, and at least three people pretending not to know each other.' },
+      { at: 6,   by: 'eats',      text: 'The crab cakes are a 9 out of 10. The tiny forks are a 2.' },
+      { at: 9,   by: 'champagne', text: 'My date abandoned me at the coat check to "network." Rating this party on the champagne alone. So far: excellent.' },
+      { at: 13,  by: 'nora',      text: 'First time seeing the Ashgrove Collection in person. The harbor paintings are unreal. I could stare at the brushwork all night.' },
+      { at: 17,  by: 'bev',       text: 'I gave tours in this building for 22 years. They\'ve rehung the Valcourt three times since I retired. Nobody asks the docents.' },
+      { at: 21,  by: 'cliff',     text: 'Does anyone know where the bathroom is. I have now seen the kitchen twice.' },
+      { at: 25,  by: 'axel',      text: 'Hot take: half the art in here is overrated. Fight me in the east hall.' },
+      { at: 29,  by: 'serverk',   text: 'To whoever ordered a martini "shaken, then stirred, then shaken again": we know who you are.' },
+      { at: 33,  by: 'marcus',    text: 'The lighting in here is doing incredible things for my skin. Thank you, Ashgrove.' },
+      { at: 40,  by: 'champagne', text: 'Why did two security people just walk past me looking stressed. Is it the champagne or is it me.' },
+      { at: 46,  by: 'cityscene', text: 'Our photographer counts 112 guests, four ice sculptures and one very large diamond.' },
+      { at: 52,  by: 'eats',      text: 'Did an alarm just go off?? I dropped my canapé.' },
+      { at: 58,  by: 'nora',      text: 'Everyone is whispering and my phone is on 3%. Worst possible timing.' },
+      { at: 66,  by: 'serverk',   text: 'We\'ve just been told nobody leaves. Hope everyone likes cheese, because we have a LOT of cheese.' },
+      { at: 72,  by: 'bev',       text: 'In my day the guards walked every stairwell on the hour. Just saying.' },
+      { at: 76,  by: 'cliff',     text: 'Update: found the bathroom. Lost my coat.' },
+      { at: 88,  by: 'axel',      text: 'If anyone is taking requests for which painting to steal next, I have notes.' },
+      { at: 98,  by: 'marcus',    text: 'Can someone explain what is happening. I came for the open bar.' },
+      { at: 110, by: 'champagne', text: 'Plot twist: my date just got back and says he "saw nothing." Suspicious.' },
+      { at: 124, by: 'cityscene', text: 'Developing: guests are still inside the Ashgrove Collection. More in the morning edition.' }
+    ],
     powers: { drew: { delete: 2, trace: 1 }, jules: { hack: 2 } },
     photoCount: 'gray'
   },
