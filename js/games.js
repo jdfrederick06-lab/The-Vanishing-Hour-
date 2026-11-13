@@ -224,7 +224,7 @@ const Games = (() => {
   function decrypt(me) {
     const d = def('decrypt'), el = h('div', 'mg mg-dec');
     const anim = {};
-    el.innerHTML = `<div class="mgd-doc"><div class="mgd-hd"><b>SEALED</b><span>Family Court · access by court key only</span></div>${SEALED.map((x, i) => `<p class="mgd-line" data-d="l${i}"></p>`).join('')}<div class="mgd-stamp" data-d="stamp">UNSEALED</div></div>
+    el.innerHTML = `<div class="mgd-doc"><div class="mgd-hd"><b>SEALED</b><span>Harlow County · access by court key only</span></div>${SEALED.map((x, i) => `<p class="mgd-line" data-d="l${i}"></p>`).join('')}<div class="mgd-stamp" data-d="stamp">UNSEALED</div></div>
       <form class="mgd-keys" data-d="form">${SEALED.map(x => `<label><small>${x.label}</small><span><input class="field" name="${x.key}" autocomplete="off" spellcheck="false"><i data-d="ok-${x.key}">✓</i></span></label>`).join('')}<button class="btn primary">Apply the keys</button></form>
       <p class="mgd-msg" data-d="msg" role="status"></p>`;
     const q = k => el.querySelector(`[data-d="${k}"]`);
@@ -284,9 +284,9 @@ const Games = (() => {
   function messages(me) {
     const el = h('div', 'mg mg-msg');
     let pick = null;
-    el.innerHTML = `<div class="mgm-start" data-m="start"><p>Victor's phone is in evidence. A forensic extraction can recover his deleted messages, but it uses one of the team's lookups.</p><button class="btn primary" data-m="go">Run the extraction</button></div>
-      <div class="mgm-board" data-m="board" hidden><div class="mgm-head"><span>+1 (•••) •••-0417 · <b>deleted thread</b></span><span class="mono" data-m="pairs">0/13</span></div><div class="mgm-list" data-m="list"></div>
-      <p class="mgm-help">Tap a message, then tap where it belongs to swap them. Every pair in the right order gets its missing words back.</p></div><p class="mgm-msg" data-m="msg" role="status"></p>`;
+    el.innerHTML = `<div class="mgm-phone"><div class="mgm-screen"><div class="mgm-bar"><span>9:41</span><i class="mgm-notch"></i><span>●●● ▮</span></div><div class="mgm-start" data-m="start"><div class="mgm-lock"><svg viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 018 0v3"/></svg></div><p>Victor's phone is in evidence. A forensic extraction can recover his deleted messages, but it uses one of the team's lookups.</p><button class="btn primary" data-m="go">Run the extraction</button></div>
+      <div class="mgm-board" data-m="board" hidden><div class="mgm-head"><span class="mgm-av">?</span><div><b>+1 (•••) •••-0417</b><small>Recovered · deleted thread</small></div><span class="mgm-pairs" data-m="pairs">0/13</span></div><div class="mgm-list" data-m="list"></div>
+      <p class="mgm-help">Tap a message, then tap where it belongs to swap them. Every pair in the right order gets its missing words back.</p></div></div></div><p class="mgm-msg" data-m="msg" role="status"></p>`;
     const q = k => el.querySelector(`[data-m="${k}"]`);
     function draw() {
       const s = DB.get(), m = M(s, 'messages');
@@ -328,11 +328,13 @@ const Games = (() => {
     const el = h('div', 'mg mg-ph'), KEY = 'vh:mg:photo:' + me.id;
     const src = Art.uri(Art.photo());
     let st; try { st = JSON.parse(localStorage.getItem(KEY)); } catch (e) { st = null; }
-    if (!st) { const r = Art.rng(2000 + me.id.length * 7), p = Array.from({ length: 9 }, (_, i) => i); for (let i = 8; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [p[i], p[j]] = [p[j], p[i]]; } st = { p, rot: p.map(() => [0, 0, 1, 2, 3][Math.floor(r() * 5)]), done: false }; }
+    if (!st) { const r = Art.rng(2000 + me.id.length * 7), p = Array.from({ length: 9 }, (_, i) => i); for (let i = 8; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [p[i], p[j]] = [p[j], p[i]]; } st = { p, rot: p.map(() => r() < .4 ? 2 : 0), done: false }; }
+    /* pieces only ever turn upside down (a 4:3 photo can't lie sideways in its slot) */
+    if (st.rot.some(x => x % 2)) st.rot = st.rot.map(x => x % 2 ? 2 : x);
     const save = () => { try { localStorage.setItem(KEY, JSON.stringify(st)); } catch (e) { } };
     let sel = null;
     el.innerHTML = `<div class="mgp-board" data-p="board"></div><div class="mgp-back" data-p="back" hidden><small>On the back, in pencil:</small><b>"Victor Ashgrove and J. E— at the Harbor gallery, December 2000."</b></div>
-      <p class="mgp-help" data-p="help">Tap two pieces to swap them. Tap a piece twice to turn it.</p>`;
+      <p class="mgp-help" data-p="help">Tap two pieces to swap them. Tap a piece twice to turn it the right way up.</p>`;
     const q = k => el.querySelector(`[data-p="${k}"]`);
     function draw() {
       const solved = st.p.every((t, i) => t === i) && st.rot.every(x => x % 4 === 0);
@@ -355,7 +357,7 @@ const Games = (() => {
     el.addEventListener('click', e => {
       const b = e.target.closest('[data-tile]'); if (!b || st.done) return;
       const i = Number(b.dataset.tile);
-      if (sel === i) { st.rot[i] = (st.rot[i] + 1) % 4; sel = null; }
+      if (sel === i) { st.rot[i] = (st.rot[i] + 2) % 4; sel = null; }
       else if (sel == null) sel = i;
       else { [st.p[sel], st.p[i]] = [st.p[i], st.p[sel]]; [st.rot[sel], st.rot[i]] = [st.rot[i], st.rot[sel]]; sel = null; }
       save(); draw();
@@ -487,38 +489,64 @@ const Games = (() => {
   const inst = {};
   let ui = { open: null };
 
-  /* ---------- the Tasks tab ---------- */
+  /* ---------- the Tasks tab ----------
+     A list of cards (redrawn by the app), and one sheet that slides up over everything
+     when a game is open. The sheet lives outside the app's page, so a redraw never touches it. */
+  const THUMB = {
+    vault: '<svg viewBox="0 0 160 100" preserveAspectRatio="xMidYMid slice"><defs><radialGradient id="tv" cx=".4" cy=".35"><stop offset="0" stop-color="#e9edf2"/><stop offset="1" stop-color="#5a626c"/></radialGradient></defs><rect width="160" height="100" fill="#15181d"/><circle cx="80" cy="54" r="38" fill="#22272e" stroke="#4a515a" stroke-width="2"/>' + Array.from({ length: 40 }, (_, i) => `<line x1="80" y1="18" x2="80" y2="${i % 5 ? 22 : 25}" stroke="#c9ced6" stroke-width="1" transform="rotate(${i * 9} 80 54)"/>`).join('') + '<circle cx="80" cy="54" r="24" fill="#2b3038"/><circle cx="80" cy="54" r="16" fill="url(#tv)"/><path d="M80 10l-5 0 5 8 5-8z" fill="#d8b25e"/></svg>',
+    camera: '<svg viewBox="0 0 160 100" preserveAspectRatio="xMidYMid slice"><rect width="160" height="100" fill="#070a08"/>' + [[6, 6], [82, 6], [6, 52], [82, 52]].map(([x, y], i) => `<rect x="${x}" y="${y}" width="72" height="42" fill="${i === 1 ? '#141a17' : '#2d3a33'}" stroke="#3c6e2a"/><circle cx="${x + 7}" cy="${y + 7}" r="2.4" fill="${i === 2 ? '#b6ff3b' : '#ff3b5c'}"/><rect x="${x + 10}" y="${y + 14}" width="14" height="24" fill="#4a5a50"/>${i % 2 ? `<circle cx="${x + 48}" cy="${y + 20}" r="4" fill="#b9c8bd"/><rect x="${x + 43}" y="${y + 25}" width="10" height="13" fill="#8fa497"/>` : ''}`).join('') + '</svg>',
+    decrypt: '<svg viewBox="0 0 160 100" preserveAspectRatio="xMidYMid slice"><rect width="160" height="100" fill="#1d2c45"/><rect x="34" y="8" width="92" height="96" fill="#f6f3ea"/><rect x="42" y="18" width="40" height="5" fill="#8f1d17"/>' + [30, 40, 50, 60, 70].map((y, i) => `<rect x="42" y="${y}" width="${[70, 60, 74, 50, 66][i]}" height="5" fill="${i === 1 ? '#10213f' : '#2a2a2a'}" opacity="${i === 1 ? 1 : .85}"/>`).join('') + '<g transform="rotate(-14 104 74)"><rect x="80" y="64" width="50" height="18" fill="none" stroke="#b3261e" stroke-width="2.5"/><text x="105" y="77" text-anchor="middle" font-family="monospace" font-size="10" font-weight="700" fill="#b3261e">SEALED</text></g></svg>',
+    messages: '<svg viewBox="0 0 160 100" preserveAspectRatio="xMidYMid slice"><rect width="160" height="100" fill="#dfe6f2"/><rect x="52" y="6" width="56" height="100" rx="10" fill="#0b0b0d"/><rect x="56" y="12" width="48" height="90" rx="6" fill="#fff"/><rect x="60" y="22" width="30" height="9" rx="4.5" fill="#e9e9eb"/><rect x="72" y="35" width="28" height="9" rx="4.5" fill="#0a84ff"/><rect x="60" y="48" width="34" height="9" rx="4.5" fill="#e9e9eb"/><rect x="62" y="51" width="14" height="3" fill="#9aa0a6"/><rect x="74" y="61" width="26" height="9" rx="4.5" fill="#0a84ff"/><rect x="60" y="74" width="24" height="9" rx="4.5" fill="#e9e9eb"/></svg>',
+    photo: '<svg viewBox="0 0 160 100" preserveAspectRatio="xMidYMid slice"><rect width="160" height="100" fill="#5a3a24"/><rect width="160" height="100" fill="url(#tw)" opacity=".4"/><defs><pattern id="tw" width="160" height="8" patternUnits="userSpaceOnUse"><rect width="160" height="3" fill="#6d4a30"/></pattern></defs>' + [[40, 16, -6], [82, 12, 8], [44, 52, 4], [86, 54, -10]].map(([x, y, a]) => `<g transform="rotate(${a} ${x + 18} ${y + 16})"><rect x="${x}" y="${y}" width="38" height="32" fill="#f3efe4"/><rect x="${x + 3}" y="${y + 3}" width="32" height="26" fill="#a99474"/><circle cx="${x + 16}" cy="${y + 13}" r="4" fill="#7d6a52"/></g>`).join('') + '</svg>',
+    differences: '<svg viewBox="0 0 160 100" preserveAspectRatio="xMidYMid slice"><rect width="160" height="100" fill="#20242c"/>' + [10, 84].map((x, i) => `<rect x="${x}" y="22" width="66" height="50" fill="#b88d3a"/><rect x="${x + 4}" y="26" width="58" height="42" fill="#c46a4a"/><rect x="${x + 4}" y="50" width="58" height="18" fill="#2c3a5a"/><circle cx="${x + 48}" cy="${i ? 38 : 34}" r="${i ? 4 : 6}" fill="#ffe2a8"/><rect x="${x + 22}" y="78" width="22" height="5" fill="#d8b25e" opacity=".6"/>`).join('') + '<circle cx="132" cy="38" r="9" fill="none" stroke="#ffd34d" stroke-width="2"/></svg>',
+    ledger: '<svg viewBox="0 0 160 100" preserveAspectRatio="xMidYMid slice"><rect width="160" height="100" fill="#f4f1e2"/>' + Array.from({ length: 9 }, (_, i) => `<line x1="0" y1="${14 + i * 10}" x2="160" y2="${14 + i * 10}" stroke="#9ec5a6"/>`).join('') + '<line x1="26" y1="0" x2="26" y2="100" stroke="#d9837a"/><line x1="112" y1="0" x2="112" y2="100" stroke="#9ec5a6"/><line x1="136" y1="0" x2="136" y2="100" stroke="#9ec5a6"/>' + [20, 30, 40, 50, 60, 70, 80].map(y => `<rect x="32" y="${y}" width="${50 + (y * 7) % 26}" height="3" fill="#3d3a32" opacity=".7"/><rect x="118" y="${y}" width="14" height="3" fill="#3d3a32" opacity=".7"/>`).join('') + '<ellipse cx="80" cy="51" rx="62" ry="7" fill="none" stroke="#c0392b" stroke-width="2"/></svg>',
+    doorlog: '<svg viewBox="0 0 160 100" preserveAspectRatio="xMidYMid slice"><rect width="160" height="100" fill="#0b1220"/>' + Array.from({ length: 8 }, (_, i) => `<rect x="10" y="${10 + i * 10}" width="20" height="4" fill="#4f6b95"/><rect x="36" y="${10 + i * 10}" width="${40 + (i * 13) % 30}" height="4" fill="${i === 5 ? '#ffb547' : '#9fb7dc'}"/><rect x="118" y="${10 + i * 10}" width="30" height="4" fill="#4f6b95"/>`).join('') + '<rect x="6" y="57" width="148" height="12" fill="none" stroke="#ffb547"/></svg>'
+  };
+  const KICK = () => ({ fbi: 'Case work', bebbit: 'Tonight\'s puzzles', nightwire: '// tonight\'s jobs' }[document.body.dataset.world] || 'Tonight');
+  const tagOf = (s, d, me) => { const st = status(s, d), m = M(s, d.id); return st === 'solved' ? (m.solved.by === me.id ? 'Solved by you' : 'Solved' + (G.byId(m.solved.by) ? ' by ' + G.byId(m.solved.by).name.split(' ')[0] : '')) : st === 'failed' ? 'Failed' : st === 'open' ? 'Open now' : st === 'closed' ? 'Closed' : 'Opens ' + wall(startMin(d)); };
   function render(s, me) {
     const mine = forMe(s, me);
     if (ui.open && !mine.some(d => d.id === ui.open)) ui.open = null;
-    const r = Clock.read(s);
-    const card = d => {
-      const st = status(s, d), m = M(s, d.id);
-      const tag = st === 'solved' ? (m.solved.by === me.id ? 'Solved by you' : 'Solved' + (G.byId(m.solved.by) ? ' by ' + G.byId(m.solved.by).name.split(' ')[0] : '')) : st === 'failed' ? 'Failed' : st === 'open' ? 'Open now' : st === 'closed' ? 'Closed' : 'Opens at ' + wall(startMin(d));
-      return `<button class="mg-card st-${st} ${ui.open === d.id ? 'on' : ''}" data-mg="${d.id}" ${st === 'locked' || st === 'closed' ? 'aria-disabled="true"' : ''}><span class="mg-ic">${ICON[d.id] || ''}</span><span class="mg-tx"><b>${esc(d.name)}</b><small>${esc(d.blurb)}</small></span><span class="mg-tag">${tag}</span></button>`;
-    };
-    const open = ui.open && def(ui.open);
-    return `<div class="mg-tab"><div class="sec-title">${mine.length === 1 ? 'Your task' : 'Your tasks'} · ${mine.length}</div>
-      <div class="mg-cards">${mine.map(card).join('') || '<div class="card empty">Nothing for you here tonight.</div>'}</div>
-      ${open ? `<section class="mg-stage-wrap"><div class="mg-stage-h"><b>${esc(open.name)}</b><button class="btn small ghost" data-mg-close>Close</button></div><div id="mg-stage" data-g="${open.id}"></div></section>` : ''}</div>`;
+    const r = Clock.read(s), nowMin = r.state === 'live' || r.state === 'paused' ? r.nightMin : null;
+    const sts = mine.map(d => status(s, d)), done = sts.filter(x => x === 'solved').length, open = sts.filter(x => x === 'open').length;
+    const next = mine.filter((d, i) => sts[i] === 'locked').map(startMin).sort((a, b) => a - b)[0];
+    const C = 2 * Math.PI * 22, frac = mine.length ? done / mine.length : 0;
+    const hero = `<div class="mgt-hero"><div class="mgt-ring"><svg viewBox="0 0 52 52" aria-hidden="true"><circle class="t" cx="26" cy="26" r="22"/><circle class="v" cx="26" cy="26" r="22" stroke-dasharray="${C.toFixed(1)}" stroke-dashoffset="${(C * (1 - frac)).toFixed(1)}"/></svg><b>${done}<i>/${mine.length}</i></b></div>
+      <div class="mgt-tx"><small>${esc(KICK())}</small><b>${open ? `${open} open now` : mine.length && done === mine.length ? 'All done. Nice work.' : 'Nothing open yet'}</b><span>${next != null ? `Next opens at ${wall(next)}${nowMin != null ? ' · in ' + Math.max(1, Math.round(next - nowMin)) + ' min' : ''}` : open ? 'Tap one to begin.' : ''}</span></div></div>`;
+    const card = (d, i) => { const st = sts[i]; return `<button class="mg-card st-${st}" data-mg="${d.id}" ${st === 'locked' || st === 'closed' ? 'aria-disabled="true"' : ''}><span class="mg-art">${THUMB[d.id] || ''}<span class="mg-badge" aria-hidden="true">${st === 'solved' ? '✓' : st === 'locked' || st === 'closed' ? '<svg viewBox="0 0 24 24"><rect x="6" y="11" width="12" height="9" rx="2"/><path d="M9 11V8a3 3 0 016 0v3"/></svg>' : st === 'failed' ? '!' : ''}</span></span><span class="mg-body"><span class="mg-tag"><i></i>${esc(tagOf(s, d, me))}</span><b>${esc(d.name)}</b><small>${esc(d.blurb)}</small></span></button>`; };
+    return `<div class="mg-tab">${mine.length ? hero : ''}<div class="mg-cards">${mine.map(card).join('') || '<div class="card empty">Nothing for you here tonight.</div>'}</div></div>`;
   }
-  /** Put the live game back into the page after the app redraws. */
-  function mount() {
-    const st = document.getElementById('mg-stage'); if (!st) return;
-    const id = st.dataset.g, s = DB.get(), me = Session.player(); if (!me) return;
-    if (!inst[id]) inst[id] = BUILD[id](me);
-    const g = inst[id]; if (g.el.parentNode !== st) { st.innerHTML = ''; st.appendChild(g.el); }
+  let sheet = null;
+  function ensureSheet() {
+    if (sheet) return sheet;
+    sheet = h('div', 'mg-sheet');
+    sheet.innerHTML = `<div class="mgs-back" data-mg-close></div><section class="mgs-panel" role="dialog" aria-modal="true" aria-labelledby="mgs-t"><header class="mgs-h"><span class="mgs-ic" aria-hidden="true"></span><div class="mgs-ttl"><b id="mgs-t"></b><small></small></div><span class="mgs-st"></span><button class="mgs-x" data-mg-close aria-label="Close">✕</button></header><div class="mgs-body" id="mg-stage"></div></section>`;
+    document.body.appendChild(sheet); return sheet;
+  }
+  /** Show the open game in its sheet (or hide the sheet). The app calls this after every redraw. */
+  function mount(active) {
+    const me = Session.player(); if (!me) return;
+    if (!ui.open || active === false) { if (sheet && sheet.classList.contains('on')) { sheet.classList.remove('on'); document.documentElement.classList.remove('mg-lock'); } return; }
+    const s = DB.get(), d = def(ui.open), sh = ensureSheet(), body = sh.querySelector('.mgs-body');
+    if (!inst[d.id]) inst[d.id] = BUILD[d.id](me);
+    const g = inst[d.id];
+    if (g.el.parentNode !== body) { body.innerHTML = ''; body.appendChild(g.el); body.scrollTop = 0; }
+    body.dataset.g = d.id; sh.dataset.g = d.id;
+    patch(sh.querySelector('.mgs-ic'), ICON[d.id] || ''); patch(sh.querySelector('.mgs-ttl b'), esc(d.name)); patch(sh.querySelector('.mgs-ttl small'), esc(KICK()));
+    const st = status(s, d); sh.querySelector('.mgs-st').className = 'mgs-st st-' + st; patch(sh.querySelector('.mgs-st'), esc(tagOf(s, d, me)));
+    if (!sh.classList.contains('on')) { sh.classList.add('on'); document.documentElement.classList.add('mg-lock'); }
     g.sync(s);
   }
   function onClick(e, me) {
-    const c = e.target.closest('[data-mg]'); if (c) { const d = def(c.dataset.mg), st = status(DB.get(), d); if (st === 'locked' || st === 'closed') return true; ui.open = ui.open === d.id ? null : d.id; return 'redraw'; }
     if (e.target.closest('[data-mg-close]')) { ui.open = null; return 'redraw'; }
+    const c = e.target.closest('[data-mg]'); if (c) { const d = def(c.dataset.mg), st = status(DB.get(), d); if (st === 'locked' || st === 'closed') return true; ui.open = d.id; return 'redraw'; }
     return false;
   }
+  addEventListener('keydown', e => { if (e.key === 'Escape' && ui.open && !(typeof Ask !== 'undefined' && Ask.isOpen())) { ui.open = null; mount(false); } });
   /* timers inside the games (the camera window, the decrypt animation) run even between redraws */
-  setInterval(() => { const st = document.getElementById('mg-stage'); if (!st) return; const g = inst[st.dataset.g]; if (g && g.tick) g.tick(); }, 250);
-  setInterval(() => { const st = document.getElementById('mg-stage'); if (!st) return; const g = inst[st.dataset.g]; if (g && g.fast) g.sync(DB.get()); }, 90);
-
+  const live = () => sheet && sheet.classList.contains('on') && inst[ui.open];
+  setInterval(() => { const g = live(); if (g && g.tick) g.tick(); }, 250);
+  setInterval(() => { const g = live(); if (g && g.fast) g.sync(DB.get()); }, 90);
   const ICON = {
     vault: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="3"/><path d="M12 3.5v3M20.5 12h-3M12 20.5v-3M3.5 12h3"/></svg>',
     camera: '<svg viewBox="0 0 24 24"><rect x="3" y="7" width="13" height="10" rx="2"/><path d="M16 11l5-3v8l-5-3"/></svg>',
@@ -533,17 +561,17 @@ const Games = (() => {
   /* ---------- the host's controls ---------- */
   function hostPanel(s) {
     const r = Clock.read(s);
-    return DEFS().map(d => {
+    return '<div class="mgh-grid">' + DEFS().map(d => {
       const st = status(s, d), m = M(s, d.id);
       const who = d.who.map(t => t.startsWith('g:') ? (STORY.groups[t.slice(2)] || {}).name || t : (G.byId(t) || {}).name || t).join(', ');
       const prog = d.id === 'camera' ? `${Object.keys(m.looped || {}).length}/6 looped · ${m.wrong || 0} wrong` : d.id === 'decrypt' ? `${Object.keys(m.got || {}).length}/3 keys` : d.id === 'ledger' ? `${Object.keys(m.hits || {}).length}/3 found` : d.id === 'messages' ? (m.started ? 'extraction run' : 'not started') : d.id === 'doorlog' ? `${m.tries || 0} wrong name${m.tries === 1 ? '' : 's'}` : '';
-      return `<div class="mgh ${'st-' + st}"><div class="mgh-a"><b>${esc(d.name)}</b><small>${esc(who)} · opens ${d.opens.phase ? 'with "' + esc(STORY.phases[PH(d.opens.phase)].short) + '"' : 'at ' + wall(d.opens.min)}${d.clue ? ' · clue ' + d.clue : ''}</small></div>
-        <span class="mgh-st">${st === 'solved' ? 'Solved by ' + esc((G.byId(m.solved.by) || { name: 'the host' }).name) : st}${prog ? ' · ' + prog : ''}</span>
-        <div class="mgh-b">${st !== 'solved' ? `<button class="btn small" data-mgh="open:${d.id}">${m.mode === 'open' ? 'Opened' : 'Open now'}</button><button class="btn small ghost" data-mgh="close:${d.id}">${m.mode === 'closed' ? 'Closed' : 'Close'}</button><button class="btn small" data-mgh="solve:${d.id}">${d.id === 'vault' ? 'Maintenance override' : 'Mark solved'}</button>` : ''}
-        ${d.id === 'camera' && m.started && !m.solved ? '<button class="btn small" data-mgh="add30:camera">+30 sec</button>' : ''}
-        ${d.id === 'camera' && m.failed ? `<button class="btn small" data-mgh="footage:camera" ${m.footage ? 'disabled' : ''}>${m.footage ? 'Footage released' : 'Release footage to the FBI'}</button>` : ''}
-        <button class="btn small ghost" data-mgh="hint:${d.id}">Send a hint</button><button class="btn small ghost" data-mgh="reset:${d.id}">Reset</button></div></div>`;
-    }).join('');
+      const pct = st === 'solved' ? 100 : d.id === 'camera' ? Object.keys(m.looped || {}).length / 6 * 100 : d.id === 'decrypt' ? Object.keys(m.got || {}).length / 3 * 100 : d.id === 'ledger' ? Object.keys(m.hits || {}).length / 3 * 100 : d.id === 'messages' && m.started ? 15 : 0;
+      const chip = st === 'solved' ? 'Solved' : st === 'open' ? (m.mode === 'open' ? 'Open (early)' : 'Open') : st === 'locked' ? 'Waiting' : st === 'closed' ? 'Closed' : 'Failed';
+      return `<article class="mgh st-${st}"><div class="mgh-top"><span class="mgh-ic">${ICON[d.id] || ''}</span><div class="mgh-a"><b>${esc(d.name)}</b><small>${esc(who)}</small></div><span class="mgh-chip">${chip}</span></div>
+        <div class="mgh-meta"><span>Opens ${d.opens.phase ? 'with "' + esc(STORY.phases[PH(d.opens.phase)].short) + '"' : 'at ' + wall(d.opens.min)}</span>${d.clue ? `<span>Clue ${d.clue}</span>` : ''}${st === 'solved' ? `<span>by ${esc((G.byId(m.solved.by) || { name: 'the host' }).name)} · ${esc(wallTime(m.solved.at))}</span>` : prog ? `<span>${prog}</span>` : ''}</div>
+        <div class="mgh-bar"><i style="width:${Math.round(pct)}%"></i></div>
+        <div class="mgh-b">${st !== 'solved' ? `<button class="btn small ${m.mode === 'open' ? 'primary' : ''}" data-mgh="open:${d.id}">${m.mode === 'open' ? 'Opened early' : 'Open now'}</button><button class="btn small ghost" data-mgh="close:${d.id}">${m.mode === 'closed' ? 'Closed' : 'Close'}</button><button class="btn small" data-mgh="solve:${d.id}">${d.id === 'vault' ? 'Override' : 'Mark solved'}</button>` : ''}${d.id === 'camera' && m.started && !m.solved && !m.failed ? '<button class="btn small" data-mgh="add30:camera">+30 sec</button>' : ''}${d.id === 'camera' && m.failed ? `<button class="btn small primary" data-mgh="footage:camera" ${m.footage ? 'disabled' : ''}>${m.footage ? 'Footage released' : 'Release footage'}</button>` : ''}<span class="mgh-more"><button class="btn small ghost" data-mgh="hint:${d.id}">Hint</button><button class="btn small ghost" data-mgh="reset:${d.id}" title="Clear this game's progress">↺</button></span></div></article>`;
+    }).join('') + '</div>';
   }
   function hostClick(e, toast) {
     const b = e.target.closest('[data-mgh]'); if (!b) return false;

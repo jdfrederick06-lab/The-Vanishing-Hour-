@@ -9,7 +9,8 @@
 const Art = (() => {
   /* a seeded random, so the same picture comes out every time */
   const rng = seed => () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; };
-  const uri = svg => 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+  /* quotes and brackets encoded too, so the URL is safe inside url('…') in CSS */
+  const uri = svg => 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg).replace(/'/g, '%27').replace(/\(/g, '%28').replace(/\)/g, '%29');
 
   /* short brush strokes over a region, in a palette */
   function strokes(r, n, box, cols, len, w, op) {
@@ -126,7 +127,7 @@ const Art = (() => {
     { x: 106, y: 128, r: 30, what: 'Only two gulls in the copy (the original has three).' },
     { x: 330, y: 150, r: 28, what: 'The lighthouse has two red bands in the copy, three in the original.' },
     { x: 196, y: 218, r: 28, what: 'The little boat\'s flag is blue in the copy, red in the original.' },
-    { x: 452, y: 318, r: 26, what: 'Under the edge of the frame: a dot of indigo blue and the initials I.H.' }
+    { x: 462, y: 330, r: 22, what: 'Under the edge of the frame: a dot of indigo blue and the initials I.H.' }
   ];
   function harbor(copy) {
     return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 340" width="480" height="340">
@@ -152,7 +153,7 @@ const Art = (() => {
   <path d="M60 300 h70 l-10 12 h-50 z" fill="#2a1e18"/><path d="M94 300 V246 L124 296 Z" fill="#e9dcbf"/>
   <!-- signature, and (on the copy only) the hidden mark under the frame's edge -->
   <text x="20" y="328" font-family="'Homemade Apple','Caveat',cursive" font-size="13" fill="#e9d2a6" opacity=".8">H. Valcourt</text>
-  ${copy ? '<circle cx="452" cy="322" r="4.2" fill="#3d3fb8"/><text x="440" y="326" text-anchor="end" font-family="Georgia,serif" font-size="9" fill="#c9c3e8" opacity=".85">I.H.</text>' : ''}
+  ${copy ? '<circle cx="468" cy="336" r="3.4" fill="#3d3fb8" opacity=".9"/><text x="461" y="338" text-anchor="end" font-family="Georgia,serif" font-size="6.5" fill="#aeb0d8" opacity=".55">I.H.</text>' : ''}
 </svg>`;
   }
 

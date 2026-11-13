@@ -173,7 +173,7 @@
       patch($('#main'), tab === 'now' ? nowView(s) : tab === 'world' ? (WORLD === 'bebbit' ? bv() : WORLD === 'fbi' ? FBI.render(s, ME, fbiUI) : WORLD === 'nightwire' ? NW.render(s, ME, nwUI) : worldView()) : tab === 'bank' ? NW.renderBank(s, ME, nwUI) : tab === 'beb' ? `<div class="beb-skin">${bv()}</div>` : tab === 'people' ? peopleView(s) : tab === 'tasks' && hasGames ? Games.render(s, ME) : meView(s));
       /* the casino's wheel and dice, and the mini-games, are kept alive between redraws (a spin or a drag never restarts) */
       if (typeof Casino !== 'undefined') Casino.mount();
-      if (hasGames && tab === 'tasks') Games.mount();
+      if (hasGames) Games.mount(tab === 'tasks');
     }
     const b = (id, label, ic, badge) => `<button data-tab="${id}" aria-current="${tab === id}">${ic}${label}${badge ? `<span class="badge">${badge}</span>` : ''}</button>`;
     const items = [b('now', 'Now', icons.now, unseen), b('world', W.tab, icons.world)];
@@ -215,7 +215,7 @@
   document.addEventListener('click', e => {
     const t = e.target.closest('[data-tab]'); if (t) { const changed = tab !== t.dataset.tab; tab = t.dataset.tab; window.scrollTo(0, 0); render(true); if (changed) enter(); return; }
     if (tab === 'me' && typeof Dossier !== 'undefined' && Dossier.onClick(e)) return;
-    if (tab === 'tasks' && hasGames) { const g = Games.onClick(e, ME); if (g) { if (g === 'redraw') { render(true); const w = $('.mg-stage-wrap'); if (w) w.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); } return; } }
+    if (tab === 'tasks' && hasGames) { const g = Games.onClick(e, ME); if (g) { if (g === 'redraw') render(true); return; } }
     if (onBebbit() && Bebbit.onClick(e, bctx)) return;
     if (onFBI() && FBI.onClick(e, fctx)) return;
     if (onNW() && NW.onClick(e, nctx)) return;
