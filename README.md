@@ -15,6 +15,10 @@ Phones can't see each other yet, and RSVPs sent from this site reach nobody.
 | `app.html` | The player app (FBI Headquarters, Bebbit or NIGHTWIRE, with NightBank, the casino and "My file") |
 | `host.html` | The host terminal |
 | `rsvp.html` | Old link only: it forwards to the invitation |
+| `print.html` | Print the evidence (host only): every clue with its FBI tag and QR code |
+| `scan.html` | Where a scanned QR tag lands: logs the piece and shares it with everyone |
+| `settings/evidence.js` | The printed evidence, the props, and the eight mini-games (spoilers) |
+| `js/games.js`, `js/art.js`, `js/evdoc.js`, `js/print.js`, `js/scan.js` | The mini-games, the original artwork, and the evidence pages |
 | `settings/story.js` | **The whole story:** characters, code words, phases, cues, records, money. Edit this, not the code |
 | `settings/dossiers.js` | All 40 dossiers, shown to each player under "My file" (made from the planning doc) |
 | `settings/config.js` | The title, the event details on the invitation, and where data is saved |

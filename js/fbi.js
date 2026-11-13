@@ -179,7 +179,7 @@ const FBI = (() => {
         <div class="err" role="alert">${esc(ui.err)}</div></div>
       ${result}
       <div class="sec-title">Team lookups · ${hist.length} of ${total(s)} used</div>
-      <div class="card fb-list">${hist.map(l => `<button class="fb-hist" data-fb-open="${l.rec || '__none'}"><span><b>${esc(l.rec ? rec(l.rec).title : 'NO MATCH: ' + l.q)}</b><small>${esc(first(l.by))} searched "${esc(l.q)}"</small></span><span class="mono">${esc(wallTime(l.at))}</span></button>`).join('') || '<div class="empty">No lookups yet. They\'re shared by the whole team, so spend them well.</div>'}</div>`;
+      <div class="card fb-list">${hist.map(l => l.kind === 'extract' ? `<div class="fb-hist"><span><b>${esc(l.q)}</b><small>${esc(first(l.by))} ran it (Tasks tab)</small></span><span class="mono">${esc(wallTime(l.at))}</span></div>` : `<button class="fb-hist" data-fb-open="${l.rec || '__none'}"><span><b>${esc(l.rec ? rec(l.rec).title : 'NO MATCH: ' + l.q)}</b><small>${esc(first(l.by))} searched "${esc(l.q)}"</small></span><span class="mono">${esc(wallTime(l.at))}</span></button>`).join('') || '<div class="empty">No lookups yet. They\'re shared by the whole team, so spend them well.</div>'}</div>`;
   }
 
   function statementsView(s, me, ui) {

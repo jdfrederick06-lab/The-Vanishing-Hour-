@@ -22,6 +22,7 @@
     bebbit: I('<path d="M5 4h11a4 4 0 014 4v5a4 4 0 01-4 4H9l-4 3z"/>'),
     nightwire: I('<rect x="3" y="4.5" width="18" height="15" rx="1.5"/><path d="M7 10l3 2.5L7 15M12.5 15H17"/>'),
     rsvps: I('<rect x="3.5" y="5.5" width="17" height="13" rx="2"/><path d="M4 7l8 6 8-6"/>'),
+    games: I('<path d="M12 3l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.4 6.8 19.1l1-5.8L3.5 9.2l5.9-.9z"/>'),
     setup: I('<circle cx="12" cy="12" r="3"/><path d="M12 2.5v3M12 18.5v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2.5 12h3M18.5 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/>')
   };
 
@@ -55,7 +56,7 @@
   const cueId = (p, j) => p.id + '_' + j;
   const isLive = r => r.state === 'live' || r.state === 'paused';
   const clockNow = () => new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' });
-  const tabList = () => [['tonight', 'Tonight'], ['people', 'People'], ['messages', 'Messages'], ['fbi', 'FBI'], ['bebbit', 'Bebbit'], ['nightwire', 'NIGHTWIRE'], ['rsvps', 'RSVPs'], ['setup', 'Setup']]
+  const tabList = () => [['tonight', 'Tonight'], ['people', 'People'], ['messages', 'Messages'], ['fbi', 'FBI'], ['bebbit', 'Bebbit'], ['nightwire', 'NIGHTWIRE'], ['games', 'Games'], ['rsvps', 'RSVPs'], ['setup', 'Setup']]
     .filter(t => (ME.role === 'main' || (t[0] !== 'setup' && t[0] !== 'rsvps')) && (t[0] !== 'fbi' || !scope() || scope().includes('fbi')) && (t[0] !== 'nightwire' || !scope() || scope().includes('crew')));
   const panel = (title, aside, body, cls) => `<section class="card ${cls || ''}"><div class="card-h"><span>${title}</span>${aside ? `<span class="card-a">${aside}</span>` : ''}</div>${body}</section>`;
 
@@ -502,9 +503,17 @@
     else if (tab === 'nightwire') { patch($('#p1'), nwLeft(s)); patch($('#p2'), nwRight(s)); }
     else if (tab === 'bebbit') { if (!keep('p1')) patch($('#p1'), bebCompose()); patch($('#p3'), bebStats(s)); patch($('#p2'), bebList(s)); }
     else if (tab === 'rsvps') { if (!keep('p1')) patch($('#p1'), rsvpHead(s)); patch($('#p2'), rsvpList(s)); }
+    else if (tab === 'games') { patch($('#p1'), panel('Mini-games', 'open, close, solve or nudge', typeof Games !== 'undefined' ? Games.hostPanel(s) : '')); patch($('#p2'), printedEvidence(s)); }
     else if (tab === 'setup') { if (!document.activeElement || !document.activeElement.matches('[data-len]')) patch($('#p1'), setupLen(s)); patch($('#p2'), setupTools(s, r)); }
   }
   function go(t) { if (tab === t) return; tab = t; render(); pulse('enter', 800); }
+  /* the printed evidence: which tags have been scanned, and the print page */
+  function printedEvidence(s) {
+    const list = STORY.evidence || [], ev = s.ev || {};
+    return panel('Printed evidence', `<a class="btn small" href="print.html" target="_blank" rel="noopener">Open the print page</a>`,
+      `<p class="deck-n" style="margin-bottom:10px">Each piece prints with a manila FBI tag and a QR code. Scanning it marks the clue found and puts a copy in every player's evidence room.</p>` +
+      list.map(e => `<div class="sys"><div style="flex:1;min-width:0"><b>Item ${e.item} · ${esc(e.title)}</b><small>${esc(e.holder)}${e.clue ? ' · clue ' + e.clue : ''}</small></div><span class="mono" style="font-size:12px;color:${ev[e.code] ? 'var(--accent)' : 'var(--mute)'}">${ev[e.code] ? 'scanned ' + esc(wallTime(ev[e.code].at)) : 'not scanned'}</span></div>`).join(''));
+  }
 
   /* every button and every shortcut ends up here */
   function act(a) {
@@ -528,6 +537,7 @@
     const q = sel => e.target.closest(sel);
     let t;
     if (e.target.id === 'keys') { $('#keys').hidden = true; return; }
+    if (typeof Games !== 'undefined' && Games.hostClick(e, toast)) return;
     if ((t = q('[data-filter]'))) { filter = t.dataset.filter; if (t.dataset.tab) { tab = t.dataset.tab; pulse('enter', 800); } $('#p0') && ($('#p0')._html = null); return render(); }
     if ((t = q('[data-tab]'))) return go(t.dataset.tab);
     if ((t = q('[data-jump]'))) { const i = Number(t.dataset.jump), r = Clock.read(DB.get()); if (i === r.i && isLive(r)) return; if (Ask.sure(`Jump to "${STORY.phases[i].name}" and start it now?`, () => hostClick(e), { title: 'The clock', ok: 'Jump there' })) Clock.start(i); return; }

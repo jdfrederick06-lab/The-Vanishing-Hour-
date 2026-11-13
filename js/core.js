@@ -81,11 +81,16 @@ const Session = {
   host() { const c = sessionStorage.getItem('vh:host'); return c ? G.hostByCode(c) : null; },
   /** Try a code word. Returns 'host', 'player' or null. */
   signIn(code) {
-    if (G.hostByCode(code)) { sessionStorage.setItem('vh:host', normCode(code)); return 'host'; }
-    if (G.byCode(code)) { sessionStorage.setItem('vh:code', normCode(code)); return 'player'; }
+    /* the phone also remembers the last code word, so a scanned QR (which opens a new tab) knows who's scanning */
+    const keep = (k, v) => { try { localStorage.setItem(k, v); } catch (e) { } };
+    if (G.hostByCode(code)) { sessionStorage.setItem('vh:host', normCode(code)); keep('vh:lasthost', normCode(code)); return 'host'; }
+    if (G.byCode(code)) { sessionStorage.setItem('vh:code', normCode(code)); keep('vh:last', normCode(code)); return 'player'; }
     return null;
   },
-  signOut() { sessionStorage.removeItem('vh:code'); sessionStorage.removeItem('vh:host'); }
+  /** Who scanned this (a new tab): this tab's sign-in, or the last one on this phone. */
+  lastPlayer() { let c = sessionStorage.getItem('vh:code'); if (!c) try { c = localStorage.getItem('vh:last'); } catch (e) { } return c ? G.byCode(c) : null; },
+  lastHost() { let c = sessionStorage.getItem('vh:host'); if (!c) try { c = localStorage.getItem('vh:lasthost'); } catch (e) { } return c ? G.hostByCode(c) : null; },
+  signOut() { sessionStorage.removeItem('vh:code'); sessionStorage.removeItem('vh:host'); try { localStorage.removeItem('vh:last'); localStorage.removeItem('vh:lasthost'); } catch (e) { } }
 };
 
 /* ---------- the game clock ----------

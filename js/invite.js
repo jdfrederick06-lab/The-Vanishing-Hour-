@@ -78,7 +78,7 @@
     return `<section class="hero" id="top" aria-label="The invitation">
       <div class="hang">
         <div class="wire" aria-hidden="true"><svg viewBox="0 0 200 64" preserveAspectRatio="none"><path d="M0 64 L100 4 L200 64" fill="none" stroke="rgba(216,178,94,.45)" stroke-width="1"/><circle cx="100" cy="4" r="4" fill="#c79a45"/></svg></div>
-        <div class="frame" id="frame">${corners}${crest}
+        <div class="frame" id="frame"><div class="shine-clip" aria-hidden="true"><i class="shine" id="shine"></i></div>${corners}${crest}
           <div class="liner"><div class="canvas"><div class="patch" aria-hidden="true"></div>
             <span class="kick">An interactive murder mystery</span>
             <p class="from">Mr. Victor Ashgrove<br>requests the pleasure of your company at</p>
@@ -189,7 +189,7 @@
       <div class="layer l-mid motes">${motes}</div>
       <div class="layer l-near"><div class="rope">${rope}</div></div>
     </div>
-    <div class="cone" aria-hidden="true"></div><div class="beam" aria-hidden="true"></div>
+    <div class="shaft" aria-hidden="true"></div><div class="beam" aria-hidden="true"></div>
     <nav class="nav" id="nav"><a class="brand" href="#top">${esc(CONFIG.TITLE)}</a><a class="enter" href="${DOOR}"><b class="lg">I have a code word</b><b class="sm">Code word</b><span aria-hidden="true">→</span></a></nav>
     <main class="page">
       ${hero()}
@@ -208,20 +208,24 @@
     const op = $('#opener');
     let done = false;
     const finish = () => { if (done) return; done = true; op.classList.add('gone'); document.body.classList.remove('opening'); try { sessionStorage.setItem('vh:opened', '1'); } catch (e) { } setTimeout(() => op.remove(), 1100); };
-    setTimeout(() => op.classList.add('lit'), 2200);
-    setTimeout(finish, 3000);
-    op.addEventListener('click', finish);
+    setTimeout(() => op.classList.add('lit'), 1350);
+    setTimeout(finish, 2000);
+    op.addEventListener('click', finish); addEventListener('wheel', finish, { once: true, passive: true }); addEventListener('touchstart', finish, { once: true, passive: true });
     addEventListener('keydown', function esc1(e) { if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ') { finish(); removeEventListener('keydown', esc1); } });
   }
 
-  /* ---------- the gallery moves with you ---------- */
-  const R = document.documentElement.style;
-  const P = { x: 0, y: 0, tx: 0, ty: 0, mx: innerWidth / 2, my: innerHeight * .3, tmx: innerWidth / 2, tmy: innerHeight * .3, last: 0 };
-  const frame = $('#frame');
+  /* ---------- the gallery moves with you ----------
+     Everything moves with transforms set once per frame, so nothing repaints and it stays smooth:
+     the wall layers (each at its own depth), the spotlight, the shaft of light, the frame's tilt and
+     the shine on the gilt. Scrolling slides the far layers and gently lets the frame drift away. */
+  const P = { x: 0, y: 0, tx: 0, ty: 0, mx: innerWidth / 2, my: innerHeight * .3, tmx: innerWidth / 2, tmy: innerHeight * .3, last: -1e9, sy: scrollY, vh: innerHeight };
+  const frame = $('#frame'), hang = $('.hang'), shine = $('#shine'), beam = $('.beam'), shaft = $('.shaft');
+  const L = [['.l-wall', 10, 8, .05], ['.l-rail', 16, 10, .1], ['.l-far', 26, 16, .18], ['.l-mid', 44, 26, .3], ['.l-near', 80, 40, 0]].map(([s, dx, dy, k]) => ({ el: $(s), dx, dy, k }));
+  const nums = $$('.gal-head .num');
   const aim = (cx, cy) => { P.tx = cx / innerWidth * 2 - 1; P.ty = cy / innerHeight * 2 - 1; P.tmx = cx; P.tmy = cy; P.last = performance.now(); };
   if (!calm) {
-    addEventListener('pointermove', e => { if (e.pointerType === 'mouse' || e.pointerType === 'pen') aim(e.clientX, e.clientY); }, { passive: true });
-    addEventListener('touchmove', e => { const t = e.touches[0]; if (t) aim(t.clientX, t.clientY); }, { passive: true });
+    addEventListener('pointermove', e => { if (e.pointerType !== 'touch') aim(e.clientX, e.clientY); }, { passive: true });
+    addEventListener('pointerdown', e => aim(e.clientX, e.clientY), { passive: true });
     /* phones: tilt the phone and the gallery tilts with it (where the browser allows it without asking) */
     addEventListener('deviceorientation', e => {
       if (e.gamma == null) return;
@@ -230,29 +234,44 @@
     }, { passive: true });
   }
   const nav = $('#nav'), clock = $('#clock'), clockt = $('#clockt'), hh = $('.clock .hh'), mh = $('.clock .mh');
+  let maxScroll = 1, clockKey = '', navOn = null, clockOn = null, frameBox = null;
+  const measure = () => { P.vh = innerHeight; maxScroll = Math.max(1, document.documentElement.scrollHeight - innerHeight); frameBox = null; };
+  addEventListener('resize', measure); addEventListener('load', measure); measure();
+  let prevT = performance.now();
   function tick(now) {
+    /* frame-rate independent easing: the same feel at 60 or 120 frames a second */
+    const dt = Math.min(64, now - prevT) / 16.67; prevT = now;
+    const ease = k => 1 - Math.pow(1 - k, dt);
     /* nobody moving? the light drifts on its own, slowly */
-    if (!calm && now - P.last > 2500) { const t = now / 1000; P.tx = Math.sin(t * .35) * .5; P.ty = Math.cos(t * .27) * .35; P.tmx = innerWidth * (.5 + Math.sin(t * .35) * .28); P.tmy = innerHeight * (.32 + Math.cos(t * .27) * .12); }
-    P.x += (P.tx - P.x) * .06; P.y += (P.ty - P.y) * .06; P.mx += (P.tmx - P.mx) * .09; P.my += (P.tmy - P.my) * .09;
-    R.setProperty('--px', P.x.toFixed(4)); R.setProperty('--py', P.y.toFixed(4));
-    R.setProperty('--mx', P.mx.toFixed(1) + 'px'); R.setProperty('--my', P.my.toFixed(1) + 'px');
-    if (frame) { const b = frame.getBoundingClientRect(); if (b.bottom > 0) { frame.style.setProperty('--fx', ((P.mx - b.left) / b.width * 100).toFixed(1) + '%'); frame.style.setProperty('--fy', ((P.my - b.top) / b.height * 100).toFixed(1) + '%'); } }
+    if (!calm && now - P.last > 3000) { const t = now / 1000; P.tx = Math.sin(t * .3) * .45; P.ty = Math.cos(t * .23) * .3; P.tmx = innerWidth * (.5 + Math.sin(t * .3) * .26); P.tmy = innerHeight * (.34 + Math.cos(t * .23) * .1); }
+    const a = ease(.085), b = ease(.16);
+    P.x += (P.tx - P.x) * a; P.y += (P.ty - P.y) * a; P.mx += (P.tmx - P.mx) * b; P.my += (P.tmy - P.my) * b;
+    P.sy += (scrollY - P.sy) * ease(.22);
+    const sp = Math.min(1, Math.max(0, P.sy / maxScroll));
+    /* the wall: each layer at its own depth, sliding a little as you scroll */
+    for (const l of L) l.el.style.transform = `translate3d(${(-P.x * l.dx).toFixed(2)}px, ${(-P.y * l.dy - sp * l.k * P.vh).toFixed(2)}px, 0)`;
+    beam.style.transform = `translate3d(${P.mx.toFixed(1)}px, ${P.my.toFixed(1)}px, 0)`;
+    shaft.style.transform = `translate3d(${P.mx.toFixed(1)}px, 0, 0) rotate(${((P.mx / innerWidth - .5) * -14).toFixed(2)}deg)`;
+    /* the frame: tilts toward you, and drifts back and fades as you scroll past it */
+    const hp = Math.min(1, Math.max(0, P.sy / (P.vh * .9)));
+    if (hp < 1) {
+      hang.style.transform = `translate3d(0, ${(hp * 70).toFixed(1)}px, 0) scale(${(1 - hp * .07).toFixed(4)})`;
+      hang.style.opacity = (1 - hp * .85).toFixed(3);
+      frame.style.transform = `rotateX(${(-P.y * 4).toFixed(2)}deg) rotateY(${(P.x * 6).toFixed(2)}deg)`;
+      if (!frameBox) { const r = frame.getBoundingClientRect(); frameBox = { l: r.left, t: r.top + scrollY }; }
+      shine.style.transform = `translate3d(${(P.mx - frameBox.l).toFixed(1)}px, ${(P.my - (frameBox.t - scrollY)).toFixed(1)}px, 0)`;
+    } else if (hang.style.opacity !== '0.150') { hang.style.opacity = '0.150'; }
+    /* the gallery numerals lag behind the page a little */
+    for (const n of nums) { const r = n.parentNode.getBoundingClientRect(); if (r.bottom > -200 && r.top < P.vh + 200) n.style.transform = `translate3d(0, ${((r.top - P.vh * .4) * -.12).toFixed(1)}px, 0)`; }
+    /* the nav and the little clock */
+    const solid = scrollY > 40; if (solid !== navOn) { navOn = solid; nav.classList.toggle('solid', solid); }
+    const show = scrollY > P.vh * .6; if (show !== clockOn) { clockOn = show; clock.classList.toggle('show', show); }
+    const m = Math.round(Math.min(1, Math.max(0, scrollY / maxScroll)) * 150 / 5) * 5, h = 7 + Math.floor(m / 60), mm = m % 60, key = h + ':' + mm;
+    if (key !== clockKey) { clockKey = key; hh.setAttribute('transform', `rotate(${((h % 12) + mm / 60) * 30} 22 22)`); mh.setAttribute('transform', `rotate(${mm * 6} 22 22)`); clockt.textContent = `${h}:${String(mm).padStart(2, '0')} PM`; }
     if (!calm) requestAnimationFrame(tick);
   }
   requestAnimationFrame(tick);
-
-  /* scrolling: the wall slides, the nav darkens, and the clock runs from 7:00 to 9:30 */
-  function onScroll() {
-    const max = Math.max(1, document.documentElement.scrollHeight - innerHeight), p = Math.min(1, Math.max(0, scrollY / max));
-    R.setProperty('--sy', p.toFixed(4));
-    nav.classList.toggle('solid', scrollY > 40);
-    clock.classList.toggle('show', scrollY > innerHeight * .6);
-    const m = Math.round(p * 150 / 5) * 5, h = 7 + Math.floor(m / 60), mm = m % 60;
-    hh.setAttribute('transform', `rotate(${((h % 12) + mm / 60) * 30} 22 22)`); mh.setAttribute('transform', `rotate(${mm * 6} 22 22)`);
-    clockt.textContent = `${h}:${String(mm).padStart(2, '0')} PM`;
-  }
-  addEventListener('scroll', onScroll, { passive: true }); addEventListener('resize', onScroll); onScroll();
-
+  if (calm) addEventListener('scroll', () => requestAnimationFrame(tick), { passive: true });
   /* galleries drift in as they come into view */
   if (!calm && 'IntersectionObserver' in window) {
     const io = new IntersectionObserver(es => es.forEach(x => { if (x.isIntersecting) { x.target.classList.add('in'); io.unobserve(x.target); } }), { threshold: .12, rootMargin: '0px 0px -8% 0px' });

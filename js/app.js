@@ -40,8 +40,12 @@
     bank: '<svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M7 15h4"/></svg>',
     beb: '<svg viewBox="0 0 24 24"><path d="M5 4h11a4 4 0 014 4v5a4 4 0 01-4 4H9l-4 3z"/><path d="M9 9h6M9 12h4"/></svg>',
     people: '<svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.6-3.6 3.2-5.5 6.5-5.5s5.900 1.900 6.500 5.500M16 4.800a3.500 3.500 0 010 6.400M18 14.800c2 .700 3.200 2.400 3.600 5.200"/></svg>',
-    me: '<svg viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>'
+    me: '<svg viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>',
+    tasks: '<svg viewBox="0 0 24 24"><path d="M12 3l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.4 6.8 19.1l1-5.8L3.5 9.2l5.9-.9z"/></svg>'
   };
+  /* the mini-games: a "Tasks" tab for anyone who has one tonight */
+  const hasGames = typeof Games !== 'undefined';
+  const TASKS = { fbi: 'Tasks', bebbit: 'Puzzles', nightwire: 'Jobs' }[WORLD];
 
   const head = () => {
     const chip = `<button class="me-chip" data-tab="me" aria-label="Your file"><span class="avatar">${esc(initials(ME.name))}</span>${esc(ME.name.split(' ')[0])}</button>`;
@@ -89,7 +93,10 @@
     const rel = FBI.released(s);
     const official = rel.length ? `<div class="sec-title">Official FBI statements</div>` + rel.map(x => `<div class="card alert"><div class="row between"><div class="ttl">${esc(G.byId(x.subject) ? G.byId(x.subject).name : '')}${x.sworn ? ' · sworn' : ''}</div><div class="when">${esc(wallTime(x.at))}</div></div><div>"${esc(x.text)}"</div></div>`).join('') : '';
     /* on a computer: messages on the left, your ID and official statements on the right */
-    return `${hero(r)}<div class="dk-cols"><div class="dk-a"><div class="sec-title">For you</div>${list}</div><div class="dk-b"><div class="dk-only"><div class="sec-title" style="margin-bottom:12px">You</div>${idCard(s)}</div>${official}</div></div>`;
+    /* the evidence room: every printed clue someone has scanned, for everyone to read */
+    const ev = Object.entries(s.ev || {}).map(([code, x]) => Object.assign({ code }, x, (STORY.evidence || []).find(e => e.code === code))).filter(x => x.title).sort((a, b) => b.at - a.at);
+    const room = ev.length ? `<div class="sec-title">The evidence room · ${ev.length}</div><div class="evr">${ev.map(x => `<a href="${ROOT}scan.html?e=${encodeURIComponent(x.code)}&v=1"><span>ITEM ${x.item}</span>${esc(x.title)}<small>${esc(wallTime(x.at))}</small></a>`).join('')}</div>` : '';
+    return `${hero(r)}<div class="dk-cols"><div class="dk-a"><div class="sec-title">For you</div>${list}${room}</div><div class="dk-b"><div class="dk-only"><div class="sec-title" style="margin-bottom:12px">You</div>${idCard(s)}</div>${official}</div></div>`;
   }
 
   function worldView() {
@@ -163,14 +170,16 @@
     const a = document.activeElement, typing = a && $('#main').contains(a) && a.matches('input, textarea, select');
     if (force || !typing) {
       const bv = () => Bebbit.render(s, ME, bebUI);
-      patch($('#main'), tab === 'now' ? nowView(s) : tab === 'world' ? (WORLD === 'bebbit' ? bv() : WORLD === 'fbi' ? FBI.render(s, ME, fbiUI) : WORLD === 'nightwire' ? NW.render(s, ME, nwUI) : worldView()) : tab === 'bank' ? NW.renderBank(s, ME, nwUI) : tab === 'beb' ? `<div class="beb-skin">${bv()}</div>` : tab === 'people' ? peopleView(s) : meView(s));
-      /* the casino's wheel and dice are kept alive between redraws (a spin never restarts) */
+      patch($('#main'), tab === 'now' ? nowView(s) : tab === 'world' ? (WORLD === 'bebbit' ? bv() : WORLD === 'fbi' ? FBI.render(s, ME, fbiUI) : WORLD === 'nightwire' ? NW.render(s, ME, nwUI) : worldView()) : tab === 'bank' ? NW.renderBank(s, ME, nwUI) : tab === 'beb' ? `<div class="beb-skin">${bv()}</div>` : tab === 'people' ? peopleView(s) : tab === 'tasks' && hasGames ? Games.render(s, ME) : meView(s));
+      /* the casino's wheel and dice, and the mini-games, are kept alive between redraws (a spin or a drag never restarts) */
       if (typeof Casino !== 'undefined') Casino.mount();
+      if (hasGames && tab === 'tasks') Games.mount();
     }
     const b = (id, label, ic, badge) => `<button data-tab="${id}" aria-current="${tab === id}">${ic}${label}${badge ? `<span class="badge">${badge}</span>` : ''}</button>`;
     const items = [b('now', 'Now', icons.now, unseen), b('world', W.tab, icons.world)];
     if (WORLD !== 'bebbit') items.push(b('beb', 'Bebbit', icons.beb));
     if (hasBank) items.push(b('bank', 'NightBank', icons.bank));
+    if (hasGames && Games.forMe(s, ME).length) items.push(b('tasks', TASKS, icons.tasks, Games.openCount(s, ME)));
     items.push(b('people', 'People', icons.people), b('me', 'My file', icons.me));
     patch($('#navin'), `<div style="grid-template-columns:repeat(${items.length},1fr)">${items.join('')}</div>`);
     /* slide the highlight under the current tab */
@@ -206,6 +215,7 @@
   document.addEventListener('click', e => {
     const t = e.target.closest('[data-tab]'); if (t) { const changed = tab !== t.dataset.tab; tab = t.dataset.tab; window.scrollTo(0, 0); render(true); if (changed) enter(); return; }
     if (tab === 'me' && typeof Dossier !== 'undefined' && Dossier.onClick(e)) return;
+    if (tab === 'tasks' && hasGames) { const g = Games.onClick(e, ME); if (g) { if (g === 'redraw') { render(true); const w = $('.mg-stage-wrap'); if (w) w.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); } return; } }
     if (onBebbit() && Bebbit.onClick(e, bctx)) return;
     if (onFBI() && FBI.onClick(e, fctx)) return;
     if (onNW() && NW.onClick(e, nctx)) return;
