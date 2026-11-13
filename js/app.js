@@ -11,7 +11,7 @@
   if (as) { Session.signIn(as); history.replaceState(null, '', location.pathname); }
 
   const ME = Session.player();
-  if (!ME) { location.replace(ROOT + 'index.html'); return; }
+  if (!ME) { location.replace(ROOT + 'gala/'); return; }
 
   const WORLD = G.door(ME), W = STORY.worlds[WORLD];
   document.body.dataset.world = WORLD;

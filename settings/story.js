@@ -79,7 +79,7 @@ const STORY = {
     { id: 'ari',      name: 'Dr. Ari Castellane',   group: 'guest', role: 'Chief curator',                  age: 47, code: 'LOUPE-47',   key: true,  profile: 'Chief curator for eleven years. Personally installed every piece of tonight\'s collection.' },
     { id: 'peregrine',name: 'Peregrine Vale',       group: 'guest', role: 'Art critic',                     age: 58, code: 'FALCON-58',  profile: 'Host of Vale of Tears, television\'s most feared art show.' },
     { id: 'sterling', name: 'Sterling Voss',        group: 'guest', role: 'Insurance appraiser',            age: 39, code: 'GENUINE-39', profile: 'Senior claims investigator for Harbor & Crane Insurance. Here to inspect the collection.' },
-    { id: 'dominique',name: 'Dominique Saint-Clair',group: 'guest', role: 'Owner of the Winter Star',       age: 62, code: 'PEARL-62',   profile: 'Of Geneva and New York. Has lent the Winter Star, the third-largest diamond in the country.' },
+    { id: 'dominique',name: 'Dominique Saint-Clair',group: 'guest', role: 'Owner of the Winter Star',       age: 52, code: 'PEARL-52',   profile: 'Of Geneva and New York. Has lent the Winter Star, the third-largest diamond in the country.' },
     { id: 'drew',     name: 'Drew Kincaid',         group: 'guest', role: 'Founder of Bebbit',              age: 19, code: 'SCALE-19',   profile: 'Built Bebbit in his bedroom at 15. The youngest billionaire in the country.' },
     { id: 'ainsley',  name: 'Ainsley Vandermeer',   group: 'guest', role: 'Old-money heir',                 age: 68, code: 'MARBLE-68',  profile: 'The last of the Vandermeers, whose name is carved over the museum\'s front doors.' },
     { id: 'cameron',  name: 'Cameron Thorne',       group: 'guest', role: 'Investor',                       age: 42, code: 'BRIAR-42',   profile: 'Runs Thorne Capital, which holds most of Victor Ashgrove\'s outstanding loans.' },
@@ -275,6 +275,10 @@ const STORY = {
     /* who can unfreeze one account, once (Jacob, Nov 12). The FBI lead can freeze the account of
        anyone they hold a warrant for. The host can freeze or unfreeze anyone. */
     unfreezers: ['jules'],
+    /* The vault dial (mini-game 1, approved Nov 12): three numbers from three crew sources.
+       1 = in the vault schematic file above, 2 = Sloane's dossier, 3 = the vault-keypad camera
+       Jules sees during the camera loop (mini-game 2). Change all three places together. */
+    vault: { combo: [24, 61, 9] },
     /* Spending money that follows each fortune (money on hand tonight). */
     spending: {
       defaults: { guest: 250000, staff: 2500, fbi: 5000, crew: 0, thief: 0 },
@@ -287,11 +291,14 @@ const STORY = {
     buyers: ['drew', 'ainsley', 'lennox', 'cameron', 'hollis'],
     market: [
       { id: 'vault', title: 'Museum vault schematic + guard rotation', seller: 'bluepr1nt', price: 150000, for: ['crew'],
-        teaser: 'Two doors, rotating codes, one guard.', body: 'Vault: two steel doors; codes rotate every 5 minutes (digital key). Stairs from the east hall. Guard rotation tonight: C. Pruitt, east hall and vault stairs, all night.' },
+        teaser: 'One door, one dial, one guard.', body: 'Vault: one steel door, two ways in. The digital lock reads codes that rotate every 5 minutes (staff digital keys only). The backup is an old three-number combination dial (left, right, left). First number of the dial: 24. The other two are not in any file we could reach. Stairs from the east hall. Guard rotation tonight: C. Pruitt, east hall and vault stairs, all night.' },
       { id: 'bankvictor', title: 'Bank records · the host', seller: 'ledgr_ghost', price: 250000, for: ['crew', 'thief'],
         teaser: 'Every account. Every transfer. Ten years.', body: 'Loans in default to Thorne Capital: $15M+.\nOut, 3 weeks ago: $75,000 to a NightBank account (C. Pruitt).\nIn, last year: $4,000,000 from Kincaid Holdings ("consulting").\nIn, 2019: $30,000,000 from Larkspur Holdings, Cyprus.' },
       { id: 'ashfall', title: 'Who is "ashfall"?', seller: 'tr4cer', price: 400000, for: ['crew'],
         teaser: 'The seller who sold you your gear.', body: 'Seller "ashfall": 11 sales in 2 months, all to you. Payment trail runs through three relays and ends inside a government network. Identity: unknown.' },
+      /* Parker's tips (decided Nov 11): tip 2's metadata shows ashfall's relay. Tip 1 matches Victor's toast card wording (paper). */
+      { id: 'tips', title: 'Who tipped off the journalist?', seller: 'tr4cer', price: 100000, for: ['crew', 'thief'],
+        teaser: 'Two anonymous tips to Parker Lowell. Two different senders.', body: 'Tip 1 (two weeks ago, "won\'t survive the night"): sent from a hotel business center downtown. No relay. Whoever wrote it likes a dramatic phrase.\nTip 2 (three days ago, the five names): routed through the same three relays as the seller "ashfall," ending inside a government network.' },
       { id: 'donors', title: 'Museum donor list · secret exhibit', seller: 'curatrix', price: 200000, for: ['crew', 'thief'],
         teaser: 'Who paid for the exhibit nobody\'s allowed to see.', body: 'Treasures of the Private World. Donors: Lennox Blackwood $12,000,000. Skyler Monroe $3,000,000 (anonymous). Four more, undisclosed. Several lent objects have no export papers.' },
       { id: 'shells', title: 'Campaign money · Bishop for Governor', seller: 'ledgr_ghost', price: 175000, for: ['crew', 'thief'],
