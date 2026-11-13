@@ -295,7 +295,7 @@ const Casino = (() => {
     } else main = `<button type="button" class="cs-go" data-cs-go ${lock || !onTable ? 'disabled' : ''}>${g === 'dice' ? 'Roll' : 'Spin'}${onTable ? ' · ' + money(onTable) : ''}</button>`;
     const canEdit = !lock && (g !== 'blackjack' || h.phase === 'bet' || h.phase === 'done');
     const stage = g === 'roulette' ? `<div class="cs-slot-wheel"></div>${history(s)}` : g === 'dice' ? '<div class="cs-slot-dice"></div><div class="cs-dice-rail"></div>' : '';
-    return `<div class="cs cs-g-${g}">
+    return `<div class="cs cs-g-${g}${open ? '' : ' is-closed'}">
       <div class="cs-bar"><div class="cs-brand"><span class="cs-crest">SC</span><div><small>The Saint-Clair Foundation</small><b>Casino</b></div></div>
         <div class="cs-bal"><small>Your chips</small><b>${money(bal)}</b><em class="${myNet > 0 ? 'up' : myNet < 0 ? 'down' : ''}">${mine.length ? `tonight ${myNet >= 0 ? '+' : '−'}${short(Math.abs(myNet))}` : 'no bets yet'}</em></div>
         <div class="cs-icons"><button type="button" class="cs-ico" data-cs-rules aria-label="House rules" aria-pressed="${c.rules}">${ICON.rules}</button></div></div>
@@ -305,9 +305,9 @@ const Casino = (() => {
       <div class="cs-table">
         <div class="cs-felt cs-felt-${g}">
           <div class="cs-dealer"><span class="cs-dealer-av" aria-hidden="true">♠</span><span>${esc(dealerLine(c, open))}</span></div>
+          ${!open ? `<div class="cs-closed" role="status"><small>The Saint-Clair Casino</small><b>Tables open at ${esc(opensLabel())}</b><span>They close when the vote begins.</span></div>` : ''}
           ${g === 'blackjack' ? bjTable(c, !canEdit) : stage}
           ${resultPlaque(c)}
-          ${!open ? `<div class="cs-closed"><b>Tables closed</b><span>The casino opens at ${esc(opensLabel())} and closes for the vote.</span></div>` : ''}
         </div>
         <div class="cs-side">
           ${g === 'roulette' ? rouletteTable(c, !canEdit) : g === 'dice' ? diceTable(c, !canEdit) : ''}

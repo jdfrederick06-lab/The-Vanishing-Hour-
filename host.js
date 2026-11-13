@@ -21,6 +21,7 @@
     fbi: I('<path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6z"/><path d="M9 12l2 2 4-4"/>'),
     bebbit: I('<path d="M5 4h11a4 4 0 014 4v5a4 4 0 01-4 4H9l-4 3z"/>'),
     nightwire: I('<rect x="3" y="4.5" width="18" height="15" rx="1.5"/><path d="M7 10l3 2.5L7 15M12.5 15H17"/>'),
+    rsvps: I('<rect x="3.5" y="5.5" width="17" height="13" rx="2"/><path d="M4 7l8 6 8-6"/>'),
     setup: I('<circle cx="12" cy="12" r="3"/><path d="M12 2.5v3M12 18.5v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2.5 12h3M18.5 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/>')
   };
 
@@ -54,8 +55,8 @@
   const cueId = (p, j) => p.id + '_' + j;
   const isLive = r => r.state === 'live' || r.state === 'paused';
   const clockNow = () => new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' });
-  const tabList = () => [['tonight', 'Tonight'], ['people', 'People'], ['messages', 'Messages'], ['fbi', 'FBI'], ['bebbit', 'Bebbit'], ['nightwire', 'NIGHTWIRE'], ['setup', 'Setup']]
-    .filter(t => (ME.role === 'main' || t[0] !== 'setup') && (t[0] !== 'fbi' || !scope() || scope().includes('fbi')) && (t[0] !== 'nightwire' || !scope() || scope().includes('crew')));
+  const tabList = () => [['tonight', 'Tonight'], ['people', 'People'], ['messages', 'Messages'], ['fbi', 'FBI'], ['bebbit', 'Bebbit'], ['nightwire', 'NIGHTWIRE'], ['rsvps', 'RSVPs'], ['setup', 'Setup']]
+    .filter(t => (ME.role === 'main' || (t[0] !== 'setup' && t[0] !== 'rsvps')) && (t[0] !== 'fbi' || !scope() || scope().includes('fbi')) && (t[0] !== 'nightwire' || !scope() || scope().includes('crew')));
   const panel = (title, aside, body, cls) => `<section class="card ${cls || ''}"><div class="card-h"><span>${title}</span>${aside ? `<span class="card-a">${aside}</span>` : ''}</div>${body}</section>`;
 
   /* ---------- toasts: a short note after every action ---------- */
@@ -379,6 +380,56 @@
       + panel('Crew burner chat', '', `<div class="log mono">${chat.map(m => `<div class="ln t-join"><span class="t">${esc(wallTime(m.at))}</span><span class="g">${esc(G.byId(m.by).name.split(' ')[0])}</span><span class="x">${esc(m.text)}</span></div>`).join('') || '<div class="empty">Quiet.</div>'}</div>`);
   }
 
+  /* ---------- RSVPs (main host only; replies from rsvp.html, never deleted) ---------- */
+  const rv = { q: '', show: 'all' };
+  const RV = {
+    reply: { yes: 'Coming', maybe: 'Maybe', no: 'Not coming' },
+    size: { lead: 'Lead', support: 'Supporting', cameo: 'Cameo' },
+    world: { guest: 'Guest', fbi: 'FBI', crew: 'Art crew', staff: 'Staff', any: 'Surprise me' }
+  };
+  const rsvps = s => Object.entries(s.rsvp || {}).map(([id, r]) => Object.assign({ id }, r)).sort((a, b) => b.at - a.at);
+  function rsvpHead(s) {
+    const all = rsvps(s), live = all.filter(r => !r.archived), n = k => live.filter(r => r.reply === k).length;
+    const coming = live.filter(r => r.reply !== 'no'), cnt = (f, v) => coming.filter(r => r[f] === v).length;
+    const castN = coming.filter(r => r.cast).length, noPhone = coming.filter(r => r.phone === 'no').length;
+    const fb = (k, l) => `<button class="btn small ghost seg-btn" data-rvshow="${k}" aria-pressed="${rv.show === k}">${l}</button>`;
+    return panel('Replies', `<a class="btn small" href="rsvp.html" target="_blank" rel="noopener">Open the invitation page</a> <button class="btn small" data-act="rvcsv">Download spreadsheet</button>`, `
+      <div class="stats"><div class="stat"><small>Coming</small><b>${n('yes')}</b></div><div class="stat"><small>Maybe</small><b>${n('maybe')}</b></div><div class="stat"><small>Not coming</small><b>${n('no')}</b></div><div class="stat"><small>Cast so far</small><b>${castN}<em class="rv-of"> / ${coming.length}</em></b></div></div>
+      <div class="mg-games rv-tally"><span><b>Part</b> ${Object.entries(RV.size).map(([k, l]) => `${l} ${cnt('size', k)}`).join(' · ')}</span><span><b>Wants</b> ${Object.entries(RV.world).map(([k, l]) => `${l} ${cnt('world', k)}`).join(' · ')}</span>${noPhone ? `<span class="warn-t"><b>No phone</b> ${noPhone}: plan a paper version for them</span>` : ''}</div>
+      <div class="pp-head rv-head2"><div class="pp-search">${I('<circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4-4"/>')}<input class="field" id="rvq" placeholder="Search names, emails, notes" value="${esc(rv.q)}" autocomplete="off" aria-label="Search replies"></div>
+        <div class="filters">${fb('all', 'All')}${fb('yes', 'Coming')}${fb('maybe', 'Maybe')}${fb('no', 'Not coming')}${fb('uncast', 'Not cast yet')}${fb('archived', 'Archived')}</div></div>`);
+  }
+  function rsvpList(s) {
+    const all = rsvps(s), q = rv.q.trim().toLowerCase();
+    const taken = {}; all.forEach(r => { if (r.cast && !r.archived) taken[r.cast] = r.id; });
+    const dupe = r => all.filter(x => x.id !== r.id && !x.archived && (x.first + ' ' + x.last).toLowerCase() === (r.first + ' ' + r.last).toLowerCase()).length > 0;
+    const list = all.filter(r => (rv.show === 'archived' ? r.archived : !r.archived) && (rv.show === 'all' || rv.show === 'archived' || (rv.show === 'uncast' ? r.reply !== 'no' && !r.cast : r.reply === rv.show))
+      && (!q || [r.first, r.last, r.email, r.with, r.notes].join(' ').toLowerCase().includes(q)));
+    const chars = STORY.characters.slice().sort((a, b) => a.name.localeCompare(b.name));
+    const pick = r => r.reply === 'no' ? '<span class="mute">—</span>' : `<select class="field rv-cast" data-rvcast="${r.id}" aria-label="Cast ${esc(r.first)} as"><option value="">Not cast</option>${Object.keys(STORY.groups).map(g => `<optgroup label="${esc(STORY.groups[g].name)}">${chars.filter(c => c.group === g).map(c => `<option value="${c.id}" ${r.cast === c.id ? 'selected' : ''} ${taken[c.id] && taken[c.id] !== r.id ? 'disabled' : ''}>${esc(c.name)}${taken[c.id] && taken[c.id] !== r.id ? ' (taken)' : ''}</option>`).join('')}</optgroup>`).join('')}</select>${r.cast ? `<small class="mono rv-code">${esc(G.byId(r.cast).code)}</small>` : ''}`;
+    return panel(`${rv.show === 'archived' ? 'Archived replies' : 'Every reply'} · ${list.length}`, 'never deleted; changes keep the earlier version', `<div class="tbl-wrap"><table class="tbl rv-tbl"><thead><tr><th>Name</th><th>Reply</th><th>Part</th><th>Wants</th><th>Phone</th><th>Email</th><th>Notes</th><th>Character</th><th>Replied</th><th></th></tr></thead><tbody>
+      ${list.map(r => `<tr class="${r.archived ? 'gone' : ''}"><td><b>${esc(r.first)} ${esc(r.last)}</b>${r.updated ? ` <span class="chip" title="Changed ${(r.history || []).length} time(s)">changed</span>` : ''}${dupe(r) ? ' <span class="chip bad">same name twice?</span>' : ''}</td>
+        <td><span class="chip ${r.reply === 'yes' ? 'ok' : r.reply === 'no' ? 'bad' : ''}">${RV.reply[r.reply] || ''}</span></td>
+        <td>${RV.size[r.size] || '<span class="mute">—</span>'}</td><td>${RV.world[r.world] || '<span class="mute">—</span>'}</td>
+        <td>${r.phone === 'no' ? '<span class="chip bad">no phone</span>' : r.phone ? 'Yes' : '<span class="mute">—</span>'}</td>
+        <td class="mute">${r.email ? esc(r.email) : '—'}</td>
+        <td class="rv-notes">${r.with ? `<div><b>With:</b> ${esc(r.with)}</div>` : ''}${r.notes ? `<div>${esc(r.notes)}</div>` : ''}${!r.with && !r.notes ? '<span class="mute">—</span>' : ''}</td>
+        <td><div class="rv-castcell">${pick(r)}</div></td>
+        <td class="mute">${esc(new Date(r.updated || r.at).toLocaleDateString([], { month: 'short', day: 'numeric' }))}</td>
+        <td><button class="btn small ghost" data-rvarch="${r.id}">${r.archived ? 'Restore' : 'Archive'}</button></td></tr>`).join('') || `<tr><td colspan="10" class="empty">${all.length ? 'Nobody matches.' : 'No replies yet. Share the invitation page to collect them.'}</td></tr>`}
+      </tbody></table></div>`);
+  }
+  /** Everything as a spreadsheet (archived replies included, marked). */
+  function rsvpCSV() {
+    const s = DB.get(), cell = v => `"${String(v == null ? '' : v).replace(/"/g, '""')}"`;
+    const rows = [['First', 'Last', 'Reply', 'Part', 'Wants to play', 'Phone', 'Email', 'Storyline with', 'Notes', 'Character', 'Code word', 'Replied', 'Changed', 'Archived']]
+      .concat(rsvps(s).map(r => [r.first, r.last, RV.reply[r.reply], RV.size[r.size], RV.world[r.world], r.phone, r.email, r.with, r.notes, r.cast ? G.byId(r.cast).name : '', r.cast ? G.byId(r.cast).code : '', new Date(r.at).toLocaleString(), r.updated ? new Date(r.updated).toLocaleString() : '', r.archived ? 'yes' : '']));
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([rows.map(r => r.map(cell).join(',')).join('\r\n')], { type: 'text/csv' }));
+    a.download = 'Vanishing Hour RSVPs.csv'; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+    toast('Spreadsheet downloaded');
+  }
+
   /* ---------- Setup ---------- */
   function setupLen(s) {
     return panel('Phase lengths (minutes)', `total <span class="mono">${hmm(Clock.startOf(s, STORY.phases.length))}</span>`,
@@ -438,6 +489,7 @@
       w.dataset.view = tab;
       w.innerHTML = tab === 'tonight' ? `<div id="t0"></div><div class="h-cols"><div class="h-main">${col('t1')}</div><div class="h-side">${col('t2')}${col('t3')}${col('t4')}</div></div>`
         : tab === 'people' ? `${col('p0')}${col('p1')}`
+        : tab === 'rsvps' ? `${col('p1')}${col('p2')}`
         : tab === 'bebbit' ? `<div class="grid2"><div class="col">${col('p1')}${col('p3')}</div>${col('p2')}</div>`
         : `<div class="grid2">${col('p1')}${col('p2')}</div>`;
       if (tab === 'tonight') patch($('#t3'), quickMsg());
@@ -449,6 +501,7 @@
     else if (tab === 'fbi') { patch($('#p1'), fbiLeft(s)); patch($('#p2'), fbiRight(s)); }
     else if (tab === 'nightwire') { patch($('#p1'), nwLeft(s)); patch($('#p2'), nwRight(s)); }
     else if (tab === 'bebbit') { if (!keep('p1')) patch($('#p1'), bebCompose()); patch($('#p3'), bebStats(s)); patch($('#p2'), bebList(s)); }
+    else if (tab === 'rsvps') { if (!keep('p1')) patch($('#p1'), rsvpHead(s)); patch($('#p2'), rsvpList(s)); }
     else if (tab === 'setup') { if (!document.activeElement || !document.activeElement.matches('[data-len]')) patch($('#p1'), setupLen(s)); patch($('#p2'), setupTools(s, r)); }
   }
   function go(t) { if (tab === t) return; tab = t; render(); pulse('enter', 800); }
@@ -511,6 +564,12 @@
       Clock.log(u, 'host', `${c.name} ${on ? 'was thrown out of the gala' : 'was let back in'}.`);
       DB.update(u); return toast(`${c.name} ${on ? 'thrown out' : 'let back in'}`);
     }
+    if ((t = q('[data-rvshow]'))) { rv.show = t.dataset.rvshow; $('#p1')._html = null; return render(); }
+    if ((t = q('[data-rvarch]'))) {
+      const id = t.dataset.rvarch, r0 = DB.get().rsvp[id], on = !r0.archived, u = { ['rsvp/' + id + '/archived']: on ? Date.now() : null };
+      Clock.log(u, 'host', `RSVP from ${r0.first} ${r0.last} ${on ? 'archived' : 'restored'}.`); DB.update(u); return toast(on ? 'Archived (not deleted)' : 'Restored');
+    }
+    if (q('[data-act="rvcsv"]')) return rsvpCSV();
     if ((t = q('[data-bshow]'))) { hb.show = t.dataset.bshow; return render(); }
     if ((t = q('[data-bdel]'))) {
       const id = t.dataset.bdel, p = DB.get().beb.posts[id], u = {};
@@ -552,10 +611,17 @@
   document.addEventListener('input', e => {
     if (e.target.id === 'btx') hb.text = e.target.value;
     if (e.target.id === 'pq') { pq = e.target.value; render(); }
+    if (e.target.id === 'rvq') { rv.q = e.target.value; render(); }
   });
   document.addEventListener('change', e => {
     const t = e.target;
     if (t.id === 'bas') { hb.as = t.value; return; }
+    if (t.matches('[data-rvcast]')) {
+      /* cast a guest who replied as a character (the code word goes on their printed invitation) */
+      const id = t.dataset.rvcast, ch = t.value || null, r0 = (DB.get().rsvp || {})[id], u = { ['rsvp/' + id + '/cast']: ch };
+      Clock.log(u, 'host', ch ? `Cast ${r0.first} ${r0.last} as ${G.byId(ch).name}.` : `Uncast ${r0.first} ${r0.last}.`);
+      DB.update(u); return toast(ch ? `Cast as ${G.byId(ch).name}` : 'Casting cleared');
+    }
     if (t.id === 'bph') { const f = t.files && t.files[0]; if (f) Bebbit.shrink(f).then(src => { hb.photo = src; hb.err = ''; }).catch(err => { hb.err = err.message; }).then(() => { $('#p1')._html = null; document.activeElement.blur(); render(); }); return; }
     if (t.matches('[data-todo]')) DB.update({ ['todo/' + t.dataset.todo]: t.checked ? true : null });
     else if (t.matches('[data-len]')) { const v = Math.round(Number(t.value)); if (v >= 1 && v <= 120) { DB.update({ ['setup/len/' + t.dataset.len]: v }); toast('Phase length saved'); } }
