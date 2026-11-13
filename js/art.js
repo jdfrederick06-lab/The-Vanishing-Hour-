@@ -3,7 +3,7 @@
      Art.painting()        June Ellery's "Mother and Child" (2001), to print and frame (clue 13)
      Art.photo()           the December 2000 snapshot: Victor and J. E— at the Harbor gallery (clue 3)
      Art.harbor(copy)      "Harbor at Dusk", a small landscape from the Ashgrove Collection.
-                           copy = true draws Indigo Hart's copy, with five differences (Art.DIFFS)
+                           copy = true draws Indigo Hart's copy, with seven differences (Art.DIFFS)
      Art.uri(svg)          an SVG string as a data: URL (for <img> and CSS backgrounds)
    ===================================================================== */
 const Art = (() => {
@@ -120,14 +120,16 @@ const Art = (() => {
 </svg>`;
   }
 
-  /* ---------- "Harbor at Dusk": the original, and Indigo's copy with five differences ---------- */
-  /* Five differences, as circles in the picture's own coordinates (viewBox 480 x 340) */
+  /* ---------- "Harbor at Dusk": the original, and Indigo's copy with seven differences ---------- */
+  /* Seven differences, as circles in the picture's own coordinates (viewBox 480 x 340) */
   const DIFFS = [
-    { x: 404, y: 66, r: 30, what: 'The sun sits lower and smaller in the copy.' },
-    { x: 106, y: 128, r: 30, what: 'Only two gulls in the copy (the original has three).' },
-    { x: 330, y: 150, r: 28, what: 'The lighthouse has two red bands in the copy, three in the original.' },
-    { x: 196, y: 218, r: 28, what: 'The little boat\'s flag is blue in the copy, red in the original.' },
-    { x: 462, y: 330, r: 22, what: 'Under the edge of the frame: a dot of indigo blue and the initials I.H.' }
+    { x: 404, y: 68, r: 24, what: 'The sun sits a little lower and smaller in the copy.' },
+    { x: 140, y: 110, r: 16, what: 'Only two gulls in the copy (the original has three).' },
+    { x: 331, y: 152, r: 24, what: 'The lighthouse has two red bands in the copy, three in the original.' },
+    { x: 216, y: 176, r: 16, what: 'The flag on the big boat is blue in the copy, red in the original.' },
+    { x: 403, y: 240, r: 18, what: 'One line of light on the water is missing in the copy.' },
+    { x: 106, y: 276, r: 18, what: 'The small boat\'s sail has no dark stripe in the copy.' },
+    { x: 462, y: 330, r: 18, what: 'Under the edge of the frame: a dot of indigo blue and the initials I.H.' }
   ];
   function harbor(copy) {
     return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 340" width="480" height="340">
@@ -136,13 +138,13 @@ const Art = (() => {
     <linearGradient id="sea${copy ? 'c' : 'o'}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d98c5a"/><stop offset=".3" stop-color="#4a5f7e"/><stop offset="1" stop-color="#1c2840"/></linearGradient>
   </defs>
   <rect width="480" height="200" fill="url(#sky${copy ? 'c' : 'o'})"/>
-  ${copy ? '<circle cx="404" cy="78" r="15" fill="#ffe2a8"/>' : '<circle cx="404" cy="62" r="22" fill="#ffe2a8"/>'}
+  ${copy ? '<circle cx="404" cy="70" r="18" fill="#ffe2a8"/>' : '<circle cx="404" cy="64" r="21" fill="#ffe2a8"/>'}
   <path d="M40 60 q40 -16 80 0 q30 -10 56 4" stroke="#f5c9a0" stroke-width="7" fill="none" opacity=".6" stroke-linecap="round"/>
   <path d="M250 40 q36 -12 70 2" stroke="#f5c9a0" stroke-width="6" fill="none" opacity=".5" stroke-linecap="round"/>
   <g stroke="#1d1d2b" stroke-width="2.4" fill="none" stroke-linecap="round"><path d="M84 120 q8 -7 14 0 q6 -7 14 0"/><path d="M110 138 q7 -6 12 0 q6 -6 12 0"/>${copy ? '' : '<path d="M128 112 q6 -5 10 0 q5 -5 10 0"/>'}</g>
   <path d="M0 200 Q60 168 140 186 Q220 160 300 182 L300 200 Z" fill="#3a3348"/>
   <rect y="196" width="480" height="144" fill="url(#sea${copy ? 'c' : 'o'})"/>
-  <g stroke="#f3c98e" stroke-width="2" opacity=".5" stroke-linecap="round"><path d="M360 214h60M372 226h44M388 240h30M352 252h50"/></g>
+  <g stroke="#f3c98e" stroke-width="2" opacity=".5" stroke-linecap="round"><path d="M360 214h60M372 226h44${copy ? '' : 'M388 240h30'}M352 252h50"/></g>
   <!-- the lighthouse -->
   <path d="M318 196 L324 112 L338 112 L344 196 Z" fill="#efe6d6"/>
   <rect x="320" y="104" width="22" height="10" fill="#2a2a36"/><rect x="324" y="96" width="14" height="9" fill="#ffd98a"/>
@@ -150,10 +152,10 @@ const Art = (() => {
   <!-- boats -->
   <path d="M150 262 h120 l-16 20 h-88 z" fill="#2a1e18"/><path d="M206 262 V170 L262 252 Z" fill="#efe1c4"/><path d="M204 262 V176 L160 250 Z" fill="#d8c8a8"/>
   <path d="M206 170 l20 6 l-20 6 z" fill="${copy ? '#3a6fb0' : '#c43b2e'}"/>
-  <path d="M60 300 h70 l-10 12 h-50 z" fill="#2a1e18"/><path d="M94 300 V246 L124 296 Z" fill="#e9dcbf"/>
+  <path d="M60 300 h70 l-10 12 h-50 z" fill="#2a1e18"/><path d="M94 300 V246 L124 296 Z" fill="#e9dcbf"/>${copy ? '' : '<path d="M94 270 L109 271 L112 278 L94 277 Z" fill="#5a4a3e" opacity=".85"/>'}
   <!-- signature, and (on the copy only) the hidden mark under the frame's edge -->
   <text x="20" y="328" font-family="'Homemade Apple','Caveat',cursive" font-size="13" fill="#e9d2a6" opacity=".8">H. Valcourt</text>
-  ${copy ? '<circle cx="468" cy="336" r="3.4" fill="#3d3fb8" opacity=".9"/><text x="461" y="338" text-anchor="end" font-family="Georgia,serif" font-size="6.5" fill="#aeb0d8" opacity=".55">I.H.</text>' : ''}
+  ${copy ? '<circle cx="468" cy="336" r="2.6" fill="#3d3fb8" opacity=".8"/><text x="462" y="338" text-anchor="end" font-family="Georgia,serif" font-size="5.5" fill="#aeb0d8" opacity=".45">I.H.</text>' : ''}
 </svg>`;
   }
 

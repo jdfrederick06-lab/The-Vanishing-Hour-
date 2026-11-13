@@ -89,19 +89,19 @@ STORY.props = [
    ===================================================================== */
 STORY.games = [
   { id: 'vault', name: 'The vault dial', who: ['frankie'], backup: ['g:crew'], opens: { min: 50 },
-    blurb: 'Three numbers, left, right, left. One from the vault schematic, one from Sloane, one from Jules\'s camera loop. Without them, you can crack it by feel.' },
+    blurb: 'Three numbers, left, right, left. One from the vault schematic, one from Sloane, one from Jules\'s camera loop. Without them, crack it by feel: the dial clicks softly on each right number.' },
   { id: 'camera', name: 'The camera loop', who: ['jules'], backup: ['g:crew'], opens: { min: 48 }, seconds: 90,
-    blurb: 'Splice a recorded loop into each of six live feeds before the trace finds you. The vault keypad feed shows Frankie\'s third number.' },
+    blurb: 'Splice a recorded loop into each of six live feeds before the trace finds you. Every recording is nearly right: match the scene and the time exactly. The vault keypad feed shows Frankie\'s third number.' },
   { id: 'decrypt', name: 'The sealed birth record', who: ['g:fbi'], opens: { min: 60 }, clue: '12', lockMin: 2,
     blurb: 'A court-sealed record from 2001. Three keys open it: the mother\'s surname, the year of birth, and the county.' },
   { id: 'messages', name: 'Victor\'s phone: the deleted thread', who: ['g:fbi'], opens: { phase: 'victor' }, clue: 'R6',
-    blurb: 'Fourteen deleted messages, recovered out of order and damaged. Put them back in order and the missing words come back. Costs one lookup.' },
+    blurb: 'Fourteen deleted messages, recovered out of order with most timestamps damaged. Put the conversation back in order and the missing words come back. Costs one lookup.' },
   { id: 'photo', name: 'The torn photograph', who: ['g:guest', 'g:staff', 'g:crew', 'g:thief'], opens: { min: 60 }, clue: '03',
-    blurb: 'An old-photos account posted a picture torn into nine pieces. Put it back together and read the caption on the back.' },
+    blurb: 'An old-photos account posted a picture torn into sixteen pieces. Match the torn edges, put it back together and read the caption on the back.' },
   { id: 'differences', name: 'Is it real?', who: ['ari', 'g:guest'], opens: { min: 60 },
-    blurb: 'The museum catalogue photo of "Harbor at Dusk" against the painting on the wall. Find the five differences.' },
+    blurb: 'The museum catalogue photo of "Harbor at Dusk" against the painting on the wall. Find all seven differences, some of them very small.' },
   { id: 'ledger', name: 'Victor\'s collection ledger', who: ['sterling', 'penn'], opens: { phase: 'act1' }, clue: 'R5',
-    blurb: 'Three entries in Victor\'s collection ledger don\'t add up. Find them.' },
+    blurb: 'Three entries in Victor\'s collection ledger hide money: the balance moves by more than the entry says. Audit it, then flag the three.' },
   { id: 'doorlog', name: 'The door log', who: ['lane', 'bo'], opens: { min: 60 }, clue: '05',
-    blurb: 'Every badge swipe in the building tonight. Who went into the vault stairwell before Charlie died?' }
+    blurb: 'Every badge swipe in the building tonight, by badge number. Cross-check the register and find who went into the vault stairwell after Charlie.' }
 ];
