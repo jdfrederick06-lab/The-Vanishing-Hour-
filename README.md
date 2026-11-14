@@ -17,6 +17,13 @@ Phones can't see each other yet, and RSVPs sent from this site reach nobody.
 | `rsvp.html` | Old link only: it forwards to the invitation |
 | `print.html` | Print the evidence (host only): every clue with its FBI tag and QR code |
 | `scan.html` | Where a scanned QR tag lands: logs the piece and shares it with everyone |
+| `reveal.html` | The big screen for a projector (host only): the vote coming in, then the reveal slides |
+| `posters.html` | Posters and signs to print (host only) |
+| `badges.html` | Name badges, 4 x 3 inches, six to a sheet (host only) |
+
+The accusation lives in `js/vote.js` (phones, host and big screen) and `settings/story.js` (`STORY.vote`).
+The truth that's read at the end is in `settings/reveal.js` and `js/reveal.js`: only the host terminal and
+the big screen load them, never the player app.
 | `settings/evidence.js` | The printed evidence, the props, and the eight mini-games (spoilers) |
 | `js/games.js`, `js/art.js`, `js/evdoc.js`, `js/print.js`, `js/scan.js` | The mini-games, the original artwork, and the evidence pages |
 | `settings/story.js` | **The whole story:** characters, code words, phases, cues, records, money. Edit this, not the code |

@@ -50,6 +50,8 @@
   /* the mini-games: a "Tasks" tab for anyone who has one tonight */
   const hasGames = typeof Games !== 'undefined';
   const TASKS = { fbi: 'Tasks', bebbit: 'Puzzles', nightwire: 'Jobs' }[WORLD];
+  /* the accusation: the ballot, the arrest and the reveal show at the top of Now */
+  const hasVote = typeof Vote !== 'undefined' && !watched;
 
   const head = () => {
     const chip = `<button class="me-chip" data-tab="me" aria-label="Your file"><span class="avatar">${esc(initials(ME.name))}</span>${esc(ME.name.split(' ')[0])}</button>`;
@@ -100,7 +102,7 @@
     /* the evidence room: every printed clue someone has scanned, for everyone to read */
     const ev = Object.entries(s.ev || {}).map(([code, x]) => Object.assign({ code }, x, (STORY.evidence || []).find(e => e.code === code))).filter(x => x.title).sort((a, b) => b.at - a.at);
     const room = ev.length ? `<div class="sec-title">The evidence room · ${ev.length}</div><div class="evr">${ev.map(x => `<a href="${ROOT}scan.html?e=${encodeURIComponent(x.code)}&v=1"><span>ITEM ${x.item}</span>${esc(x.title)}<small>${esc(wallTime(x.at))}</small></a>`).join('')}</div>` : '';
-    return `${hero(r)}<div class="dk-cols"><div class="dk-a"><div class="sec-title">For you</div>${list}${room}</div><div class="dk-b"><div class="dk-only"><div class="sec-title" style="margin-bottom:12px">You</div>${idCard(s)}</div>${official}</div></div>`;
+    return `${hero(r)}${hasVote ? Vote.block(s, ME) : ''}<div class="dk-cols"><div class="dk-a"><div class="sec-title">For you</div>${list}${room}</div><div class="dk-b"><div class="dk-only"><div class="sec-title" style="margin-bottom:12px">You</div>${idCard(s)}</div>${official}</div></div>`;
   }
 
   function worldView() {
@@ -219,6 +221,7 @@
   document.addEventListener('click', e => {
     const t = e.target.closest('[data-tab]'); if (t) { const changed = tab !== t.dataset.tab; tab = t.dataset.tab; window.scrollTo(0, 0); render(true); if (changed) enter(); return; }
     if (tab === 'me' && typeof Dossier !== 'undefined' && Dossier.onClick(e)) return;
+    if (tab === 'now' && hasVote && Vote.onClick(e, ME, () => render(true))) return;
     if (tab === 'tasks' && hasGames) { const g = Games.onClick(e, ME); if (g) { if (g === 'redraw') render(true); return; } }
     if (onBebbit() && Bebbit.onClick(e, bctx)) return;
     if (onFBI() && FBI.onClick(e, fctx)) return;
@@ -227,7 +230,7 @@
     if (e.target.closest('[data-act="out"]')) { Session.signOut(); location.href = ROOT + (WORLD === 'bebbit' ? 'bebbit/' : WORLD + '/'); }
   });
   document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.matches('[data-person], .person[data-bb-profile]')) e.target.click(); });
-  document.addEventListener('input', e => { if (onBebbit()) Bebbit.onInput(e, bctx); else if (onFBI()) FBI.onInput(e, fctx); else if (onNW()) NW.onInput(e, nctx); });
+  document.addEventListener('input', e => { if (hasVote && Vote.onInput(e)) return; if (onBebbit()) Bebbit.onInput(e, bctx); else if (onFBI()) FBI.onInput(e, fctx); else if (onNW()) NW.onInput(e, nctx); });
   document.addEventListener('change', e => { if (onBebbit()) Bebbit.onChange(e, bctx); else if (onFBI()) FBI.onChange(e, fctx); else if (onNW()) NW.onChange(e, nctx); });
   document.addEventListener('submit', e => { if (onBebbit()) Bebbit.onSubmit(e, bctx); else if (onFBI()) FBI.onSubmit(e, fctx); else if (onNW()) NW.onSubmit(e, nctx); });
   /* leaving a text box: catch up on anything that changed while typing */

@@ -1,6 +1,6 @@
 /* =====================================================================
    THE VANISHING HOUR — "Print the evidence" (print.html). Host only.
-   Every printed clue, letter-size, one per sheet, with a manila FBI tag and a QR code
+   Every printed clue, letter-size, one per sheet, with an FBI evidence sticker and a QR code
    that points at scan.html on wherever the site is hosted. Tick what to print, then Print.
    Tip: print on cream or ivory card stock for the letters; plain white for the forms.
    ===================================================================== */
@@ -28,7 +28,7 @@
     $('#root').innerHTML = `<div class="ev-bar"><h1>Print the evidence<small>Case ${esc(STORY.evidenceCase)} · ${STORY.evidence.length} tagged pieces, ${STORY.props.length} props</small></h1>
       ${groups.map(([k, t]) => `<label><input type="checkbox" data-g="${k}" ${pick[k] ? 'checked' : ''}> ${esc(t)}</label>`).join('')}
       <a href="host.html">Host terminal</a><button class="go" data-act="print">Print</button></div>
-      <p class="ev-note">Letter paper, portrait, no margins ("None" or "Minimum" in the print dialog), and turn on "Background graphics" so the paper colors and the manila tags print. June's painting looks best on matte photo paper or canvas paper, framed.${local ? ' <b>The QR codes point at this computer (' + esc(location.host) + '), so phones can\'t open them yet. Print the final copies once the site is online.</b>' : ''}</p>
+      <p class="ev-note">Letter paper, portrait, no margins ("None" or "Minimum" in the print dialog), and turn on "Background graphics" so the paper colors and the evidence stickers print. June's painting looks best on matte photo paper or canvas paper, framed.${local ? ' <b>The QR codes point at this computer (' + esc(location.host) + '), so phones can\'t open them yet. Print the final copies once the site is online.</b>' : ''}</p>
       ${groups.filter(g => pick[g[0]]).map(([k, t, note, list]) => `<section class="ev-sec"><h2>${esc(t)} · ${esc(note)}</h2><div class="ev-grid">${list.map(p => `<div class="ev-item">${EvDoc.sheet(p, { qr: k === 'props' ? null : qr(p.code), noTag: k === 'props' })}<small class="who">${p.item ? 'Item ' + p.item + ' · ' : ''}${esc(p.title)} · ${esc(p.holder)}${p.clue ? ' · clue ' + esc(p.clue) : ''}</small></div>`).join('')}</div></section>`).join('')}`;
   }
   document.addEventListener('change', e => { const g = e.target.dataset.g; if (g) { pick[g] = e.target.checked; draw(); } });

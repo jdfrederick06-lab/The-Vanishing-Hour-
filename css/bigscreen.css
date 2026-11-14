@@ -1,0 +1,62 @@
+/* =====================================================================
+   THE VANISHING HOUR — the big screen (reveal.html). Built for a projector:
+   huge type, high contrast, slow theatrical entrances.
+   ===================================================================== */
+:root { --gold: #d9b45a; --gold2: #f3dc93; --ink: #07080b; --text: #f3ecdc; --mute: #a59d8b; --red: #e0614f; --serif: 'Bodoni Moda', Georgia, serif; --sans: 'Inter', system-ui, sans-serif; --mono: 'JetBrains Mono', monospace; }
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: var(--ink); color: var(--text); font-family: var(--sans); overflow: hidden; }
+.bs-bg { position: fixed; inset: -4%; z-index: 0; }
+.bs-bg img { width: 100%; height: 100%; object-fit: cover; filter: blur(14px) brightness(.32) saturate(.8); transform: scale(1.04); animation: bsDrift 60s ease-in-out infinite alternate; }
+.bs-vig { position: fixed; inset: 0; z-index: 1; background: radial-gradient(ellipse at 50% 40%, rgba(7, 8, 11, .2), rgba(7, 8, 11, .92) 75%); transition: background 1.6s; }
+body.bs-dark .bs-vig { background: radial-gradient(ellipse at 50% 45%, rgba(7, 8, 11, .35), #07080b 55%); }
+@keyframes bsDrift { to { transform: scale(1.12) translate(-1.5%, -1%); } }
+.bs { position: relative; z-index: 2; min-height: 100vh; display: grid; place-items: center; padding: 5vh 7vw; }
+.bs-slide { width: min(1500px, 100%); text-align: center; }
+.bs-k { display: block; font: 600 clamp(14px, 1.4vw, 26px) var(--mono); letter-spacing: .32em; text-transform: uppercase; color: var(--gold); }
+.bs-slide h1 { margin: 2vh 0 3vh; font: italic 400 clamp(44px, 6.2vw, 128px)/1.02 var(--serif); letter-spacing: -.01em; }
+.bs-p { margin: 0 auto 2.2vh; max-width: 40em; font: 400 clamp(20px, 2.1vw, 42px)/1.45 'Instrument Serif', Georgia, serif; color: #e9e1cf; }
+.bs-big { margin: 0 0 3vh; font: 600 clamp(56px, min(9vw, 15vh), 200px)/1 var(--serif); color: var(--gold2); text-shadow: 0 0 60px rgba(217, 180, 90, .35); white-space: nowrap; }
+.has-big h1 { margin-bottom: 1vh; }
+.has-big .bs-p { font-size: clamp(18px, min(1.8vw, 3.4vh), 38px); margin-bottom: 1.4vh; }
+.bs-ring { position: relative; width: clamp(180px, 22vw, 380px); aspect-ratio: 1; margin: 1vh auto 4vh; }
+.bs-ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.bs-ring circle { fill: none; stroke-width: 5; } .bs-ring .t { stroke: rgba(255, 255, 255, .1); } .bs-ring .v { stroke: var(--gold); stroke-linecap: round; transition: stroke-dashoffset 1s ease; }
+.bs-ring div { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; }
+.bs-ring b { font: 600 clamp(54px, 7vw, 140px)/1 var(--serif); } .bs-ring span { font: 500 clamp(14px, 1.4vw, 26px) var(--mono); color: var(--mute); letter-spacing: .1em; }
+
+/* the vote's bars */
+.bs-bars { display: grid; gap: 2.2vh; margin: 2vh auto 0; max-width: 1200px; text-align: left; }
+.bs-bar { display: grid; grid-template-columns: minmax(200px, 30%) 1fr 3ch; align-items: center; gap: 2vw; font-size: clamp(20px, 2.2vw, 44px); opacity: 0; animation: bsUp .8s var(--d) ease both; }
+.bs-bn { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bs-bt { height: clamp(14px, 1.6vw, 30px); background: rgba(255, 255, 255, .08); border-radius: 99px; overflow: hidden; }
+.bs-bt i { display: block; height: 100%; width: var(--w); background: linear-gradient(90deg, #8a7230, #bfa258); border-radius: inherit; animation: bsGrow 1.6s calc(var(--d) + .2s) cubic-bezier(.2, .8, .2, 1) both; }
+.bs-bar.lead .bs-bt i { background: linear-gradient(90deg, var(--gold), var(--gold2)); box-shadow: 0 0 30px rgba(217, 180, 90, .45); }
+.bs-bar.lead .bs-bn { color: var(--gold2); font-weight: 600; }
+.bs-bar b { font: 700 1em var(--mono); text-align: right; }
+
+/* results and honours */
+.bs-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(360px, 100%), 1fr)); gap: 2vh 1.6vw; margin-top: 2vh; text-align: left; }
+.bs-card { padding: 2.2vh 1.6vw; border: 1px solid rgba(217, 180, 90, .3); background: rgba(10, 11, 16, .7); border-radius: 6px; opacity: 0; animation: bsUp .9s var(--d) ease both; }
+.bs-card small { display: block; font: 700 clamp(12px, 1vw, 20px) var(--mono); letter-spacing: .24em; text-transform: uppercase; }
+.bs-card b { display: block; margin: .6vh 0 .8vh; font: 500 clamp(22px, 2.2vw, 44px)/1.15 var(--serif); }
+.bs-card p { margin: 0; font-size: clamp(14px, 1.15vw, 24px); line-height: 1.45; color: #cfc6b2; }
+.bs-card.win { border-color: var(--gold); } .bs-card.win small { color: var(--gold); }
+.bs-card.lose { border-color: rgba(224, 97, 79, .45); } .bs-card.lose small { color: var(--red); }
+.bs-card.aw small { color: var(--gold); }
+
+/* entrances: every new slide plays its own */
+.bs.in .bs-k { animation: bsFade 1.2s ease both; }
+.bs.in h1 { animation: bsUp 1.2s .15s ease both; }
+.bs.in .bs-p { opacity: 0; animation: bsUp 1.1s var(--d, .5s) ease both; }
+.bs.in .bs-big { animation: bsReveal 2.6s .9s cubic-bezier(.2, .7, .1, 1) both; }
+.bs.in .bs-ring { animation: bsFade 1.4s .3s ease both; }
+@keyframes bsFade { from { opacity: 0; } }
+@keyframes bsUp { from { opacity: 0; transform: translateY(22px); } to { opacity: 1; transform: none; } }
+@keyframes bsGrow { from { width: 0; } }
+@keyframes bsReveal { 0% { opacity: 0; letter-spacing: .4em; filter: blur(18px); } 60% { opacity: 1; filter: blur(0); } 100% { opacity: 1; letter-spacing: 0; } }
+@media (prefers-reduced-motion: reduce) { .bs-bg img, .bs *, .bs.in * { animation: none !important; opacity: 1 !important; } }
+
+.bs-hint { position: fixed; right: 18px; bottom: 14px; z-index: 3; font: 500 12px var(--mono); color: var(--mute); opacity: 0; transition: opacity .4s; }
+.bs-hint.on { opacity: .8; }
+.bs-lock { position: relative; z-index: 2; min-height: 100vh; display: grid; place-content: center; text-align: center; padding: 24px; }
+.bs-lock b { font: italic 400 48px var(--serif); } .bs-lock p { color: var(--mute); font-size: 18px; }

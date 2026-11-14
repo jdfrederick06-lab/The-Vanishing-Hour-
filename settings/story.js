@@ -243,6 +243,21 @@ const STORY = {
      homicides: a homicide is added to the case header when each of these phases starts. */
   fbi: { caseNo: '27-0417', lookups: 10, lead: 'dana', warrants: 3, cleared: ['noor'], homicides: ['act2', 'victor'] },
 
+  /* ---- the accusation (the vote) ----
+     Voting opens by itself when "The accusation" phase starts (the host can also open or close it).
+     Every player answers two questions on their phone and can change their answers until it closes.
+     weights:       whose vote counts for more (the FBI's counts double)
+     noVote:        who doesn't get a ballot (the dead; anyone thrown out never votes either)
+     notCandidates: who can't be named (the victims)
+     arrestBy:      who makes the arrest when voting closes: the first of these who isn't a no-show */
+  vote: {
+    questions: [['thief', 'Who stole the painting?'], ['killer', 'Who is the killer?']],
+    weights: { fbi: 2 },
+    noVote: ['victor', 'charlie'],
+    notCandidates: ['victor', 'charlie'],
+    arrestBy: ['dana', 'ellis', 'kit']
+  },
+
   /* ---- NIGHTWIRE and NightBank ----
      wallets: special accounts. members = who can spend it ('g:crew' = the whole crew shares it).
               bank:true = NightBank only (no market). Everyone NOT covered here gets a personal

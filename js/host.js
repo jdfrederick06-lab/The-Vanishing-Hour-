@@ -23,6 +23,7 @@
     bebbit: I('<path d="M5 4h11a4 4 0 014 4v5a4 4 0 01-4 4H9l-4 3z"/>'),
     nightwire: I('<rect x="3" y="4.5" width="18" height="15" rx="1.5"/><path d="M7 10l3 2.5L7 15M12.5 15H17"/>'),
     rsvps: I('<rect x="3.5" y="5.5" width="17" height="13" rx="2"/><path d="M4 7l8 6 8-6"/>'),
+    vote: I('<path d="M5 20h14M7 20V9h10v11M9 9V5.5h6V9M10 13h4"/><path d="M12 3v2.5"/>'),
     games: I('<path d="M12 3l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.4 6.8 19.1l1-5.8L3.5 9.2l5.9-.9z"/>'),
     setup: I('<circle cx="12" cy="12" r="3"/><path d="M12 2.5v3M12 18.5v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2.5 12h3M18.5 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/>')
   };
@@ -58,8 +59,8 @@
   const isLive = r => r.state === 'live' || r.state === 'paused';
   const clockNow = () => new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' });
   /* the main host gets every section; a co-host only what their own group needs to succeed */
-  const tabList = () => [['tonight', 'Tonight'], ['watch', 'Watch'], ['people', scope() ? 'My team' : 'People'], ['messages', 'Messages'], ['fbi', 'FBI'], ['bebbit', 'Bebbit'], ['nightwire', 'NIGHTWIRE'], ['games', 'Games'], ['rsvps', 'RSVPs'], ['setup', 'Setup']]
-    .filter(t => (ME.role === 'main' || !['setup', 'rsvps', 'bebbit'].includes(t[0])) && (t[0] !== 'fbi' || !scope() || scope().includes('fbi')) && (t[0] !== 'nightwire' || !scope() || scope().includes('crew')));
+  const tabList = () => [['tonight', 'Tonight'], ['watch', 'Watch'], ['people', scope() ? 'My team' : 'People'], ['messages', 'Messages'], ['fbi', 'FBI'], ['bebbit', 'Bebbit'], ['nightwire', 'NIGHTWIRE'], ['games', 'Games'], ['vote', 'Vote'], ['rsvps', 'RSVPs'], ['setup', 'Setup']]
+    .filter(t => (ME.role === 'main' || !['setup', 'rsvps', 'bebbit', 'vote'].includes(t[0])) && (t[0] !== 'fbi' || !scope() || scope().includes('fbi')) && (t[0] !== 'nightwire' || !scope() || scope().includes('crew')));
   const panel = (title, aside, body, cls) => `<section class="card ${cls || ''}"><div class="card-h"><span>${title}</span>${aside ? `<span class="card-a">${aside}</span>` : ''}</div>${body}</section>`;
 
   /* ---------- toasts: a short note after every action ---------- */
@@ -539,8 +540,53 @@
       + panel('Start over', '', `<p class="deck-n" style="margin-bottom:12px">Clears the clock, messages, sign-ins and the activity log on this computer. The story file isn't touched.</p><button class="btn danger" data-act="reset">Reset the night</button>`, 'danger-zone');
   }
 
-  /* ---------- keyboard shortcuts sheet ---------- */
-  function keysSheet() {
+  /* ---------- Vote & reveal (main host only) ---------- */
+  function voteLeft(s) {
+    const open = Vote.isOpen(s), closed = Vote.isClosed(s), st = (s.vote || {}).state || null;
+    const vs = Vote.voters(s), done = Vote.votedList(s), waiting = vs.filter(c => !Vote.done(s, c.id));
+    const pill = open ? '<span class="pill live"><i></i>Voting open</span>' : closed ? '<span class="pill">Voting closed</span>' : '<span class="pill idle"><i></i>Not open yet</span>';
+    const ctl = `<div class="vh-ctl">${pill}<small class="dim">${st ? 'set by you' : 'opens by itself when "The accusation" starts'}</small>
+      <div class="vh-btns">${!open ? '<button class="btn small primary" data-vote="open">Open voting now</button>' : '<button class="btn small" data-vote="close">Close voting</button>'}${st ? '<button class="btn small ghost" data-vote="auto">Follow the clock</button>' : ''}</div></div>`;
+    const prog = `<div class="vh-prog"><b class="mono">${done.length}<span class="dim">/${vs.length}</span></b><small>have voted · FBI votes count double</small><span class="vh-pbar"><i style="width:${vs.length ? (done.length / vs.length * 100).toFixed(1) : 0}%"></i></span></div>`;
+    const qs = Vote.questions().map(([k, label]) => `<div class="vh-q"><h4>${esc(label)}</h4>${Vote.bars(s, k, 6)}</div>`).join('');
+    const wait = waiting.length ? `<div class="vh-wait"><div class="vh-wh"><b>Still to vote · ${waiting.length}</b>${open ? '<button class="btn small" data-vote="nudge">Nudge them</button>' : ''}</div><p>${waiting.map(c => esc(c.name)).join(', ')}</p></div>` : '';
+    return panel('The accusation', '', ctl + prog + qs + wait) + arrestPanel(s);
+  }
+  function arrestPanel(s) {
+    const a = Vote.arrest(s), boss = Vote.arrester(s), K = Vote.tally(s, 'killer');
+    const body = a ? `<p class="deck-n"><b>${esc(G.byId(a.who).name)}</b> was arrested by ${esc(a.by && G.byId(a.by) ? G.byId(a.by).name : 'the host')} at ${esc(wallTime(a.at))}.</p><button class="btn small ghost" data-vote="unarrest">Undo the arrest</button>`
+      : `<p class="deck-n">${boss ? esc(boss.name) + ' makes the arrest on their phone once voting closes.' : 'Nobody is set to make the arrest.'} You can also make it for them.</p><div class="vh-btns"><select class="field" id="vharr">${Vote.candidates(s).map(c => `<option value="${c.id}"${c.id === K.top ? ' selected' : ''}>${esc(c.name)}${c.id === K.top ? ' (the room\'s pick)' : ''}</option>`).join('')}</select><button class="btn small" data-vote="arrest">Arrest</button></div>`;
+    return panel('The arrest', '', body);
+  }
+  function revealRight(s) {
+    const all = Reveal.slides(s), i = Reveal.step(s), cur = all[i];
+    const head = `<div class="vh-btns"><a class="btn small" href="reveal.html" target="_blank">Open the big screen</a><button class="btn small" data-rv-step="${i - 1}" ${i < 0 ? 'disabled' : ''}>Back</button><button class="btn small primary" data-rv-step="${i + 1}" ${i >= all.length - 1 ? 'disabled' : ''}>${i < 0 ? 'Start the reveal' : 'Next slide'}</button>${i >= 0 ? '<button class="btn small ghost" data-rv-step="-1">Clear</button>' : ''}</div>`;
+    const now = cur ? `<div class="vh-now"><small>Showing now · ${esc(cur.kicker || '')}</small><b>${esc(cur.title)}${cur.big ? ': ' + esc(cur.big) : ''}</b>${cur.say ? `<p class="vh-say">Say: "${esc(cur.say)}"</p>` : ''}</div>` : '<p class="deck-n vh-now">The reveal hasn\'t started. As you step through it, the big screen and every phone follow along.</p>';
+    const list = `<ol class="vh-steps">${all.map((x, k) => `<li><button data-rv-step="${k}" class="${k === i ? 'on' : k < i ? 'done' : ''}"><span class="mono">${String(k + 1).padStart(2, '0')}</span>${esc(x.title)}${x.big ? ': ' + esc(x.big) : ''}</button></li>`).join('')}</ol>`;
+    const res = Reveal.results(s).map(x => `<div class="vh-r ${x.win ? 'win' : 'lose'}"><div><b>${esc(x.who)} · ${x.win ? 'won' : 'lost'}</b><small>${esc(x.why)}</small></div><div class="vh-seg">${[['auto', 'Auto'], ['win', 'Won'], ['lose', 'Lost']].map(([v, l]) => `<button data-rv-ov="${x.key}:${v}" aria-pressed="${v === 'auto' ? !x.overruled : x.overruled && (v === 'win') === x.win}">${l}</button>`).join('')}</div></div>`).join('');
+    return panel('The reveal', '', head + now + list) + panel('Who won', 'worked out from the vote · overrule any side', res);
+  }
+  function voteAct(a) {
+    const s = DB.fresh(), u = {}, msg = (to, title, text) => { u['feed/' + uid('v')] = { to, title, text, at: Date.now(), kind: 'msg' }; };
+    if (a === 'open') { u['vote/state'] = 'open'; msg(['all'], 'Cast your vote', 'Voting is open. Who stole the painting? Who is the killer? Vote on your Now screen.'); Clock.log(u, 'host', 'Opened voting.'); DB.update(u); return toast('Voting is open', 'gold'); }
+    if (a === 'close') {
+      if (!Ask.sure('Close voting now? Phones stop taking votes, and the FBI makes the arrest.', () => voteAct(a), { title: 'The accusation', ok: 'Close voting' })) return;
+      u['vote/state'] = 'closed'; msg(['all'], 'Voting is closed', 'The votes are in. Watch the FBI.'); Clock.log(u, 'host', 'Closed voting.'); DB.update(u); return toast('Voting closed');
+    }
+    if (a === 'auto') { u['vote/state'] = null; Clock.log(u, 'host', 'Voting follows the clock again.'); DB.update(u); return toast('Voting follows the clock'); }
+    if (a === 'nudge') {
+      const ids = Vote.voters(s).filter(c => !Vote.done(s, c.id)).map(c => c.id); if (!ids.length) return;
+      msg(ids, 'Your vote', "You haven't voted yet. Open your Now screen and answer both questions before voting closes."); Clock.log(u, 'host', `Nudged ${ids.length} players to vote.`); DB.update(u); return toast(`Nudged ${ids.length}`);
+    }
+    if (a === 'arrest') {
+      const sel = $('#vharr'), c = sel && G.byId(sel.value); if (!c) return;
+      if (!Ask.sure(`Arrest ${c.name} for the murders? Every phone is told.`, () => voteAct(a), { title: 'The arrest', ok: 'Arrest', danger: true })) return;
+      Vote.makeArrest(c.id, null); return toast(c.name + ' arrested', 'gold');
+    }
+    if (a === 'unarrest') { u['vote/arrest'] = null; Clock.log(u, 'host', 'Undid the arrest.'); DB.update(u); return toast('Arrest undone'); }
+  }
+
+  /* ---------- keyboard shortcuts sheet ---------- */  function keysSheet() {
     const k = (keys, what) => `<div><span>${keys.map(x => `<kbd>${x}</kbd>`).join(' ')}</span><span>${what}</span></div>`;
     return `<div class="ht-keys-card" role="dialog" aria-label="Keyboard shortcuts"><div class="card-h"><span>Keyboard shortcuts</span><button class="btn small ghost" data-act="keys">Close <kbd>Esc</kbd></button></div>
       <div class="ht-keys-grid">${k(['Space'], 'Pause / resume (or start the night)')}${k(['+'], 'Add 5 minutes to this phase')}${k(['−'], 'Take away 1 minute')}${k(['N'], 'Next phase')}${k(['B'], 'Back one phase')}${k(['M'], 'Type a quick message')}${k(['/'], 'Search the cast')}${k(['1', '…', '7'], 'Switch section')}${k(['Ctrl', 'Enter'], 'Send a message')}${k(['P'], 'Hide the screen (privacy blur)')}${k(['Esc'], 'Leave a text box')}${k(['?'], 'Show this sheet')}</div>
@@ -602,14 +648,15 @@
     else if (tab === 'bebbit') { if (!keep('p1')) patch($('#p1'), bebCompose()); patch($('#p3'), bebStats(s)); patch($('#p2'), bebList(s)); }
     else if (tab === 'rsvps') { if (!keep('p1')) patch($('#p1'), rsvpHead(s)); patch($('#p2'), rsvpList(s)); }
     else if (tab === 'games') { patch($('#p1'), panel('Mini-games', scope() ? 'your groups\' games' : 'open, close, solve or nudge', typeof Games !== 'undefined' ? Games.hostPanel(s, scope()) : '')); patch($('#p2'), scope() ? '' : printedEvidence(s)); }
+    else if (tab === 'vote') { if (!keep('p1')) patch($('#p1'), voteLeft(s)); patch($('#p2'), revealRight(s)); }
     else if (tab === 'setup') { if (!document.activeElement || !document.activeElement.matches('[data-len]')) patch($('#p1'), setupLen(s)); patch($('#p2'), setupTools(s, r)); }
   }
   function go(t) { if (tab === t) return; tab = t; render(); pulse('enter', 800); }
   /* the printed evidence: which tags have been scanned, and the print page */
   function printedEvidence(s) {
     const list = STORY.evidence || [], ev = s.ev || {};
-    return panel('Printed evidence', `<a class="btn small" href="print.html" target="_blank" rel="noopener">Open the print page</a>`,
-      `<p class="deck-n" style="margin-bottom:10px">Each piece prints with a manila FBI tag and a QR code. Scanning it marks the clue found and puts a copy in every player's evidence room.</p>` +
+    return panel('Printing', `<a class="btn small" href="print.html" target="_blank" rel="noopener">Evidence</a> <a class="btn small" href="posters.html" target="_blank" rel="noopener">Posters and signs</a> <a class="btn small" href="badges.html" target="_blank" rel="noopener">Badges</a>`,
+      `<p class="deck-n" style="margin-bottom:10px">Each piece prints with an FBI evidence sticker and a QR code. Scanning it marks the clue found and puts a copy in every player's evidence room.</p>` +
       list.map(e => `<div class="sys"><div style="flex:1;min-width:0"><b>Item ${e.item} · ${esc(e.title)}</b><small>${esc(e.holder)}${e.clue ? ' · clue ' + e.clue : ''}</small></div><span class="mono" style="font-size:12px;color:${ev[e.code] ? 'var(--accent)' : 'var(--mute)'}">${ev[e.code] ? 'scanned ' + esc(wallTime(ev[e.code].at)) : 'not scanned'}</span></div>`).join(''));
   }
 
@@ -645,6 +692,9 @@
       const id = t.dataset.wpost;
       return Ask.input(`Post on Bebbit as ${nm(id)}. It appears under their name on every phone.`, '', v => { if (!v.trim()) return; const u = {}; Bebbit.post(u, { by: id, text: v.trim(), plant: true }); Clock.log(u, 'host', `Posted on Bebbit as ${nm(id)}.`); DB.update(u); toast('Posted as ' + first(id)); }, { title: 'Post as them', ok: 'Post' });
     }
+    if ((t = q('[data-vote]'))) return voteAct(t.dataset.vote);
+    if ((t = q('[data-rv-step]'))) { const i = Number(t.dataset.rvStep); Reveal.go(i < 0 ? null : i); return toast(i < 0 ? 'Reveal cleared' : 'Slide ' + (i + 1)); }
+    if ((t = q('[data-rv-ov]'))) { const [k, v] = t.dataset.rvOv.split(':'); DB.update({ ['reveal/override/' + k]: v === 'auto' ? null : v === 'win' }); return toast('Result updated'); }
     if ((t = q('[data-filter]'))) { filter = t.dataset.filter; if (t.dataset.tab) { tab = t.dataset.tab; pulse('enter', 800); } $('#p0') && ($('#p0')._html = null); return render(); }
     if ((t = q('[data-tab]'))) return go(t.dataset.tab);
     if ((t = q('[data-jump]'))) { const i = Number(t.dataset.jump), r = Clock.read(DB.get()); if (i === r.i && isLive(r)) return; if (Ask.sure(`Jump to "${STORY.phases[i].name}" and start it now?`, () => hostClick(e), { title: 'The clock', ok: 'Jump there' })) Clock.start(i); return; }
