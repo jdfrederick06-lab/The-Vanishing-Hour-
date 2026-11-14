@@ -544,29 +544,32 @@
   function voteLeft(s) {
     const open = Vote.isOpen(s), closed = Vote.isClosed(s), st = (s.vote || {}).state || null;
     const vs = Vote.voters(s), done = Vote.votedList(s), waiting = vs.filter(c => !Vote.done(s, c.id));
+    const C = 2 * Math.PI * 56, f = vs.length ? done.length / vs.length : 0;
     const pill = open ? '<span class="pill live"><i></i>Voting open</span>' : closed ? '<span class="pill">Voting closed</span>' : '<span class="pill idle"><i></i>Not open yet</span>';
-    const ctl = `<div class="vh-ctl">${pill}<small class="dim">${st ? 'set by you' : 'opens by itself when "The accusation" starts'}</small>
-      <div class="vh-btns">${!open ? '<button class="btn small primary" data-vote="open">Open voting now</button>' : '<button class="btn small" data-vote="close">Close voting</button>'}${st ? '<button class="btn small ghost" data-vote="auto">Follow the clock</button>' : ''}</div></div>`;
-    const prog = `<div class="vh-prog"><b class="mono">${done.length}<span class="dim">/${vs.length}</span></b><small>have voted · FBI votes count double</small><span class="vh-pbar"><i style="width:${vs.length ? (done.length / vs.length * 100).toFixed(1) : 0}%"></i></span></div>`;
-    const qs = Vote.questions().map(([k, label]) => `<div class="vh-q"><h4>${esc(label)}</h4>${Vote.bars(s, k, 6)}</div>`).join('');
-    const wait = waiting.length ? `<div class="vh-wait"><div class="vh-wh"><b>Still to vote · ${waiting.length}</b>${open ? '<button class="btn small" data-vote="nudge">Nudge them</button>' : ''}</div><p>${waiting.map(c => esc(c.name)).join(', ')}</p></div>` : '';
-    return panel('The accusation', '', ctl + prog + qs + wait) + arrestPanel(s);
+    const hero = `<section class="card vh-hero"><div class="vh-ring"><svg viewBox="0 0 132 132" aria-hidden="true"><circle class="t" cx="66" cy="66" r="56"/><circle class="v" cx="66" cy="66" r="56" stroke-dasharray="${C.toFixed(1)}" stroke-dashoffset="${(C * (1 - f)).toFixed(1)}"/></svg><div><b class="mono">${done.length}</b><small>of ${vs.length} voted</small></div></div>
+      <div class="vh-hs">${pill}<b class="vh-t">The accusation</b><p>${st === 'open' ? 'You opened voting.' : st === 'closed' ? 'You closed voting.' : 'Opens by itself when "The accusation" starts, and closes when it ends.'} FBI votes count double.</p>
+        <div class="vh-btns">${!open ? '<button class="btn small primary" data-vote="open">Open voting now</button>' : '<button class="btn small" data-vote="close">Close voting</button>'}${st ? '<button class="btn small ghost" data-vote="auto">Follow the clock</button>' : ''}</div></div></section>`;
+    const qs = `<div class="vh-two">${Vote.questions().map(([k, label]) => { const T = Vote.tally(s, k), c = T.top && G.byId(T.top);
+      return panel(esc(label), T.total ? `${T.total} votes` : '', (c ? `<div class="vh-lead">${Vote.face(c)}<div><small>${T.tie ? 'Tied for the lead' : 'The room\'s pick'}</small><b>${esc(c.name)}</b></div><span class="mono">${T.list[0].n}</span></div>` : '') + Vote.bars(s, k, 6)); }).join('')}</div>`;
+    const wait = waiting.length ? panel(`Still to vote · ${waiting.length}`, open ? '<button class="btn small" data-vote="nudge">Nudge them all</button>' : '', `<div class="vh-chips">${waiting.map(c => `<span class="vh-chip">${Vote.face(c, 'sm')}${esc(c.name)}</span>`).join('')}</div>`) : '';
+    return hero + qs + wait + arrestPanel(s);
   }
   function arrestPanel(s) {
     const a = Vote.arrest(s), boss = Vote.arrester(s), K = Vote.tally(s, 'killer');
-    const body = a ? `<p class="deck-n"><b>${esc(G.byId(a.who).name)}</b> was arrested by ${esc(a.by && G.byId(a.by) ? G.byId(a.by).name : 'the host')} at ${esc(wallTime(a.at))}.</p><button class="btn small ghost" data-vote="unarrest">Undo the arrest</button>`
-      : `<p class="deck-n">${boss ? esc(boss.name) + ' makes the arrest on their phone once voting closes.' : 'Nobody is set to make the arrest.'} You can also make it for them.</p><div class="vh-btns"><select class="field" id="vharr">${Vote.candidates(s).map(c => `<option value="${c.id}"${c.id === K.top ? ' selected' : ''}>${esc(c.name)}${c.id === K.top ? ' (the room\'s pick)' : ''}</option>`).join('')}</select><button class="btn small" data-vote="arrest">Arrest</button></div>`;
-    return panel('The arrest', '', body);
+    if (a) { const c = G.byId(a.who); return panel('The arrest', `<button class="btn small ghost" data-vote="unarrest">Undo</button>`, `<div class="vh-mug">${Vote.face(c, 'xl')}<div><small>Arrested at ${esc(wallTime(a.at))}</small><b>${esc(c.name)}</b><small>by ${esc(a.by && G.byId(a.by) ? G.byId(a.by).name : 'the host')}</small></div></div>`); }
+    return panel('The arrest', '', `<p class="deck-n">${boss ? esc(boss.name) + ' makes the arrest on their phone once voting closes.' : 'Nobody is set to make the arrest.'} You can also make it for them.</p><div class="vh-btns"><select class="field" id="vharr">${Vote.candidates(s).map(c => `<option value="${c.id}"${c.id === K.top ? ' selected' : ''}>${esc(c.name)}${c.id === K.top ? ' (the room\'s pick)' : ''}</option>`).join('')}</select><button class="btn small" data-vote="arrest">Arrest</button></div>`);
   }
   function revealRight(s) {
     const all = Reveal.slides(s), i = Reveal.step(s), cur = all[i];
-    const head = `<div class="vh-btns"><a class="btn small" href="reveal.html" target="_blank">Open the big screen</a><button class="btn small" data-rv-step="${i - 1}" ${i < 0 ? 'disabled' : ''}>Back</button><button class="btn small primary" data-rv-step="${i + 1}" ${i >= all.length - 1 ? 'disabled' : ''}>${i < 0 ? 'Start the reveal' : 'Next slide'}</button>${i >= 0 ? '<button class="btn small ghost" data-rv-step="-1">Clear</button>' : ''}</div>`;
-    const now = cur ? `<div class="vh-now"><small>Showing now · ${esc(cur.kicker || '')}</small><b>${esc(cur.title)}${cur.big ? ': ' + esc(cur.big) : ''}</b>${cur.say ? `<p class="vh-say">Say: "${esc(cur.say)}"</p>` : ''}</div>` : '<p class="deck-n vh-now">The reveal hasn\'t started. As you step through it, the big screen and every phone follow along.</p>';
-    const list = `<ol class="vh-steps">${all.map((x, k) => `<li><button data-rv-step="${k}" class="${k === i ? 'on' : k < i ? 'done' : ''}"><span class="mono">${String(k + 1).padStart(2, '0')}</span>${esc(x.title)}${x.big ? ': ' + esc(x.big) : ''}</button></li>`).join('')}</ol>`;
-    const res = Reveal.results(s).map(x => `<div class="vh-r ${x.win ? 'win' : 'lose'}"><div><b>${esc(x.who)} · ${x.win ? 'won' : 'lost'}</b><small>${esc(x.why)}</small></div><div class="vh-seg">${[['auto', 'Auto'], ['win', 'Won'], ['lose', 'Lost']].map(([v, l]) => `<button data-rv-ov="${x.key}:${v}" aria-pressed="${v === 'auto' ? !x.overruled : x.overruled && (v === 'win') === x.win}">${l}</button>`).join('')}</div></div>`).join('');
-    return panel('The reveal', '', head + now + list) + panel('Who won', 'worked out from the vote · overrule any side', res);
-  }
-  function voteAct(a) {
+    const view = cur ? Vote.slideHTML(Object.assign({}, cur, { say: null })) : `<div class="vh-idle"><b>${esc(CONFIG.TITLE)}</b>The reveal hasn't started. The big screen and every phone follow along as you step through it.</div>`;
+    const stage = `<div class="vh-stage">${cur ? `<span class="vh-pos">${i + 1} / ${all.length}</span>` : ''}${view}</div>`;
+    const ctl = `<div class="vh-ctl2"><button class="btn" data-rv-step="${i - 1}" ${i < 0 ? 'disabled' : ''}>Back</button><button class="btn primary vh-next" data-rv-step="${i + 1}" ${i >= all.length - 1 ? 'disabled' : ''}>${i < 0 ? 'Start the reveal' : i >= all.length - 1 ? 'The end' : 'Next: ' + esc(all[i + 1].title)}</button><a class="btn" href="reveal.html" target="_blank">Big screen</a>${i >= 0 ? '<button class="btn ghost" data-rv-step="-1">Clear</button>' : ''}</div>`;
+    const say = cur && cur.say ? `<div class="vh-say"><small>Read aloud</small>"${esc(cur.say)}"</div>` : '';
+    const groups = [['The vote', x => !x.chapter && !['results', 'awards', 'end'].includes(x.id)], ['The truth', x => !!x.chapter], ['The end', x => ['results', 'awards', 'end'].includes(x.id)]];
+    const list = groups.map(([g, fn]) => `<div class="vh-grp">${g}</div><ol class="vh-steps">${all.map((x, k) => fn(x) ? `<li><button data-rv-step="${k}" class="${k === i ? 'on' : k < i ? 'done' : ''}"><span class="mono">${String(k + 1).padStart(2, '0')}</span>${esc(x.title)}${x.big ? ' ' + esc(x.big) : ''}</button></li>` : '').join('')}</ol>`).join('');
+    const res = Reveal.results(s).map(x => `<div class="vh-r ${x.win ? 'win' : 'lose'}"><div class="vh-ri"><i aria-hidden="true">${x.win ? '✓' : '✕'}</i><div><b>${esc(x.who)} ${x.win ? 'won' : 'lost'}</b><small>${esc(x.why)}</small></div></div><div class="vh-seg">${[['auto', 'Auto'], ['win', 'Won'], ['lose', 'Lost']].map(([v, l]) => `<button data-rv-ov="${x.key}:${v}" aria-pressed="${v === 'auto' ? !x.overruled : x.overruled && (v === 'win') === x.win}">${l}</button>`).join('')}</div></div>`).join('');
+    return panel('The reveal', 'what the room sees right now', stage + ctl + say + list) + panel('Who won', 'worked out from the vote · overrule any side', res);
+  }  function voteAct(a) {
     const s = DB.fresh(), u = {}, msg = (to, title, text) => { u['feed/' + uid('v')] = { to, title, text, at: Date.now(), kind: 'msg' }; };
     if (a === 'open') { u['vote/state'] = 'open'; msg(['all'], 'Cast your vote', 'Voting is open. Who stole the painting? Who is the killer? Vote on your Now screen.'); Clock.log(u, 'host', 'Opened voting.'); DB.update(u); return toast('Voting is open', 'gold'); }
     if (a === 'close') {

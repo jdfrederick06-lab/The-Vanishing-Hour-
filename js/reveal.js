@@ -58,7 +58,7 @@ const Reveal = (() => {
     qs.forEach(([k, label], i) => list.push({ id: 'q-' + k, kicker: `Question ${i + 1}`, title: label, bars: barsOf(s, k), say: `${label} Here's what the room said.` }));
     const boss = A && G.byId(A.by), who = A && G.byId(A.who);
     list.push({ id: 'arrest', kicker: 'The arrest', title: who ? `${boss ? boss.name : 'The FBI'} arrests` : 'No arrest was made', big: who ? who.name : '', body: who ? [`For the murders of Charlie Pruitt and Victor Ashgrove.`] : ['The FBI let the night end without an arrest.'], say: who ? `${boss ? boss.name.split(' ')[0] : 'The FBI'}, tell the room who you arrested, and why.` : 'Nobody was arrested.' });
-    R().chapters.forEach(c => list.push(Object.assign({}, c)));
+    R().chapters.forEach((c, k) => list.push(Object.assign({ chapter: k + 1 }, c)));
     list.push({ id: 'results', kicker: 'Tonight\'s results', title: 'Who won', results: results(s).map(x => ({ who: x.who, win: x.win, why: x.why })), say: 'Here is how each side did tonight.' });
     const aw = awards(s);
     if (aw.length) list.push({ id: 'awards', kicker: 'Curtain', title: 'The night\'s honours', awards: aw, say: 'And a few honours before we go.' });

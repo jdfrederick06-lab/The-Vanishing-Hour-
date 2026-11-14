@@ -38,18 +38,18 @@
   /* ---------- posters and signs ---------- */
   const POSTERS = [
     { id: 'gala', group: 'Posters', title: 'The gala poster', note: 'For the entrance and the hallways.', html: () => `
-      <div class="pp-gala"><div class="pg-rule"></div>
+      <div class="pp-gala"><i class="pg-c tl"></i><i class="pg-c tr"></i><i class="pg-c bl"></i><i class="pg-c br"></i>
         <small class="pg-pre">The Ashgrove Collection presents</small>
-        <div class="pg-frame"><img alt="" src="${Art.uri(Art.harbor(false))}"></div>
-        <h2>${esc(CONFIG.EVENT)}</h2>
+        <div class="pg-spot" aria-hidden="true"></div><div class="pg-frame"><img alt="" src="${Art.uri(Art.harbor(false))}"></div><div class="pg-plaque">The Ashgrove Collection · Harbor Hill</div>
+        <h2 class="foil">${esc(CONFIG.EVENT)}</h2>
         <p class="pg-sub">An evening with <i>${esc(CONFIG.TITLE)}</i> and the Winter Star</p>
         <div class="pg-orn">${hourglass}</div>
         <p class="pg-when">${esc(CONFIG.SEASON)} · ${esc((I.TIME || 'Doors at 7:00 PM').split(' · ')[0])}</p>
         <p class="pg-where">${esc(I.PLACE || '')} · ${esc(I.DRESS || '')}</p>
         <small class="pg-foot">One night only</small></div>` },
     { id: 'star', group: 'Posters', title: 'The Winter Star', note: 'Beside the diamond\'s case.', html: () => `
-      <div class="pp-star"><small class="ps-pre">On view tonight</small><div class="ps-gem">${diamond()}</div>
-        <h2>The Winter Star</h2><p class="ps-sub">The third-largest diamond in the country</p>
+      <div class="pp-star"><div class="ps-spot" aria-hidden="true"></div><small class="ps-pre">On view tonight</small><div class="ps-gem">${diamond()}<i class="ps-plinth" aria-hidden="true"></i></div>
+        <h2 class="foil-ice">The Winter Star</h2><p class="ps-sub">The third-largest diamond in the country</p>
         <div class="ps-line"></div>
         <p class="ps-lent">On loan from the collection of<br><b>Dominique Saint-Clair</b><br>Geneva and New York</p>
         <p class="ps-fine">Please do not touch the case. Protected tonight by the FBI Art Crime Team.</p></div>` },
@@ -57,20 +57,20 @@
       <div class="pp-labels">${[
         ['Henri Valcourt', 'French, 19th century', 'The Vanishing Hour, 1874', 'Oil on canvas', 'A French harbor at dusk, painted in the last light of a single evening. The star of the Ashgrove Collection.', 'Lent by Victor J. Ashgrove'],
         ['The Winter Star', 'Diamond', 'Cut stone, platinum setting', '', 'The third-largest diamond in the country, shown tonight under the protection of the FBI Art Crime Team.', 'Lent by Dominique Saint-Clair']
-      ].map(l => `<div class="pl-l"><b>${esc(l[0])}</b><small>${esc(l[1])}</small><i>${esc(l[2])}</i>${l[3] ? `<span>${esc(l[3])}</span>` : ''}<p>${esc(l[4])}</p><em>${esc(l[5])}</em></div>`).join('')}</div>` },
+      ].map((l, k) => `<div class="pl-l"><div class="pl-h"><span>The Ashgrove Collection</span><span>No. 2027.</span></div><b>${esc(l[0])}</b><small>${esc(l[1])}</small><i>${esc(l[2])}</i>${l[3] ? `<span>${esc(l[3])}</span>` : ''}<p>${esc(l[4])}</p><em>${esc(l[5])}</em></div>`).join('')}</div>` },
     { id: 'bebbit', group: 'Posters', title: 'Join Bebbit', note: 'Near the bar and the photo spot. The QR opens the Bebbit door.', html: () => `
       <div class="pp-beb"><div class="pb-logo">b</div><h2>b/thegala</h2><p class="pb-sub">The official feed of tonight's ${esc(CONFIG.EVENT)}</p>
-        <div class="pb-qr">${qr(base + 'bebbit/')}</div><p class="pb-scan">Scan with your phone's camera</p>
-        <p class="pb-rules">Post your photos. Tag your friends.<br>Be nice. Mostly.</p></div>` },
+        <div class="pb-post"><span class="pb-av">b</span><div><b>thegala_mod <small>· pinned</small></b><p>Welcome to b/thegala. Post your photos, tag your friends, and be nice. Mostly.</p></div></div><div class="pb-qr">${qr(base + 'bebbit/')}</div><p class="pb-scan">Scan with your phone's camera</p>
+        <p class="pb-rules">Photos, gossip and the occasional scandal.<br>Only on Bebbit.</p></div>` },
     { id: 'fbi', group: 'Signs', title: 'FBI command post', note: 'On the FBI\'s room or table.', html: () => `
       <div class="pp-fbi"><div class="pf-strip">Restricted area · Law enforcement only</div><div class="pf-emb">${star}</div><h2>FBI</h2><p class="pf-k">Art Crime Team</p>
         <div class="pf-box"><b>Command post</b><span>Authorized personnel only</span></div><p class="pf-case">Case ${esc(STORY.fbi.caseNo)}</p></div>` },
     { id: 'staff', group: 'Signs', title: 'Staff only', note: 'At the door to the vault stairs.', html: () => `
-      <div class="pp-staff"><div class="pst-bar"></div><p class="pst-k">Museum security</p><h2>Staff only</h2><p class="pst-sub">beyond this point</p><div class="pst-arrow">Vault stairs · East hall</div><p class="pst-fine">Guests, please return to the main hall. All doors are monitored.</p></div>` },
+      <div class="pp-staff"><div class="pst-bar"></div><p class="pst-k">Museum security</p><h2>Staff only</h2><p class="pst-sub">beyond this point</p><div class="pst-arrow"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h13M13 6l6 6-6 6"/></svg>Vault stairs · East hall</div><p class="pst-fine">Guests, please return to the main hall. All doors are monitored.</p></div>` },
     { id: 'casino', group: 'Signs', title: 'The casino', note: 'At the casino table, if a co-host deals; otherwise near the bar.', html: () => `
-      <div class="pp-cas"><div class="pc-in"><p class="pc-k">The Saint-Clair Foundation</p><h2>Casino</h2><div class="pc-suits">♠ ♥ ♦ ♣</div><p class="pc-games">Roulette · Blackjack · Lucky dice</p><p class="pc-how">Play on your phone in NightBank.<br>The house's winnings go to the Saint-Clair Foundation.</p><p class="pc-fine">The house always wins in the end. Play responsibly.</p></div></div>` },
+      <div class="pp-cas"><div class="pc-wheel" aria-hidden="true"></div><div class="pc-in"><p class="pc-k">The Saint-Clair Foundation</p><h2>Casino</h2><div class="pc-chips" aria-hidden="true">${[['#b3201f', '5'], ['#111', '25'], ['#1d4f91', '100'], ['#c9a24f', '500']].map(([c, n]) => `<span class="pc-chip" style="--c:${c}"><b>${n}</b></span>`).join('')}</div><div class="pc-suits">♠ ♥ ♦ ♣</div><p class="pc-games">Roulette · Blackjack · Lucky dice</p><p class="pc-how">Play on your phone in NightBank.<br>The house's winnings go to the Saint-Clair Foundation.</p><p class="pc-fine">The house always wins in the end. Play responsibly.</p></div></div>` },
     { id: 'lockdown', group: 'Signs', title: 'Lockdown notice', note: 'A prop: the FBI or Lane tapes it to the doors when the building locks down (Act II).', html: () => `
-      <div class="pp-lock2"><div class="pl2-top"><span>Notice</span><span>Case ${esc(STORY.fbi.caseNo)}</span></div><h2>Lockdown</h2>
+      <div class="pp-lock2"><div class="pl2-tape a" aria-hidden="true">${'FBI · Do not cross · '.repeat(8)}</div><div class="pl2-tape b" aria-hidden="true">${'FBI · Do not cross · '.repeat(8)}</div><div class="pl2-top"><span>Notice</span><span>Case ${esc(STORY.fbi.caseNo)}</span></div><h2>Lockdown</h2>
         <p class="pl2-big">No one may leave this building until further notice.</p><p class="pl2-txt">By order of the Federal Bureau of Investigation. Remain in the public rooms. Anyone who tries to leave will be detained and questioned.</p>
         <div class="pl2-sig"><span class="pl2-hand">D. Ward</span><small>Special Agent in Charge</small></div></div>` }
   ];
