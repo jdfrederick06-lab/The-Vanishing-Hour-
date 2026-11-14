@@ -57,7 +57,7 @@
       <div class="pp-labels">${[
         ['Henri Valcourt', 'French, 19th century', 'The Vanishing Hour, 1874', 'Oil on canvas', 'A French harbor at dusk, painted in the last light of a single evening. The star of the Ashgrove Collection.', 'Lent by Victor J. Ashgrove'],
         ['The Winter Star', 'Diamond', 'Cut stone, platinum setting', '', 'The third-largest diamond in the country, shown tonight under the protection of the FBI Art Crime Team.', 'Lent by Dominique Saint-Clair']
-      ].map((l, k) => `<div class="pl-l"><div class="pl-h"><span>The Ashgrove Collection</span><span>No. 2027.</span></div><b>${esc(l[0])}</b><small>${esc(l[1])}</small><i>${esc(l[2])}</i>${l[3] ? `<span>${esc(l[3])}</span>` : ''}<p>${esc(l[4])}</p><em>${esc(l[5])}</em></div>`).join('')}</div>` },
+      ].map((l, k) => `<div class="pl-l"><div class="pl-h"><span>The Ashgrove Collection</span><span>No. 2027.${k + 1}</span></div><b>${esc(l[0])}</b><small>${esc(l[1])}</small><i>${esc(l[2])}</i>${l[3] ? `<span>${esc(l[3])}</span>` : ''}<p>${esc(l[4])}</p><em>${esc(l[5])}</em></div>`).join('')}</div>` },
     { id: 'bebbit', group: 'Posters', title: 'Join Bebbit', note: 'Near the bar and the photo spot. The QR opens the Bebbit door.', html: () => `
       <div class="pp-beb"><div class="pb-logo">b</div><h2>b/thegala</h2><p class="pb-sub">The official feed of tonight's ${esc(CONFIG.EVENT)}</p>
         <div class="pb-post"><span class="pb-av">b</span><div><b>thegala_mod <small>· pinned</small></b><p>Welcome to b/thegala. Post your photos, tag your friends, and be nice. Mostly.</p></div></div><div class="pb-qr">${qr(base + 'bebbit/')}</div><p class="pb-scan">Scan with your phone's camera</p>
@@ -88,17 +88,20 @@
     const slot = '<i class="bd-slot"></i>', blankName = '<span class="bd-blank"></span>';
     /* long names shrink to fit on one line (k = how wide that badge's lettering runs) */
     const fit = (base, k) => name ? `style="font-size:${Math.min(base, 84 / (name.length * k)).toFixed(2)}cqw"` : '';
+    /* a made-up but steady ID number for each character, like a real pass */
+    const serial = c ? String([...c.id].reduce((n, ch) => (n * 31 + ch.charCodeAt(0)) % 9000, 7) + 1000) : '0000';
+    const wm = `<i class="bd-wm" aria-hidden="true">${hourglass}</i>`, code = `<div class="bd-code"><i aria-hidden="true"></i><span>No. ${serial}</span></div>`;
     if (kind === 'fbi') {
       const parts = name.split(' '), last = parts.slice(1).join(' ');
-      return `<div class="bd bd-fbi">${slot}<div class="bd-in"><div class="bd-fh">${star}<div><b>FBI</b><small>Art Crime Team</small></div></div><b class="bd-name" ${fit(10.5, .62)}>${c ? `<span>${esc(last.toUpperCase())},</span> ${esc(parts[0])}` : blankName}</b><span class="bd-role">${esc(role)}</span><div class="bd-band">Case ${esc(STORY.fbi.caseNo)} · Protection detail</div>${by}</div></div>`;
+      return `<div class="bd bd-fbi">${slot}<i class="bd-holo" aria-hidden="true"></i><div class="bd-in"><div class="bd-fh">${star}<div><b>FBI</b><small>Art Crime Team</small></div></div><b class="bd-name" ${fit(10.5, .62)}>${c ? `<span>${esc(last.toUpperCase())},</span> ${esc(parts[0])}` : blankName}</b><span class="bd-role">${esc(role)}</span><span class="bd-cred">Credential ${serial}-${esc(STORY.fbi.caseNo)}</span><div class="bd-band">Case ${esc(STORY.fbi.caseNo)} · Protection detail</div>${by}</div></div>`;
     }
     if (kind === 'staff') {
       const [label, k] = c ? band(c) : ['Staff', 'stf'];
-      return `<div class="bd bd-staff bd-${k}">${slot}<div class="bd-in"><div class="bd-sh">${hourglass}<small>${esc(CONFIG.EVENT)}</small></div><b class="bd-name" ${fit(11.5, .56)}>${c ? esc(name) : blankName}</b><span class="bd-role">${esc(role)}</span><div class="bd-band">${esc(label)}</div>${by}</div></div>`;
+      return `<div class="bd bd-staff bd-${k}">${slot}<i class="bd-stripe" aria-hidden="true"></i><div class="bd-in"><div class="bd-sh">${hourglass}<small>${esc(CONFIG.EVENT)}</small></div><b class="bd-name" ${fit(11.5, .56)}>${c ? esc(name) : blankName}</b><span class="bd-role">${esc(role)}</span>${code}<div class="bd-band">${esc(label)}</div>${by}</div></div>`;
     }
-    if (kind === 'press') return `<div class="bd bd-press">${slot}<div class="bd-in"><div class="bd-sh">${hourglass}<small>${esc(CONFIG.EVENT)}</small></div><b class="bd-name" ${fit(11.5, .56)}>${esc(name)}</b><span class="bd-role">${esc(role)}</span><div class="bd-band">Press</div>${by}</div></div>`;
-    if (kind === 'host') return `<div class="bd bd-host">${slot}<div class="bd-in"><div class="bd-gh">${hourglass}</div><small class="bd-ev">${esc(CONFIG.EVENT)}</small><b class="bd-name">Host</b><span class="bd-blank"></span><div class="bd-band">Ask me anything</div></div></div>`;
-    return `<div class="bd bd-guest">${slot}<div class="bd-in"><div class="bd-gh">${hourglass}</div><small class="bd-ev">${esc(CONFIG.EVENT)}</small><b class="bd-name" ${fit(12.5, .47)}>${c ? esc(name) : blankName}</b><span class="bd-role">${esc(role)}</span><div class="bd-band">Guest</div>${by}</div></div>`;
+    if (kind === 'press') return `<div class="bd bd-press">${slot}<i class="bd-stripe" aria-hidden="true"></i><div class="bd-in"><div class="bd-sh">${hourglass}<small>${esc(CONFIG.EVENT)}</small></div><b class="bd-name" ${fit(11.5, .56)}>${esc(name)}</b><span class="bd-role">${esc(role)}</span>${code}<div class="bd-band">Press</div>${by}</div></div>`;
+    if (kind === 'host') return `<div class="bd bd-host">${slot}${wm}<div class="bd-in"><div class="bd-gh">${hourglass}</div><small class="bd-ev">${esc(CONFIG.EVENT)}</small><b class="bd-name">Host</b><span class="bd-blank"></span><div class="bd-band">Ask me anything</div></div></div>`;
+    return `<div class="bd bd-guest">${slot}${wm}<div class="bd-in"><div class="bd-gh">${hourglass}</div><small class="bd-ev">${esc(CONFIG.EVENT)}</small><b class="bd-name" ${fit(12.5, .47)}>${c ? esc(name) : blankName}</b><span class="bd-role">${esc(role)}</span><div class="bd-band">Guest</div>${by}</div></div>`;
   }
   function badgeList() {
     const P = players(), order = { fbi: 0, staff: 1, press: 2, guest: 3 };
