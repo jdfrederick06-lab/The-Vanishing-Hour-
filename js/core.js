@@ -30,6 +30,7 @@ function setPath(obj, path, val) {
    tabs can act as different phones. A Firebase backend with the same three
    functions replaces this block when the site goes online. */
 const DB = (() => {
+  if (CONFIG.BACKEND === 'firebase') return FireDB();
   const KEY = 'vh:' + CONFIG.GAME_ID + ':state';
   let state = {}; const subs = [];
   const bc = 'BroadcastChannel' in window ? new BroadcastChannel(KEY) : null;
@@ -48,9 +49,94 @@ const DB = (() => {
       catch (e) { console.error(e); load(); emit(); return false; }   // storage full: undo and report
       if (bc) bc.postMessage(1); emit(); return true;
     },
-    reset() { try { localStorage.removeItem(KEY); } catch (e) { } state = {}; if (bc) bc.postMessage(1); emit(); }
+    reset() { try { localStorage.removeItem(KEY); } catch (e) { } state = {}; if (bc) bc.postMessage(1); emit(); },
+    ready: Promise.resolve(), backend: 'local'
   };
 })();
+
+/* ---------- the online database (CONFIG.BACKEND = 'firebase') ----------
+   Same four calls as local mode, so no page has to change. Layout in Firebase:
+     /state/...       the night (everything the game reads and writes)
+     /rsvp/{id}       invitation replies: anyone can send one, only hosts can read them, none can be deleted
+     /sessions/{uid}  which character (or host) this phone signed in as, proved with a hashed code word
+     /codes/{hash}    the hashed code words (imported once in the Firebase console; nobody can read them)
+   Every tab signs in anonymously (each tab its own sign-in, so one computer can test several phones).
+   Writes wait until the sign-in is done, then go out as one multi-path update. */
+function FireDB() {
+  const subs = [];
+  let state = {}, rsvp = null, uidNow = null, role = null, listening = [];
+  const app = firebase.apps.length ? firebase.app() : firebase.initializeApp(CONFIG.FIREBASE);
+  const auth = firebase.auth(app), db = firebase.database(app);
+  const view = () => { const s = Object.assign({}, state); if (rsvp) s.rsvp = rsvp; return s; };
+  let cache = {};
+  const emit = () => { cache = view(); subs.forEach(f => { try { f(cache); } catch (e) { console.error(e); } }); };
+  const status = (on, msg) => { document.documentElement.classList.toggle('db-offline', !on); if (msg) console.warn('[db]', msg); };
+
+  /* sign in (anonymous, one per tab) */
+  const user = auth.setPersistence(firebase.auth.Auth.Persistence.SESSION).catch(() => {}).then(() => new Promise(res => {
+    const off = auth.onAuthStateChanged(u => { if (u) { off(); uidNow = u.uid; res(u); } });
+    if (!auth.currentUser) auth.signInAnonymously().catch(e => { status(false, 'sign-in failed: ' + e.code); });
+  }));
+
+  /* which code word this tab is using: a host code first, then a player code (scans use the phone's last one) */
+  const codeNow = () => sessionStorage.getItem('vh:host') || sessionStorage.getItem('vh:code') ||
+    (() => { try { return localStorage.getItem('vh:lasthost') || localStorage.getItem('vh:last'); } catch (e) { return null; } })();
+  const hash = async code => {
+    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('vanishing-hour:' + normCode(code)));
+    return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
+  };
+  function stopListening() { listening.forEach(r => r.off()); listening = []; }
+  function listen(isHost) {
+    stopListening();
+    const st = db.ref('state'); listening.push(st);
+    st.on('value', snap => { state = snap.val() || {}; emit(); }, e => status(false, 'state: ' + e.code));
+    if (isHost) { const rv = db.ref('rsvp'); listening.push(rv); rv.on('value', snap => { rsvp = snap.val() || {}; emit(); }, e => console.warn('[db] rsvp', e.code)); }
+    else rsvp = null;
+  }
+  /* prove the code word: write /sessions/{uid}; the rules check the hash against /codes */
+  async function claim() {
+    await user;
+    if (typeof STORY === 'undefined') return null;   /* the invitation page: anonymous is enough to send an RSVP */
+    const code = codeNow(), h = code && G.hostByCode(code), c = code && !h && G.byCode(code);
+    if (!h && !c) { role = null; stopListening(); state = {}; rsvp = null; emit(); return null; }
+    const rec = h ? { h: await hash(code), role: 'host', host: h.role, at: Date.now() } : { h: await hash(code), role: 'player', id: c.id, group: c.group, at: Date.now() };
+    try { await db.ref('sessions/' + uidNow).set(rec); } catch (e) { status(false, 'that code word was refused by the database (' + e.code + ')'); return null; }
+    role = rec.role; listen(role === 'host'); status(true); return rec;
+  }
+  const safe = () => claim().catch(e => { console.warn('[db] sign-in problem', e); return null; });
+  let ready = safe();
+
+  /* Firebase can't take two paths where one contains the other in one update: fold children into parents */
+  function normalize(u) {
+    const keys = Object.keys(u).sort(), out = {};
+    keys.forEach(k => {
+      const parent = Object.keys(out).find(p => k.startsWith(p + '/'));
+      const v = u[k] === undefined ? null : JSON.parse(JSON.stringify(u[k] === null ? null : u[k]));
+      if (parent) { if (out[parent] === null || typeof out[parent] !== 'object') out[parent] = {}; setPath(out[parent], k.slice(parent.length + 1), v); }
+      else out[k] = v;
+    });
+    const mapped = {};
+    Object.entries(out).forEach(([k, v]) => { mapped[(k === 'rsvp' || k.startsWith('rsvp/') ? '' : 'state/') + k] = v; });
+    return mapped;
+  }
+  db.ref('.info/connected').on('value', s => status(!!s.val()));
+
+  return {
+    get: () => cache,
+    fresh: () => cache,
+    on(f) { subs.push(f); f(cache); },
+    /** returns a promise of true (saved) or false (refused); callers that don't care can ignore it */
+    update(u) {
+      const out = normalize(u);
+      return ready.then(() => db.ref().update(out)).then(() => true, e => { console.warn('[db] write refused', e && e.code, Object.keys(out)); return false; });
+    },
+    reset() { return ready.then(() => db.ref('state').remove()).catch(e => console.warn('[db] reset refused', e.code)); },
+    /** call after signing in or out, so the database knows who this tab is now */
+    reclaim() { ready = safe(); return ready; },
+    get ready() { return ready; },
+    backend: 'firebase'
+  };
+}
 
 /* ---------- the cast ---------- */
 const G = {
@@ -83,14 +169,14 @@ const Session = {
   signIn(code) {
     /* the phone also remembers the last code word, so a scanned QR (which opens a new tab) knows who's scanning */
     const keep = (k, v) => { try { localStorage.setItem(k, v); } catch (e) { } };
-    if (G.hostByCode(code)) { sessionStorage.setItem('vh:host', normCode(code)); keep('vh:lasthost', normCode(code)); return 'host'; }
-    if (G.byCode(code)) { sessionStorage.setItem('vh:code', normCode(code)); keep('vh:last', normCode(code)); return 'player'; }
+    if (G.hostByCode(code)) { sessionStorage.setItem('vh:host', normCode(code)); keep('vh:lasthost', normCode(code)); if (DB.reclaim) DB.reclaim(); return 'host'; }
+    if (G.byCode(code)) { sessionStorage.setItem('vh:code', normCode(code)); keep('vh:last', normCode(code)); if (DB.reclaim) DB.reclaim(); return 'player'; }
     return null;
   },
   /** Who scanned this (a new tab): this tab's sign-in, or the last one on this phone. */
   lastPlayer() { let c = sessionStorage.getItem('vh:code'); if (!c) try { c = localStorage.getItem('vh:last'); } catch (e) { } return c ? G.byCode(c) : null; },
   lastHost() { let c = sessionStorage.getItem('vh:host'); if (!c) try { c = localStorage.getItem('vh:lasthost'); } catch (e) { } return c ? G.hostByCode(c) : null; },
-  signOut() { sessionStorage.removeItem('vh:code'); sessionStorage.removeItem('vh:host'); try { localStorage.removeItem('vh:last'); localStorage.removeItem('vh:lasthost'); } catch (e) { } }
+  signOut() { sessionStorage.removeItem('vh:code'); sessionStorage.removeItem('vh:host'); try { localStorage.removeItem('vh:last'); localStorage.removeItem('vh:lasthost'); } catch (e) { } if (DB.reclaim) DB.reclaim(); }
 };
 
 /* ---------- the game clock ----------

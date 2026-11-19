@@ -835,5 +835,6 @@
 
   if (ME) shell(); else login();
   DB.on(render);
-  setInterval(() => { if (ME) { Clock.tick(); render(); } }, 500);
+  /* only the main host's terminal runs the clock, so two host screens never send a cue twice */
+  setInterval(() => { if (ME) { if (ME.role === 'main') Clock.tick(); render(); } }, 500);
 })();

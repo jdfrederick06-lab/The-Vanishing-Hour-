@@ -60,7 +60,8 @@
     fr.onload = () => { const img = new Image(); img.onload = () => { const k = Math.min(1, 480 / Math.max(img.width, img.height)); const c = document.createElement('canvas'); c.width = Math.round(img.width * k); c.height = Math.round(img.height * k); c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); try { cb(c.toDataURL('image/jpeg', .82)); } catch (e) { cb(null); } }; img.onerror = () => cb(null); img.src = fr.result; };
     fr.onerror = () => cb(null); fr.readAsDataURL(file);
   }
-  const prev = mine(); if (prev) { const s = DB.get(), r = s.rsvp && s.rsvp[prev.id]; if (r && r.token === prev.token) { st.step = 'done'; st.saved = Object.assign({ id: prev.id }, r); } }
+  /* the guest's own reply comes back from this phone (online, only hosts can read the replies) */
+  const prev = mine(); if (prev) { const s = DB.get(), r = (s.rsvp && s.rsvp[prev.id]) || prev.rec; if (r && r.token === prev.token) { st.step = 'done'; st.saved = Object.assign({ id: prev.id }, r); } }
 
   /* ---------- drawn pieces (one set of gradients, shared) ---------- */
   const defs = `<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
@@ -397,19 +398,24 @@
       plus: plus ? { first: f.pfirst, last: f.plast, pronouns: f.ppronouns || null, email: f.pemail || null, size: f.psize } : null };
     const s = DB.fresh(), u = {};
     let id;
-    if (st.saved && s.rsvp && s.rsvp[st.saved.id]) {
+    const before = st.saved && ((s.rsvp && s.rsvp[st.saved.id]) || (st.saved.token ? st.saved : null));
+    if (before) {
       /* changing a reply keeps the earlier version */
       id = st.saved.id;
-      const old = s.rsvp[id], keep = Object.assign({}, old); delete keep.history; delete keep.token;
+      const old = before, keep = Object.assign({}, old); delete keep.history; delete keep.token; delete keep.id;
       Object.assign(rec, { at: old.at, token: old.token, updated: Date.now(), history: (old.history || []).concat([keep]) });
     } else {
       id = uid('v');
       Object.assign(rec, { at: Date.now(), token: Math.random().toString(36).slice(2) + Date.now().toString(36) });
     }
     u['rsvp/' + id] = rec;
-    if (!DB.update(u)) return fail('Something went wrong saving your reply. Please try again.');
-    store.set(KEY, JSON.stringify({ id, token: rec.token }));
-    st.saved = Object.assign({ id }, rec); st.step = 'done'; st.err = ''; drawCard();
-    const sec = $('#reply'); if (sec) sec.scrollIntoView({ block: 'start', behavior: calm ? 'auto' : 'smooth' });
+    const btn = $('#rvf [type=submit]'); if (btn) { btn.disabled = true; btn.dataset.label = btn.textContent; btn.textContent = 'Sending…'; }
+    Promise.resolve(DB.update(u)).then(ok => {
+      if (btn) { btn.disabled = false; btn.textContent = btn.dataset.label; }
+      if (ok === false) return fail('Something went wrong saving your reply. Please check your connection and try again.');
+      store.set(KEY, JSON.stringify({ id, token: rec.token, rec }));
+      st.saved = Object.assign({ id }, rec); st.step = 'done'; st.err = ''; drawCard();
+      const sec = $('#reply'); if (sec) sec.scrollIntoView({ block: 'start', behavior: calm ? 'auto' : 'smooth' });
+    });
   });
 })();

@@ -22,6 +22,16 @@ const Bebbit = (() => {
     return G.byId(id) || { id, name: 'deleted user', role: '', profile: '' };
   }
   const shown = a => a.sys ? '@' + a.name : a.name;
+  /* everyone's profile (story.js > bebbit.profiles): handle, base follower numbers, bio, joined, verified, private */
+  function prof(id) {
+    const a = who(id), p = (C().profiles || {})[id] || [];
+    return { handle: p[0] || (a.sys ? a.name : String(a.name || id).toLowerCase().replace(/[^a-z0-9]+/g, '.')), followers: p[1] || 0, following: p[2] || 0, bio: p[3] || '', joined: p[4] || 2026, verified: /v/.test(p[5] || ''), priv: /p/.test(p[5] || '') };
+  }
+  const follows = (s, id) => Object.keys((B(s).follows || {})[id] || {});
+  const amFollowing = (s, id, me) => !!(((B(s).follows || {})[id] || {})[me]);
+  const followingNow = (s, me) => Object.keys(B(s).follows || {}).filter(id => amFollowing(s, id, me)).length;
+  const big = n => n >= 1e6 ? (n / 1e6).toFixed(n >= 1e7 ? 0 : 1).replace(/\.0$/, '') + 'M' : n >= 1e4 ? (n / 1e3).toFixed(n >= 1e5 ? 0 : 1).replace(/\.0$/, '') + 'K' : n.toLocaleString('en-US');
+  const tick = id => prof(id).verified ? '<svg class="bb-tick" viewBox="0 0 24 24" aria-label="Verified"><path d="M12 1.8l2.6 1.9 3.2-.2 1 3 2.6 1.9-1 3.1 1 3-2.6 1.9-1 3-3.2-.1L12 22.2l-2.6-1.9-3.2.2-1-3-2.6-1.9 1-3.1-1-3 2.6-1.9 1-3 3.2.1z" fill="currentColor"/><path d="M7.6 12.2l3 3 5.8-6" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>' : '';
   const list = s => Object.entries(B(s).posts || {}).map(([id, p]) => Object.assign({ id }, p));
   const nVotes = (s, id) => Object.keys((B(s).votes || {})[id] || {}).length;
   const voted = (s, id, me) => !!(((B(s).votes || {})[id] || {})[me]);
@@ -108,7 +118,7 @@ const Bebbit = (() => {
     const traceBox = mineTrace ? `<div class="bb-trace"><b>Trace result.</b> ${p.real !== p.by ? `This post came from <b>${esc(who(p.real).name)}</b>'s phone, not ${esc(shown(a))}'s.` : `Posted from ${esc(shown(a))}'s own phone. Nothing unusual.`}</div>` : '';
     const tags = (p.tags || []).filter(t => G.byId(t));
     return `<article class="bb-post${ui.fresh === p.id ? ' fresh' : ''}">
-      <header class="bb-ph"><button class="bb-who" data-bb-profile="${a.id}">${avatar(a)}<span><span class="bb-name">${esc(shown(a))}</span><span class="bb-meta">${esc(a.role)} · ${ago(p.at)}${p.hacked ? ' · <span class="bb-relay">via relay</span>' : ''}</span></span></button></header>
+      <header class="bb-ph"><button class="bb-who" data-bb-profile="${a.id}">${avatar(a)}<span><span class="bb-name">${esc(shown(a))}${tick(a.id)}</span><span class="bb-meta">${esc(a.role)} · ${ago(p.at)}${p.hacked ? ' · <span class="bb-relay">via relay</span>' : ''}</span></span></button></header>
       ${p.text ? `<div class="bb-text">${esc(p.text)}</div>` : ''}
       ${img ? `<img class="bb-img" src="${esc(img)}" alt="Photo posted by ${esc(shown(a))}" loading="lazy">` : ''}
       ${tags.length ? `<div class="bb-with">with ${tags.map(t => `<button class="bb-link" data-bb-profile="${t}">${esc(G.byId(t).name)}</button>`).join(', ')}</div>` : ''}
@@ -129,27 +139,40 @@ const Bebbit = (() => {
   function peopleList(s, me, ui) {
     const q = ui.q.trim().toLowerCase();
     const all = STORY.characters.filter(c => !G.noshow(s, c.id) && (!q || (c.name + ' ' + c.role).toLowerCase().includes(q))).sort(byName);
-    return all.map(c => `<div class="person" data-bb-profile="${c.id}" role="button" tabindex="0">${avatar(c)}<div style="min-width:0"><div class="nm">${esc(c.name)}${c.id === me.id ? ' <span class="chip">you</span>' : ''}</div><div class="rl">${esc(c.role)}</div></div></div>`).join('') || '<div class="empty">No one matches.</div>';
+    return all.map(c => { const pr = prof(c.id), n = pr.followers + follows(s, c.id).length; return `<div class="person" data-bb-profile="${c.id}" role="button" tabindex="0">${avatar(c)}<div style="min-width:0;flex:1"><div class="nm">${esc(c.name)}${tick(c.id)}${c.id === me.id ? ' <span class="chip">you</span>' : ''}</div><div class="rl">@${esc(pr.handle)} · ${esc(c.role)}</div></div><span class="bb-fc"><b>${big(n)}</b>followers</span></div>`; }).join('') || '<div class="empty">No one matches.</div>';
   }
   function people(s, me, ui) {
     return `<div class="bb">${community(s)}${tabs(ui)}<input class="field" data-bb="q" placeholder="Search everyone at the gala" value="${esc(ui.q)}" aria-label="Search people"><div class="card" style="padding:4px 16px" id="bb-plist">${peopleList(s, me, ui)}</div></div>`;
   }
   function profile(s, me, ui) {
-    const a = who(ui.profile), ps = list(s).filter(p => p.by === a.id).sort((x, y) => y.at - x.at);
+    const a = who(ui.profile), pr = prof(a.id), ps = list(s).filter(p => p.by === a.id).sort((x, y) => y.at - x.at);
     const tagged = list(s).filter(p => !p.deleted && (p.tags || []).includes(a.id)).length, live = ps.filter(p => !p.deleted).length;
+    const fans = pr.followers + follows(s, a.id).length, fol = pr.following + (a.id === me.id ? followingNow(s, me.id) : 0);
+    const mine = a.id === me.id, on = amFollowing(s, a.id, me.id);
+    const btn = mine ? '<span class="bb-you">This is you</span>' : canWrite(me) ? `<button class="btn ${on ? '' : 'primary'} bb-follow" data-bb-follow="${a.id}" aria-pressed="${on}">${on ? 'Following' : pr.priv ? 'Request to follow' : 'Follow'}</button>` : '';
     return `<div class="bb"><button class="btn small ghost bb-back" data-bb="back">‹ Back</button>
-      <div class="card bb-prof">${avatar(a, true)}<div style="min-width:0"><div class="bb-pn">${esc(shown(a))}</div><div class="mute">${esc(a.role)}</div></div></div>
-      ${a.profile ? `<div class="card">${esc(a.profile)}</div>` : ''}
-      <div class="bb-stats"><span><b>${live}</b> ${live === 1 ? 'post' : 'posts'}</span><span><b>${tagged}</b> tagged in</span></div>
-      ${ps.map(p => card(s, me, ui, p)).join('') || '<div class="card empty">No posts yet.</div>'}</div>`;
-  }
-  function render(s, me, ui) { return ui.view === 'profile' && ui.profile ? profile(s, me, ui) : ui.view === 'people' ? people(s, me, ui) : feed(s, me, ui); }
+      <div class="card bb-pro"><div class="bb-cover" style="${a.sys ? 'background:linear-gradient(135deg,#18122b,#3a2a6b)' : tint(a.name)}" aria-hidden="true"><i></i><i></i><i></i></div>
+        <div class="bb-pro-top">${avatar(a, true)}${btn}</div>
+        <div class="bb-pn">${esc(a.sys ? a.role : a.name)}${tick(a.id)}</div>
+        <div class="bb-handle">@${esc(pr.handle)}${a.role && !a.sys ? ` · ${esc(a.role)}` : ''}</div>
+        ${pr.bio ? `<p class="bb-bio">${esc(pr.bio)}</p>` : ''}
+        <div class="bb-meta2">${pr.priv ? '<span>🔒 Private account</span>' : ''}<span>Joined ${pr.joined}</span>${a.sys ? '' : '<span>At the Ashgrove Gala tonight</span>'}</div>
+        <div class="bb-stats2"><span><b>${big(fans)}</b> followers</span><span><b>${big(fol)}</b> following</span><span><b>${live}</b> ${live === 1 ? 'post' : 'posts'}</span><span><b>${tagged}</b> tagged in</span></div></div>
+      ${a.profile && !a.sys ? `<div class="card bb-about"><small>About</small>${esc(a.profile)}</div>` : ''}
+      ${pr.priv && !mine && !on ? '<div class="card empty">This account is private. Follow to see posts.</div>' : ps.map(p => card(s, me, ui, p)).join('') || '<div class="card empty">No posts yet.</div>'}</div>`;
+  }  function render(s, me, ui) { return ui.view === 'profile' && ui.profile ? profile(s, me, ui) : ui.view === 'people' ? people(s, me, ui) : feed(s, me, ui); }
 
   /* ---------- events (the app passes them in; true = handled) ---------- */
   function onClick(e, ctx) {
     const { me, ui } = ctx, q = sel => e.target.closest(sel); let el;
     if ((el = q('[data-bb-sort]'))) { const k = el.dataset.bbSort; if (k === 'people') ui.view = 'people'; else { ui.view = 'feed'; ui.sort = k; } ctx.redraw(true); return true; }
     if ((el = q('[data-bb-profile]'))) { if (ui.view !== 'profile') ui.from = ui.view; ui.view = 'profile'; ui.profile = el.dataset.bbProfile; ctx.redraw(true); window.scrollTo(0, 0); return true; }
+    if ((el = q('[data-bb-follow]'))) {
+      const id = el.dataset.bbFollow, s = DB.fresh(); if (!canWrite(me) || id === me.id) return true;
+      const on = amFollowing(s, id, me.id), u = { ['beb/follows/' + id + '/' + me.id]: on ? null : Date.now() };
+      if (!on && G.byId(id)) u['feed/' + uid('f')] = { to: [id], title: 'Bebbit', text: `@${prof(me.id).handle} started following you.`, at: Date.now(), kind: 'beb' };
+      DB.update(u); ctx.redraw(true); return true;
+    }
     if ((el = q('[data-bb="back"]'))) { ui.view = ui.from || 'feed'; ui.profile = null; ctx.redraw(true); return true; }
     if ((el = q('[data-bb="compose"]'))) { ui.compose = true; ctx.redraw(true); setTimeout(() => { const t = $('[data-bb="text"]'); if (t) t.focus(); }, 0); return true; }
     if ((el = q('[data-bb="cancel"]'))) { ui.compose = false; ui.draft = freshDraft(); ui.err = ''; ctx.redraw(true); return true; }
@@ -223,5 +246,5 @@ const Bebbit = (() => {
     return true;
   }
 
-  return { newUI, render, onClick, onInput, onChange, onSubmit, post, shrink, who, shown, list, nVotes, comments, used, photoCount, safeImg, ago, tint };
+  return { newUI, render, onClick, onInput, onChange, onSubmit, post, shrink, who, shown, list, nVotes, comments, used, photoCount, safeImg, ago, tint, prof, follows, big };
 })();

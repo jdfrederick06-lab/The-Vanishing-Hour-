@@ -10,6 +10,18 @@ const CONFIG = {
   EVENT: 'The Ashgrove Gala',
   SEASON: 'Spring 2027',
   BACKEND: 'local',
+  /* The Firebase project (set up Nov 18): Realtime Database in us-central1, Anonymous sign-in on,
+     rules published. These details are public by design (every Firebase site ships them); the
+     rules are what protect the data. Not used until BACKEND is switched to 'firebase'. */
+  FIREBASE: {
+    apiKey: 'AIzaSyBdMdtlawXb2ypwtYggIi8QuRcu44C0JMY',
+    authDomain: 'vanishing-hour.firebaseapp.com',
+    databaseURL: 'https://vanishing-hour-default-rtdb.firebaseio.com',
+    projectId: 'vanishing-hour',
+    storageBucket: 'vanishing-hour.firebasestorage.app',
+    messagingSenderId: '856115224715',
+    appId: '1:856115224715:web:377d4f2bae9dbd834df48e'
+  },
   /* The invitation and RSVP page (rsvp.html). Placeholders until January. */
   INVITE: {
     DATE: 'A spring evening, 2027 · date to come',
