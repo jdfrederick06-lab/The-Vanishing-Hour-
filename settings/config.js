@@ -9,7 +9,7 @@ const CONFIG = {
   TITLE: 'The Vanishing Hour',
   EVENT: 'The Ashgrove Gala',
   SEASON: 'Spring 2027',
-  BACKEND: 'local',
+  BACKEND: 'firebase',   /* 'firebase' = the real online database (Nov 18). 'local' = this computer only, for safe testing */
   /* The Firebase project (set up Nov 18): Realtime Database in us-central1, Anonymous sign-in on,
      rules published. These details are public by design (every Firebase site ships them); the
      rules are what protect the data. Not used until BACKEND is switched to 'firebase'. */
