@@ -2,8 +2,9 @@
 
 The website for *The Vanishing Hour*, an interactive murder mystery set at the Ashgrove Gala.
 
-**Test build:** everything saves only in the browser you're using (`BACKEND: 'local'` in `settings/config.js`).
-Phones can't see each other yet, and RSVPs sent from this site reach nobody.
+**Online:** the pages are served by GitHub Pages and the live data (replies, the night's game) is kept in a
+Firebase Realtime Database (`BACKEND: 'firebase'` in `settings/config.js`). Nothing can be read or changed
+without a code word. Set `BACKEND: 'local'` to test on one computer without touching the real data.
 
 ## What's where
 
@@ -18,23 +19,17 @@ Phones can't see each other yet, and RSVPs sent from this site reach nobody.
 | `print.html` | Print the evidence (host only): every clue with its FBI tag and QR code |
 | `scan.html` | Where a scanned QR tag lands: logs the piece and shares it with everyone |
 | `reveal.html` | The big screen for a projector (host only): the vote coming in, then the reveal slides |
-| `posters.html` | Posters and signs to print (host only) |
-| `badges.html` | Name badges, 4 x 3 inches, six to a sheet (host only) |
-
-The accusation lives in `js/vote.js` (phones, host and big screen) and `settings/story.js` (`STORY.vote`).
-The truth that's read at the end is in `settings/reveal.js` and `js/reveal.js`: only the host terminal and
-the big screen load them, never the player app.
-| `settings/evidence.js` | The printed evidence, the props, and the eight mini-games (spoilers) |
-| `js/games.js`, `js/art.js`, `js/evdoc.js`, `js/print.js`, `js/scan.js` | The mini-games, the original artwork, and the evidence pages |
-| `settings/story.js` | **The whole story:** characters, code words, phases, cues, records, money. Edit this, not the code |
-| `settings/dossiers.js` | All 40 dossiers, shown to each player under "My file" (made from the planning doc) |
+| `posters.html` | Posters and signs (host only): pick which ones and which version, then print or save as PDF |
+| `badges.html` | Badges for 3.5 x 2.5 inch sleeves, eight to a sheet with cutting gaps (host only) |
+| `settings/story.js` | **The whole story:** characters, code words, phases, cues, records, money, the vote, Bebbit profiles. Edit this, not the code |
+| `settings/dossiers.js` | All 40 dossiers, shown to each player under "My file" |
+| `settings/evidence.js` | The printed evidence, the props, and the eight mini-games |
+| `settings/reveal.js` | The reveal slides (only the host terminal and the big screen load it) |
 | `settings/config.js` | The title, the event details on the invitation, and where data is saved |
-| `css/` | The look: `invite.css` (the invitation), `theme.css` (the five worlds), `fx.css` (animations, doors, NightBank, casino, dossiers), `host.css` (host terminal) |
-| `js/` | The code: `invite.js` (the invitation and replies), `core.js` (sync and clock), `door.js`, `app.js`, `host.js`, `bebbit.js`, `fbi.js`, `nightwire.js` (NIGHTWIRE and NightBank), `casino.js`, `dossier.js` |
+| `css/` | The look: `invite.css` (the invitation), `theme.css` (the five worlds), `fx.css` (animations, doors, NightBank, casino, dossiers), `host.css`, `vote.css`, `bigscreen.css`, `revealart.css`, `printables.css` |
+| `js/` | The code: `core.js` (sync, sign-in and clock), `invite.js`, `door.js`, `app.js`, `host.js`, `bebbit.js`, `fbi.js`, `nightwire.js`, `casino.js`, `dossier.js`, `games.js`, `vote.js`, `reveal.js`, `bigscreen.js`, `art.js`, `evdoc.js`, `print.js`, `scan.js`, `printables.js` |
 
 ## Before the real night
 
-`settings/story.js` and `settings/dossiers.js` are plain text with every secret, answer and code word in them.
-The invitation page doesn't load either of them, so it can go online first.
-Before players get the link, the plan is: lock the code words, replace the story files with locked
-versions, and connect a real database so phones sync and RSVPs reach the host.
+The story files are plain text for now. The invitation page doesn't load them.
+Before invitations go out they get replaced with locked versions.

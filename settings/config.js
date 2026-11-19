@@ -1,8 +1,8 @@
 /* =====================================================================
    THE VANISHING HOUR — settings.
    Change the title here and it changes everywhere.
-   BACKEND 'local' = runs on this computer only (tabs sync with each other).
-   Firebase gets plugged in here later.
+   BACKEND 'firebase' = live online database (every phone shares it).
+   BACKEND 'local' = this computer only (tabs sync with each other), for testing.
    ===================================================================== */
 const CONFIG = {
   GAME_ID: 'vh-dev-1',
@@ -12,7 +12,7 @@ const CONFIG = {
   BACKEND: 'firebase',   /* 'firebase' = the real online database (Nov 18). 'local' = this computer only, for safe testing */
   /* The Firebase project (set up Nov 18): Realtime Database in us-central1, Anonymous sign-in on,
      rules published. These details are public by design (every Firebase site ships them); the
-     rules are what protect the data. Not used until BACKEND is switched to 'firebase'. */
+     rules are what protect the data. */
   FIREBASE: {
     apiKey: 'AIzaSyBdMdtlawXb2ypwtYggIi8QuRcu44C0JMY',
     authDomain: 'vanishing-hour.firebaseapp.com',
