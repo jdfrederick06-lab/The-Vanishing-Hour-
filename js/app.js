@@ -79,7 +79,8 @@
     else if (r.state === 'over') { kicker = CONFIG.EVENT; name = 'The night is over'; sub = 'Thank you for playing.'; center = '<span class="hero-end">✓</span>'; }
     else { kicker = `Part ${r.i + 1} of ${STORY.phases.length} · ${hmm(r.nightMin)} in`; name = r.phase.name; sub = r.state === 'paused' ? 'The host has paused the clock.' : 'Time left in this part of the night.'; center = `<b class="mono">${mmss(r.remainGameMs)}</b>`; }
     const steps = STORY.phases.map((p, k) => `<i class="${r.state === 'over' || k < r.i ? 'done' : k === r.i && live ? 'on' : ''}"></i>`).join('');
-    return `<div class="hero hero-${WORLD}${r.state === 'paused' ? ' paused' : ''}">
+    const ending = r.state === 'live' && r.remainGameMs < 60000;
+    return `<div class="hero hero-${WORLD}${r.state === 'paused' ? ' paused' : ''}${ending ? ' ending' : ''}">
       <div class="hero-bg" aria-hidden="true"></div>
       <div class="hero-top"><span class="hero-tag">${esc(HERO.tag)}</span><span class="hero-live${live && r.state !== 'paused' ? ' on' : ''}"><i></i>${esc(status)}</span></div>
       <div class="hero-main">
@@ -178,7 +179,7 @@
       const bv = () => Bebbit.render(s, ME, bebUI);
       patch($('#main'), tab === 'now' ? nowView(s) : tab === 'world' ? (WORLD === 'bebbit' ? bv() : WORLD === 'fbi' ? FBI.render(s, ME, fbiUI) : WORLD === 'nightwire' ? Names.say(NW.render(s, ME, nwUI), ME) : worldView()) : tab === 'bank' ? Names.say(NW.renderBank(s, ME, nwUI), ME) : tab === 'beb' ? `<div class="beb-skin">${bv()}</div>` : tab === 'people' ? peopleView(s) : tab === 'tasks' && hasGames ? Games.render(s, ME) : meView(s));
       /* the casino's wheel and dice, and the mini-games, are kept alive between redraws (a spin or a drag never restarts) */
-      if (typeof Casino !== 'undefined') Casino.mount();
+      countUp();
       if (hasGames) Games.mount(tab === 'tasks');
     }
     const b = (id, label, ic, badge) => `<button data-tab="${id}" aria-current="${tab === id}">${ic}${label}${badge ? `<span class="badge">${badge}</span>` : ''}</button>`;
@@ -245,12 +246,37 @@
       if (added.length) {
         added.forEach(id => { freshIds.add(id); setTimeout(() => freshIds.delete(id), 2000); });
         if (navigator.vibrate && (!navigator.userActivation || navigator.userActivation.hasBeenActive)) navigator.vibrate([120, 60, 120]);
-        if (tab !== 'now') toast('New message for you');
+        if (tab !== 'now') { const f = (DB.get().feed || {})[added[added.length - 1]] || {}; toast(Names.say(f.title || 'New message', ME), Names.say(f.text || '', ME), f.kind === 'nw' && /received|deposited|cleared/i.test(f.text || '') ? 'money' : ''); }
       }
     }
     known = new Set(ids);
   }
-  function toast(text) { const d = document.createElement('div'); d.className = 'toast'; d.setAttribute('role', 'status'); d.textContent = text; document.body.appendChild(d); setTimeout(() => d.remove(), 3500); }
+  /* a new message slides in with its own title and first line (Nov 24); money coming in gets a gold one */
+  function toast(title, text, kind) {
+    const d = document.createElement('div'); d.className = 'toast toast-rich' + (kind ? ' toast-' + kind : ''); d.setAttribute('role', 'status');
+    d.innerHTML = `<b>${esc(title)}</b>${text ? `<span>${esc(String(text).slice(0, 110))}</span>` : ''}`;
+    d.addEventListener('click', () => { d.remove(); const t = document.querySelector('[data-tab="now"]'); if (t) t.click(); });
+    document.body.appendChild(d); setTimeout(() => d.classList.add('out'), 3800); setTimeout(() => d.remove(), 4300);
+  }
+  /* balances count up or down to their new value instead of jumping (Nov 24) */
+  const counted = new Map();
+  function countUp() {
+    const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    $$('[data-count]').forEach(el => {
+      const k = el.dataset.countK || '', to = Number(el.dataset.count) || 0, from = counted.get(k);
+      counted.set(k, to);
+      if (from == null || from === to || calm || typeof NW === 'undefined') return;
+      const html = el.innerHTML, t0 = performance.now(), dur = 900;
+      el.classList.add(to > from ? 'count-up' : 'count-down');
+      const step = now => {
+        if (!el.isConnected) return;
+        const f = Math.min(1, (now - t0) / dur), e = 1 - Math.pow(1 - f, 3);
+        if (f < 1) { el.textContent = NW.money(from + (to - from) * e); requestAnimationFrame(step); }
+        else { el.innerHTML = html; setTimeout(() => el.classList.remove('count-up', 'count-down'), 600); }
+      };
+      requestAnimationFrame(step);
+    });
+  }
 
   /* presence: tell the host this phone is here */
   /* the phone's kind and how often it has lost its connection, for the host's Health tab */

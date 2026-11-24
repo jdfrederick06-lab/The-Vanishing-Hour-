@@ -192,7 +192,7 @@ const NW = (() => {
     const search = ui.sub === 'market' && ui.view === 'home'
       ? `<form class="oz-search" data-nw-form="search" role="search"><label><input data-nw="q" type="search" value="${esc(ui.q)}" placeholder="Search Omnizon" aria-label="Search Omnizon" autocomplete="off" enterkeyhint="search"></label><button type="submit" aria-label="Search">${IC.search}</button></form>` : '';
     return `<div class="oz-band">${search}
-      <div class="oz-as"><span><i class="oz-dot"></i>Shopping as <b>${esc(wname(w))}</b></span><span>Wallet <b>${money(balance(s, w))}</b></span></div>
+      <div class="oz-as"><span><i class="oz-dot"></i>Shopping as <b>${esc(wname(w))}</b></span><span>Wallet <b data-count="${balance(s, w)}" data-count-k="band">${money(balance(s, w))}</b></span></div>
       <nav class="oz-depts" aria-label="Departments">${list.map(([k, l, ic, x]) => `<button type="button" data-nw-sub="${k}" aria-current="${ui.sub === k}">${ic}${l}${x}</button>`).join('')}</nav></div>`;
   }
   const holdBox = (s, me, why) => `<div class="oz-hold">${IC.lock}<div><b>${isOut(s, me.id) ? 'Your account has been closed' : 'Your wallet is on hold'}</b><span>${esc(why)}</span></div></div>`;
@@ -239,8 +239,8 @@ const NW = (() => {
         <div class="oz-hero oz-t-${TINT[k]}">${art(k, 196)}<span class="oz-cap">${mine ? 'In your library' : gone ? 'No longer available' : 'Full file unlocks after purchase'}</span></div>
         ${mine ? `<div class="oz-teaser"><b>About this file</b>${esc(it.teaser)}</div>` : ''}</div>`;
     let right;
-    if (placing) right = `<div class="oz-done" style="border-left-color:var(--oz-blue)">${IC.wait}<div><b style="color:var(--oz-blue)">Placing your order…</b><span>Confirming payment with the seller.</span></div></div>`;
-    else if (mine) right = `${ui.bought === it.id ? `<div class="oz-done">${IC.done}<div><b>Order placed</b><span>Paid from ${esc(wname(w))}. Your file is below.</span></div></div>` : ''}
+    if (placing) right = `<div class="oz-track" role="status"><b>Placing your order…</b><div class="oz-track-bar"><i></i></div><div class="oz-track-steps"><span>Paid</span><span>In escrow</span><span>Delivering</span></div></div>`;
+    else if (mine) right = `${ui.bought === it.id ? `<div class="oz-done oz-pop">${IC.done}<div><b>Order placed</b><span>Paid from ${esc(wname(w))}. Your file is below.</span></div></div>` : ''}
         <div class="oz-file"><div class="oz-file-h">${IC.check}Delivered to your library<span>${esc(wallTime(got.at))}${got.by && got.by !== me.id ? ' · bought by ' + esc(first(got.by)) : ''}</span></div>
         <div class="oz-file-b${ui.fresh === it.id ? ' fresh' : ''}">${esc(it.body)}</div></div>`;
     else right = `<div class="oz-pg">
@@ -279,7 +279,7 @@ const NW = (() => {
   function walletCard(s, w) {
     const p = pendingState(s, w), e = escrowed(s, w), others = membersOf(w).length - 1;
     return `<div class="oz-wcard"><div class="oz-wcard-top">${MARK(26)}<span class="oz-word"><b>Omnizon Wallet</b><small>${esc(wname(w))}${others > 0 ? ' · shared with ' + others : ''}</small></span><em>•••• ${last4(w)}</em></div>
-      <div><small>Available balance</small>${price(balance(s, w), true)}</div>
+      <div><small>Available balance</small><span data-count="${balance(s, w)}" data-count-k="wcard" data-count-html="1">${price(balance(s, w), true)}</span></div>
       ${e ? `<div class="oz-wcard-row"><span>In escrow · released ${esc(releaseAt())}</span><b class="warn">${money(e)}</b></div>` : ''}
       ${p ? `<div class="oz-wcard-row"><span>${esc(p.label)}</span><b class="${p.void ? 'void' : 'warn'}">${p.void ? 'Void' : money(p.amount)}</b></div><p class="${p.void ? 'void' : ''}">${p.void ? 'Your client is gone. That money is never coming.' : 'If the client goes dark, this delivery payment is void.'}</p>` : ''}</div>`;
   }
@@ -357,7 +357,10 @@ const NW = (() => {
     if (ui.sub === 'casino') return `<div class="oz nw">${band(s, me, ui, w)}${hold}</div><div class="nb nb-casino nw-casino">${Casino.render(s, me, ui, w)}</div>`;
     const body = ui.sub === 'wallet' ? walletView(s, me, ui, w) : ui.sub === 'sale' ? saleView(s, me, ui) : ui.sub === 'burner' ? burnerView(s, me, ui)
       : ui.view === 'checkout' ? checkoutView(s, me, ui, w) : ui.view === 'item' ? itemView(s, me, ui, w) : shopView(s, me, ui, w);
-    return `<div class="oz nw">${band(s, me, ui, w)}${hold}${body}${ui.sub === 'market' || ui.sub === 'wallet' ? FOOT : ''}</div>`;
+    /* a new page slides in once: the class stays for 0.8s, so a redraw in between doesn't restart or cut it */
+    const vk = ui.sub + '/' + ui.view + '/' + ui.item; if (ui.lastView !== vk) { ui.lastView = vk; ui.inUntil = Date.now() + 800; }
+    const fresh = Date.now() < (ui.inUntil || 0);
+    return `<div class="oz nw${fresh ? ' oz-in' : ''}">${band(s, me, ui, w)}${hold}${body}${ui.sub === 'market' || ui.sub === 'wallet' ? FOOT : ''}</div>`;
   }
   /** live search: show and hide the product cards without redrawing under the typing */
   function filterShop(q) {
@@ -460,7 +463,7 @@ const NW = (() => {
         <div class="nb-card t-${tier(b).toLowerCase()}"><div class="nb-shine" aria-hidden="true"></div>
           <div class="nb-row"><span class="nb-holder">${esc(me.name)}</span><svg class="nb-cl" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 7c2.5 3 2.5 7 0 10M12 5c3.5 4 3.5 10 0 14M16 3c4.5 5 4.5 13 0 18"/></svg></div>
           <span class="nb-chip" aria-hidden="true"></span>
-          <div class="nb-bal"><small>Available balance</small><b>${money(b)}</b></div>
+          <div class="nb-bal"><small>Available balance</small><b data-count="${b}" data-count-k="nb">${money(b)}</b></div>
           <div class="nb-row"><span class="nb-num">•••• •••• •••• ${last4(w)}</span><span class="nb-tier">${tier(b)}</span></div></div>
         <div class="nb-stats"><div><small>Money in tonight</small><b class="pos">+${money(inSum)}</b></div><div><small>Money out tonight</small><b class="neg">−${money(outSum)}</b></div></div>
         ${loanPanel(s, me, w, ui)}${offer}${freeUpPanel(s, me, w, ui)}

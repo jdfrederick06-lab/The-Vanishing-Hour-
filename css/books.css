@@ -105,3 +105,34 @@ a { color: inherit; }
   @page :first { margin: .55in; }
 }
 @media (max-width: 700px) { .bk-book, .bk-dos { padding: .35in .3in; } .bk-cols { grid-template-columns: 1fr; } .bk-card { height: auto; } }
+
+/* ---------- the complete host book (Nov 24) ---------- */
+.bk-part { break-before: page; min-height: 3.2in; display: flex; flex-direction: column; justify-content: flex-end; padding: 0 0 22px; margin: 34px 0 0; border-bottom: 3px double var(--ink); }
+.bk-part small { font: 700 9pt Inter, sans-serif; letter-spacing: .2em; text-transform: uppercase; color: var(--gold); }
+.bk-part h1 { font: 400 34pt/1.05 'Bodoni Moda', Didot, serif; margin: 6px 0 4px; }
+.bk-part p { margin: 0; font-style: italic; color: var(--mute); }
+.bk-part + .bk-sec { break-before: avoid; margin-top: 18px; }
+.bk-toc li { margin: 2px 0; } .bk-toc li.big { margin-top: 9px; font-weight: 700; }
+.bk-toc li:not(.big) { padding-left: 14px; font-size: 9.5pt; }
+.bk-sec h3 { font: 700 9pt Inter, sans-serif; letter-spacing: .12em; text-transform: uppercase; color: var(--gold); margin: 14px 0 4px; break-after: avoid; }
+.bk-phase h4, .bk-who h4 { font: 700 7.5pt Inter, sans-serif; letter-spacing: .12em; text-transform: uppercase; color: var(--mute); margin: 9px 0 3px; break-after: avoid; }
+.bk-phase { break-inside: auto; }
+.bk-steps { break-inside: avoid; }
+.bk-hints { margin-top: 8px; padding: 6px 10px; background: #f6efe1; border-radius: 5px; font-size: 9pt; break-inside: avoid; }
+.bk-hints p { margin: 3px 0; }
+.bk-who-tag { display: inline-block; margin-left: 6px; font: 700 7pt Inter, sans-serif; letter-spacing: .08em; text-transform: uppercase; color: var(--mute); border: 1px solid var(--line); border-radius: 3px; padding: 0 4px; vertical-align: 1px; }
+.bk-room { break-inside: avoid; margin: 10px 0; padding: 10px 12px; border: 1px solid var(--line); border-radius: 6px; }
+.bk-room-h { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
+.bk-room-h .bk-line { margin-left: auto; min-width: 2in; }
+.bk-room p { margin: 4px 0; }
+.bk-line { display: inline-block; border-bottom: 1px solid var(--ink); min-width: 2.4in; font-size: 8pt; color: var(--mute); }
+.bk-fill td { padding: 9px 7px; } .bk-fill .bk-line { display: block; min-width: 0; height: 1em; }
+.bk-small-t { font-size: 8.5pt; } .bk-small-t td, .bk-small-t th { padding: 4px 5px; }
+.bk-shop td:first-child { width: 14px; }
+.bk-who { break-inside: avoid; margin: 0 0 10px; padding: 8px 10px 8px 14px; border: 1px solid var(--line); border-radius: 6px; position: relative; font-size: 9pt; line-height: 1.38; }
+.bk-who::before { content: ''; position: absolute; inset: 0 auto 0 0; width: 5px; background: var(--gc, var(--gold)); border-radius: 6px 0 0 6px; }
+.bk-who-h { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; border-bottom: 1px solid var(--line); padding-bottom: 4px; }
+.bk-who-h b { font-size: 11pt; } .bk-who-h span { color: var(--mute); } .bk-who-h .mono { margin-left: auto; color: var(--ink); font-weight: 700; }
+.bk-who ul { margin: 0; padding-left: 16px; }
+.bk-book .bk-dos { width: auto; margin: 0; padding: 0; box-shadow: none; }
+.bk-book .bk-dos + .bk-dos { margin-top: 0; }
