@@ -1,0 +1,107 @@
+/* =====================================================================
+   THE VANISHING HOUR — the printed books (books.html): host books, cheat cards, dossiers.
+   On screen: white letter-size sheets on a dark desk. In print: letter, 0.55in margins.
+   ===================================================================== */
+:root { --ink: #1b1712; --mute: #6b6156; --line: #d9d0c2; --gold: #9a7a3c; --paper: #fffdf8; --desk: #2a2622; --red: #9b2c2c; }
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--desk); color: var(--ink); }
+body { font: 10.5pt/1.45 'Source Serif 4', Georgia, serif; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+.mono { font-family: 'IBM Plex Mono', ui-monospace, monospace; }
+a { color: inherit; }
+
+/* toolbar (screen only) */
+.bk-bar { position: sticky; top: 0; z-index: 5; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 10px 16px; background: #15130f; color: #efe6d6; font: 600 13px/1.2 Inter, system-ui, sans-serif; box-shadow: 0 2px 10px rgba(0,0,0,.4); }
+.bk-bar b { margin-right: 6px; color: #d9b86c; letter-spacing: .08em; text-transform: uppercase; font-size: 12px; }
+.bk-bar button, .bk-bar select, .bk-bar a { font: inherit; color: inherit; background: #2b2721; border: 1px solid #4a4237; border-radius: 6px; padding: 7px 11px; cursor: pointer; text-decoration: none; }
+.bk-bar button[aria-pressed="true"] { background: #d9b86c; color: #15130f; border-color: #d9b86c; }
+.bk-bar .go { margin-left: auto; background: #d9b86c; color: #15130f; border-color: #d9b86c; }
+.bk-gate { max-width: 520px; margin: 15vh auto; padding: 24px; background: var(--paper); border-radius: 8px; font: 15px/1.5 Inter, system-ui, sans-serif; }
+
+/* the sheets */
+.bk-doc { padding: 24px 16px 60px; }
+.bk-book, .bk-dos, .bk-sheet { width: 8.5in; max-width: 100%; margin: 0 auto 24px; background: var(--paper); box-shadow: 0 10px 30px rgba(0,0,0,.45); }
+.bk-book, .bk-dos { padding: .6in .65in; }
+
+/* host book */
+.bk-cover { min-height: 9.6in; display: flex; flex-direction: column; justify-content: center; border-bottom: 1px solid var(--line); margin-bottom: 18px; }
+.bk-cover small { font: 600 9pt Inter, system-ui, sans-serif; letter-spacing: .16em; text-transform: uppercase; color: var(--gold); }
+.bk-cover h1 { font: 400 46pt/1 'Bodoni Moda', Didot, serif; margin: 10px 0 4px; }
+.bk-cover h3 { font: italic 400 18pt/1.2 'Bodoni Moda', Didot, serif; margin: 0 0 18px; color: var(--mute); }
+.bk-conf { display: inline-block; align-self: flex-start; border: 2px solid var(--red); color: var(--red); font: 700 10pt Inter, sans-serif; letter-spacing: .14em; text-transform: uppercase; padding: 6px 10px; transform: rotate(-2deg); margin: 6px 0 14px; }
+.bk-toc { columns: 2; column-gap: 28px; margin: 18px 0; padding-left: 20px; font-size: 11pt; }
+.bk-toc a { text-decoration: none; }
+.bk-sec { break-before: page; }
+.bk-sec h2 { font: 400 22pt/1.1 'Bodoni Moda', Didot, serif; margin: 0 0 10px; padding-bottom: 6px; border-bottom: 2px solid var(--ink); }
+.bk-lead { font-size: 12pt; }
+.bk-ch { break-inside: avoid; margin: 10px 0; padding-left: 12px; border-left: 3px solid var(--gold); }
+.bk-ch small { display: block; font: 600 8pt Inter, sans-serif; letter-spacing: .12em; text-transform: uppercase; color: var(--gold); }
+.bk-ch p { margin: 3px 0; }
+.bk-t { width: 100%; border-collapse: collapse; margin: 8px 0; font-size: 9.5pt; }
+.bk-t th, .bk-t td { text-align: left; vertical-align: top; padding: 5px 7px; border-bottom: 1px solid var(--line); }
+.bk-t th { font: 700 8pt Inter, sans-serif; letter-spacing: .08em; text-transform: uppercase; color: var(--mute); }
+.bk-t tr { break-inside: avoid; }
+.bk-cast td:nth-child(5) { min-width: 1.4in; border-bottom: 1px solid #b9ae9c; }
+.bk-key { font: 700 7pt Inter, sans-serif; text-transform: uppercase; letter-spacing: .08em; color: var(--red); border: 1px solid var(--red); border-radius: 3px; padding: 0 3px; }
+.bk-phase { break-inside: avoid; margin: 0 0 14px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 6px; }
+.bk-ph { display: flex; gap: 10px; align-items: baseline; font-size: 12pt; }
+.bk-ph b { flex: 1; }
+.bk-time { font: 600 9.5pt 'IBM Plex Mono', monospace; color: var(--gold); white-space: nowrap; }
+.bk-len { font: 600 8.5pt Inter, sans-serif; color: var(--mute); }
+.bk-cues td:first-child { width: .85in; }
+.bk-say { font-style: italic; color: #4a3a20; }
+.bk-note { font-size: 8.5pt; color: var(--mute); margin-top: 3px; }
+.bk-games { font-size: 9pt; color: var(--gold); font-weight: 600; }
+.bk-check { list-style: none; padding: 0; margin: 6px 0; }
+.bk-check li { display: flex; gap: 8px; align-items: flex-start; margin: 4px 0; }
+.bk-box { flex: none; width: 11px; height: 11px; margin-top: 3px; border: 1.5px solid var(--ink); border-radius: 2px; }
+.bk-game { break-inside: avoid; margin: 8px 0; padding: 8px 10px; background: #f6f1e7; border-radius: 6px; }
+.bk-game p { margin: 3px 0; }
+.bk-ans { font-weight: 600; color: var(--red); }
+.bk-script p { margin: 6px 0; break-inside: avoid; }
+.bk-script .bk-time { display: inline-block; width: 18px; }
+
+/* cheat cards: two per letter sheet, with a cut line */
+.bk-sheet.bk-cards { padding: .45in .5in; display: flex; flex-direction: column; gap: 0; break-after: page; }
+.bk-card { height: 4.8in; overflow: hidden; padding: .22in .25in; border: 1.5px solid var(--ink); border-radius: 8px; position: relative; font-size: 9pt; line-height: 1.38; }
+.bk-card::before { content: ''; position: absolute; inset: 0 auto 0 0; width: 6px; background: var(--gc, var(--gold)); border-radius: 6px 0 0 6px; }
+.g-fbi { --gc: #24407a; } .g-crew { --gc: #2f6b4f; } .g-thief { --gc: #7a2f5a; } .g-staff { --gc: #8a5a1f; } .g-guest { --gc: #9a7a3c; }
+.bk-card header { display: flex; justify-content: space-between; gap: 12px; border-bottom: 1px solid var(--line); padding-bottom: 6px; margin-bottom: 6px; }
+.bk-card header small { font: 600 7.5pt Inter, sans-serif; letter-spacing: .1em; text-transform: uppercase; color: var(--mute); }
+.bk-card h3 { font: 400 20pt/1.05 'Bodoni Moda', Didot, serif; margin: 2px 0; }
+.bk-card header p { margin: 0; font-style: italic; color: var(--mute); }
+.bk-code { text-align: right; display: flex; flex-direction: column; gap: 2px; }
+.bk-code b { font-size: 14pt; padding: 3px 8px; border: 1.5px dashed var(--ink); border-radius: 5px; }
+.bk-cols { display: grid; grid-template-columns: 1.25fr 1fr; gap: 14px; }
+.bk-card h4 { font: 700 7.5pt Inter, sans-serif; letter-spacing: .12em; text-transform: uppercase; color: var(--gc, var(--gold)); margin: 6px 0 3px; }
+.bk-card ul { margin: 0; padding-left: 15px; }
+.bk-card li { margin: 2px 0; }
+.bk-mom { list-style: none; padding: 0 !important; }
+.bk-small { font-size: 7.5pt; color: var(--mute); margin-top: 8px; }
+.bk-cut { height: .3in; border-bottom: 1px dashed #b9ae9c; margin-bottom: .3in; }
+
+/* dossiers */
+.bk-dos { break-before: page; font-size: 10pt; }
+.bk-dh { position: relative; border-bottom: 2px solid var(--ink); padding-bottom: 10px; margin-bottom: 10px; }
+.bk-dh small { font: 600 8pt Inter, sans-serif; letter-spacing: .12em; text-transform: uppercase; color: var(--mute); }
+.bk-dh h2 { font: 400 28pt/1.05 'Bodoni Moda', Didot, serif; margin: 4px 0; }
+.bk-dh p { margin: 2px 0; }
+.bk-stamp { position: absolute; right: 0; top: 0; border: 2px solid var(--red); color: var(--red); font: 700 8.5pt Inter, sans-serif; letter-spacing: .14em; padding: 4px 8px; transform: rotate(3deg); }
+.bk-ds { break-inside: auto; margin: 10px 0; }
+.bk-ds h3 { font: 700 9pt Inter, sans-serif; letter-spacing: .12em; text-transform: uppercase; margin: 12px 0 4px; color: var(--gold); break-after: avoid; }
+.bk-ds.secret h3 { color: var(--red); } .bk-ds.goal h3 { color: #2f6b4f; }
+.bk-ds p { margin: 4px 0; } .bk-ds ul, .bk-ds ol { margin: 4px 0; padding-left: 18px; }
+.bk-ds table { width: 100%; border-collapse: collapse; font-size: 9pt; } .bk-ds td, .bk-ds th { border-bottom: 1px solid var(--line); padding: 3px 6px; text-align: left; vertical-align: top; }
+.bk-ds blockquote { margin: 6px 0; padding: 4px 10px; border-left: 3px solid var(--line); font-style: italic; }
+.bk-dos footer { margin-top: 14px; padding-top: 6px; border-top: 1px solid var(--line); font-size: 8pt; color: var(--mute); }
+
+@media print {
+  @page { size: letter; margin: .55in; }
+  html, body { background: #fff; }
+  .bk-bar { display: none; }
+  .bk-doc { padding: 0; }
+  .bk-book, .bk-dos, .bk-sheet { width: auto; margin: 0; padding: 0; box-shadow: none; }
+  .bk-cover { min-height: 9.3in; }
+  .k-cards .bk-sheet.bk-cards { padding: 0; height: 9.9in; }
+  @page :first { margin: .55in; }
+}
+@media (max-width: 700px) { .bk-book, .bk-dos { padding: .35in .3in; } .bk-cols { grid-template-columns: 1fr; } .bk-card { height: auto; } }
