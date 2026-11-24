@@ -36,7 +36,7 @@
         <div class="ht-lbrand">${mark}<div><b>Host terminal</b><small>${esc(CONFIG.TITLE)} · ${esc(CONFIG.EVENT)} · ${esc(CONFIG.SEASON)}</small></div></div>
         <div class="ht-boot mono" aria-hidden="true">
           <div style="--d:.2s"><span>story</span>${STORY.characters.length ? `${STORY.characters.length} players · ${STORY.phases.length} phases · ${STORY.clues.length} clues` : 'locked · opens with a host code'}</div>
-          <div style="--d:.5s"><span>worlds</span>FBI Headquarters · Bebbit · NIGHTWIRE</div>
+          <div style="--d:.5s"><span>worlds</span>FBI Headquarters · Bebbit · Omnizon</div>
           <div style="--d:.8s"><span>link</span>${CONFIG.BACKEND === 'local' ? 'local test mode · this computer only' : 'online'}</div>
           <div style="--d:1.1s"><span>status</span>awaiting host code<i class="ht-caret"></i></div>
         </div>
@@ -67,7 +67,7 @@
   const isLive = r => r.state === 'live' || r.state === 'paused';
   const clockNow = () => new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' });
   /* the main host gets every section; a co-host only what their own group needs to succeed */
-  const tabList = () => [['tonight', 'Tonight'], ['watch', 'Watch'], ['people', scope() ? 'My team' : 'People'], ['messages', 'Messages'], ['fbi', 'FBI'], ['bebbit', 'Bebbit'], ['nightwire', 'NIGHTWIRE'], ['games', 'Games'], ['vote', 'Vote'], ['rsvps', 'RSVPs'], ['health', 'Health'], ['setup', 'Setup']]
+  const tabList = () => [['tonight', 'Tonight'], ['watch', 'Watch'], ['people', scope() ? 'My team' : 'People'], ['messages', 'Messages'], ['fbi', 'FBI'], ['bebbit', 'Bebbit'], ['nightwire', 'Omnizon'], ['games', 'Games'], ['vote', 'Vote'], ['rsvps', 'RSVPs'], ['health', 'Health'], ['setup', 'Setup']]
     .filter(t => (ME.role === 'main' || !['setup', 'rsvps', 'bebbit', 'vote'].includes(t[0])) && (t[0] !== 'fbi' || !scope() || scope().includes('fbi')) && (t[0] !== 'nightwire' || !scope() || scope().includes('crew')));
   const panel = (title, aside, body, cls) => `<section class="card ${cls || ''}"><div class="card-h"><span>${title}</span>${aside ? `<span class="card-a">${aside}</span>` : ''}</div>${body}</section>`;
 
@@ -204,7 +204,7 @@
   function groupCards(s, now) {
     return panel('Groups', 'connected now', `<div class="grps">` + Object.entries(STORY.groups).filter(([g]) => !scope() || scope().includes(g)).map(([g, info]) => {
       const list = STORY.characters.filter(c => c.group === g && !G.noshow(s, c.id)), on = list.filter(c => G.online(s, c.id, now)).length;
-      return `<button class="grp" data-tab="people" data-filter="${g}" style="--g:${info.color}"><span class="dot"></span><span class="n">${esc(info.name)}</span><span class="w">${esc(STORY.worlds[info.door].name)}</span><span class="c mono">${on}/${list.length}</span><span class="bar"><i style="width:${list.length ? on / list.length * 100 : 0}%"></i></span></button>`;
+      return `<button class="grp" data-tab="people" data-filter="${g}" style="--g:${info.color}"><span class="dot"></span><span class="n">${esc(info.name)}</span><span class="w">${esc(Names.world(info.door))}</span><span class="c mono">${on}/${list.length}</span><span class="bar"><i style="width:${list.length ? on / list.length * 100 : 0}%"></i></span></button>`;
     }).join('') + `</div>`);
   }
 
@@ -238,7 +238,7 @@
     const rows = [
       ['fbi', 'FBI Headquarters', `<div class="ic ic-fbi">★</div>`],
       ['bebbit', 'Bebbit', `<div class="ic ic-beb">b</div>`],
-      ['nightwire', 'NIGHTWIRE', `<div class="ic ic-nw mono">n/</div>`]
+      ['nightwire', 'Omnizon', `<div class="ic ic-nw mono">oz</div>`]
     ].filter(x => !scope() || STORY.characters.some(c => inScope(c) && G.door(c) === x[0]));
     return panel('Systems', '', rows.map(x => `<div class="sys">${x[2]}<div style="flex:1;min-width:0"><b>${x[1]} <span class="dot on"></span></b><small>${on(x[0])} connected · ${x[0] === 'bebbit' ? Bebbit.list(s).filter(p => !p.deleted).length + ' live posts' : x[0] === 'nightwire' ? NW.money(NW.balance(s, 'crew')) + ' in the crew wallet' + (s.nw && s.nw.sale && s.nw.sale.sold ? ' · SOLD' : '') : FBI.leftN(s) + '/' + FBI.total(s) + ' lookups left · ' + Object.values((s.fbi && s.fbi.statements) || {}).filter(z => !z.withdrawn).length + ' statements'}</small></div><button class="btn small ghost" data-tab="${x[0]}">Open</button></div>`).join(''), 'systems');
   }
@@ -545,7 +545,7 @@
     return panel('Clock', '', `<label class="check"><input type="checkbox" data-set="auto" ${Clock.auto(s) ? 'checked' : ''}><span>Move to the next phase by itself when time runs out</span></label>
         <div class="setrow"><label for="spd">Test speed (1 = real time; 60 = one minute per second)</label><select class="field" id="spd" data-set="speed">${[1, 10, 30, 60].map(v => `<option value="${v}" ${Clock.speed(s) === v ? 'selected' : ''}>×${v}</option>`).join('')}</select></div>
         <div class="setrow"><label for="jump">Jump to a phase</label><select class="field" id="jump" data-set="jump"><option value="">Choose…</option>${STORY.phases.map((p, i) => `<option value="${i}">${esc(p.short)}</option>`).join('')}</select></div>`)
-      + panel('Doors', 'any code word works at any door', [['index.html', 'The invitation (the front page everyone sees first)'], ['gala/', 'The gala door (guests and staff type their code word here)'],['fbi/', 'FBI Headquarters'], ['bebbit/', 'Bebbit'], ['nightwire/', 'NIGHTWIRE']].map(d => `<div class="sys"><div style="flex:1;min-width:0"><b>${d[1]}</b><small class="mono">${esc(new URL(d[0], location.href).href)}</small></div><a class="btn small" href="${d[0]}" target="_blank" rel="noopener">Open</a></div>`).join(''))
+      + panel('Doors', 'any code word works at any door', [['index.html', 'The invitation (the front page everyone sees first)'], ['gala/', 'The gala door (guests and staff type their code word here)'],['fbi/', 'FBI Headquarters'], ['bebbit/', 'Bebbit'], ['nightwire/', 'Omnizon (NIGHTWIRE)']].map(d => `<div class="sys"><div style="flex:1;min-width:0"><b>${d[1]}</b><small class="mono">${esc(new URL(d[0], location.href).href)}</small></div><a class="btn small" href="${d[0]}" target="_blank" rel="noopener">Open</a></div>`).join(''))
       + panel('Host codes', '', STORY.hosts.map(h => `<div class="sys"><div style="flex:1"><b>${esc(h.label)}</b><small>${h.groups ? 'Sees only: ' + h.groups.map(g => esc(STORY.groups[g].name)).join(', ') : 'Sees everything'}</small></div><span class="mono code">${esc(h.code)}</span></div>`).join(''))
       + panel('Start over', '', `<p class="deck-n" style="margin-bottom:12px">Clears the clock, messages, sign-ins and the activity log on this computer. The story file isn't touched.</p><button class="btn danger" data-act="reset">Reset the night</button>`, 'danger-zone');
   }
@@ -768,7 +768,7 @@
     if ((t = q('[data-csmode]'))) {
       const m = t.dataset.csmode, u = { 'nw/casinoMode': m === 'auto' ? null : m };
       Clock.log(u, 'host', m === 'auto' ? 'The casino follows the clock again.' : `Casino forced ${m}.`);
-      if (m !== 'auto') u['feed/' + uid('m')] = { to: ['all'], title: 'The Saint-Clair Casino', text: m === 'open' ? 'The tables are open. Find the Casino in your NightBank.' : 'The tables are closed for now.', at: Date.now(), kind: 'msg' };
+      if (m !== 'auto') u['feed/' + uid('m')] = { to: ['all'], title: 'The Saint-Clair Casino', text: m === 'open' ? 'The tables are open. Find the Casino in your bank tab.' : 'The tables are closed for now.', at: Date.now(), kind: 'msg' };
       DB.update(u); return toast(m === 'auto' ? 'Casino follows the clock' : `Casino ${m}`);
     }
     if ((t = q('[data-nwfast]'))) { const w = t.dataset.nwfast, u = {}; NW.arriveNow(u, w); DB.update(u); return toast(`${NW.wname(w)}: freed-up money arrived`); }

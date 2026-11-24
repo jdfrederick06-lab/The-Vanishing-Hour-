@@ -113,6 +113,11 @@ body[data-world="nightwire"].is-door { overflow: auto; background: var(--bg); }
 .oz { display: flex; flex-direction: column; gap: 14px; min-width: 0; color: var(--text); font-family: var(--font); }
 .oz { font-size: 14px; }
 .oz [hidden] { display: none !important; }
+.oz .err:empty { display: none; }
+.oz-form .field { font-weight: 500; }
+.oz-av svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linejoin: round; }
+body[data-world="nightwire"] .hero-nightwire .kicker { color: #ffd2b8; }
+.oz-door-card .field::placeholder { text-transform: none; letter-spacing: 0; }
 .oz button { font-family: inherit; }
 body[data-world="nightwire"] .oz .field { border-radius: 10px; background: #fff; border-color: var(--oz-field); font-size: 16px; min-height: 46px; color: var(--text); font-family: var(--font); }
 .oz-cols, .oz-cols > div { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
@@ -297,7 +302,9 @@ body[data-world="nightwire"] .oz .field { border-radius: 10px; background: #fff;
 .oz-sc b { display: block; font-size: 17px; font-weight: 800; letter-spacing: -.01em; } .oz-sc small { font-size: 12px; color: var(--mute); }
 .oz-goal { display: flex; flex-direction: column; gap: 8px; }
 .oz-goal-n { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
-.oz-goal-n span { font-size: 13px; color: var(--mute); }
+.oz-goal-n > span:last-child { font-size: 13px; color: var(--mute); text-align: right; }
+.oz-goal-n .oz-price { font-size: 26px; }
+.oz-sc > span:first-child { flex: none; }
 .oz-bar { height: 10px; border-radius: 5px; background: #eceef2; overflow: hidden; }
 .oz-bar i { display: block; height: 100%; border-radius: 5px; background: linear-gradient(90deg, var(--oz-orange), #ff9a52); transition: width .6s; }
 .oz-check { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 12px; border: 1px solid var(--oz-field); border-radius: 10px; font-size: 14px; font-weight: 600; }

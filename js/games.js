@@ -69,13 +69,13 @@ const Games = (() => {
       diff: 3, mins: '5–10', par: { sec: 360, miss: 0 },
       goal: 'Open the vault door before anyone checks the east hall.',
       rules: ['Drag the dial, or use the Left and Right buttons. Turn <b>left</b> to the first number and press Set, <b>right</b> to the second, <b>left</b> to the third.',
-        'Each number is held by someone different: the vault schematic on the NIGHTWIRE market, Sloane, and Jules\'s camera loop.',
+        'Each number is held by someone different: the vault schematic on Omnizon, Sloane, and Jules\'s camera loop.',
         'No numbers? Crack it by feel. The dial gives one soft click when it sits <b>exactly</b> on the right number, turning the right way.',
         'A wrong combination jams the dial for everyone: 30 seconds, then a minute, then two.'],
-      hints: ['The first number is printed on the vault schematic, a file you can buy on the NIGHTWIRE market.',
+      hints: ['The first number is printed on the vault schematic, a file you can buy on Omnizon.',
         'Sloane knows the second number. Ask in the crew chat before you guess.',
         'The third number shows on the vault keypad feed once Jules loops that camera.'],
-      outcome: 'The vault door is open. The crew has been told on NIGHTWIRE.'
+      outcome: 'The vault door is open. The crew has been told on Omnizon.'
     },
     camera: {
       diff: 4, mins: '2', par: { sec: 120, miss: 0 },

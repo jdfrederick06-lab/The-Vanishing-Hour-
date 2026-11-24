@@ -305,7 +305,7 @@ const NW = (() => {
       <label>To<select class="field" data-nw="to" aria-label="Send to">${payeeOptions(me, w, ui)}</select></label>
       ${ui.send.to === '__handle' ? `<label>Account handle<input class="field" data-nw="handle" placeholder="their account handle" value="${esc(ui.send.handle)}" autocapitalize="off" spellcheck="false"></label>` : ''}
       <label>Amount<span class="oz-amt"><span>$</span><input class="field" data-nw="amt" inputmode="decimal" placeholder="0" value="${esc(ui.send.amt)}" aria-label="Amount" autocomplete="off"></span></label>
-      <label>Note <i>(optional)</i><input class="field" data-nw="memo" maxlength="80" placeholder="What's it for?" value="${esc(ui.send.memo)}"></label>
+      <label><span>Note <i>(optional)</i></span><input class="field" data-nw="memo" maxlength="80" placeholder="What's it for?" value="${esc(ui.send.memo)}"></label>
       <button class="oz-buy" type="submit">Send</button><span class="oz-hint">Tip: type amounts like 250K or 1.5M.</span>
       ${ui.sent ? `<div class="oz-ok">✓ Sent ${esc(ui.sent)}</div>` : ''}${errBox(ui, 'send')}</form>`;
   }
@@ -315,7 +315,7 @@ const NW = (() => {
     const row = (av, cls, who, sub, amt, out) => `<div class="oz-tx"><span class="oz-av ${cls}">${av}</span><div><b>${esc(who)}</b><small>${esc(sub)}</small></div><strong class="${out ? '' : 'pos'}">${out ? '−' : '+'}${money(amt)}</strong></div>`;
     const rows = (play.length ? row('♠', 'buy', 'Charity casino', `${play.length} plays · last ${wallTime(play[0].at)}`, Math.abs(net), net < 0) : '')
       + plain.map(t => { const out = t.from === w, buy = t.to === 'market', who = buy ? 'Omnizon order' : out ? (t.toName || wname(t.to)) : wname(t.from);
-        return row(buy ? '🛒' : esc(ini(who)), buy ? 'buy' : out ? '' : 'in', who, (t.memo ? t.memo + ' · ' : '') + wallTime(t.at) + (held(s, t) ? ' · in escrow' : ''), t.amt, out); }).join('');
+        return row(buy ? IC.shop : esc(ini(who)), buy ? 'buy' : out ? '' : 'in', who, (t.memo ? t.memo + ' · ' : '') + wallTime(t.at) + (held(s, t) ? ' · in escrow' : ''), t.amt, out); }).join('');
     return `<section class="oz-sec"><span class="oz-sec-h">Activity <span class="oz-badge">${plain.length + (play.length ? 1 : 0)}</span></span>${rows || '<div class="oz-empty">No activity yet. Orders and transfers show up here.</div>'}</section>`;
   }
   function walletView(s, me, ui, w) {
@@ -328,7 +328,7 @@ const NW = (() => {
     const goal = C().goal || 0, got = sale && sale.sold ? sale.sold.amt : 0;
     const head = `<section class="oz-sec"><div class="oz-sc"><span>${IC.sell}</span><div><b>Seller Central</b><small>Private listing · ${esc(C().saleItem)}</small></div></div>
       <div class="oz-goal"><div class="oz-goal-n">${price(got)}<span>of your ${money(goal)} goal</span></div><div class="oz-bar"><i style="width:${(goal ? Math.min(100, got / goal * 100) : 0).toFixed(1)}%"></i></div></div></section>`;
-    if (!sale) return head + `<form class="oz-sec oz-form" data-nw-form="list"><span class="oz-sec-h">Create a private listing</span><span class="oz-hint">Only the buyers you pick can see it. They bid from their NightBank, and the money waits in escrow.</span>
+    if (!sale) return head + `<form class="oz-sec oz-form" data-nw-form="list"><span class="oz-sec-h">Create a private listing</span><span class="oz-hint">Only the buyers you pick can see it. They bid from their own bank app, and the money waits in escrow.</span>
         <label>Asking price<span class="oz-amt"><span>$</span><input class="field" data-nw="ask" inputmode="decimal" placeholder="e.g. 25M" value="${esc(ui.ask)}" aria-label="Asking price" autocomplete="off"></span></label>
         <span class="oz-sec-h" style="font-size:13px">Offer it to</span>${(C().buyers || []).map(b => `<label class="oz-check"><input type="checkbox" data-nw-pitch="${b}" ${ui.pitch.includes(b) ? 'checked' : ''}>${esc(wname(b))}</label>`).join('')}
         <button class="oz-buy" type="submit">Publish listing</button>${errBox(ui, 'list')}</form>`;
@@ -338,7 +338,7 @@ const NW = (() => {
         <div class="oz-sum"><div><span>Asking</span><span><b>${money(sale.ask)}</b></span></div><div><span>Offered to</span><span>${sale.pitched.map(b => esc(wname(b))).join(', ')}</span></div></div>
         ${more.length ? `<div class="oz-btns">${more.map(b => `<button type="button" class="oz-btn" data-nw-addpitch="${b}">+ Offer to ${esc(wname(b))}</button>`).join('')}</div>` : ''}</section>
       <section class="oz-sec"><span class="oz-sec-h">Offers <span class="oz-badge">${bids.length}</span></span>
-        ${bids.map((b, i) => `<div class="oz-bid${i === 0 ? ' top' : ''}"><div><b>${esc(wname(b.from))}</b><small>${esc(wallTime(b.at))}${i === 0 && bids.length > 1 ? ' · highest' : ''}</small></div><strong>${money(b.amt)}</strong><button type="button" class="oz-btn go" data-nw-accept="${b.id}">Accept</button></div>`).join('') || '<div class="oz-empty">No offers yet. Buyers see your listing in their NightBank.</div>'}</section>
+        ${bids.map((b, i) => `<div class="oz-bid${i === 0 ? ' top' : ''}"><div><b>${esc(wname(b.from))}</b><small>${esc(wallTime(b.at))}${i === 0 && bids.length > 1 ? ' · highest' : ''}</small></div><strong>${money(b.amt)}</strong><button type="button" class="oz-btn go" data-nw-accept="${b.id}">Accept</button></div>`).join('') || '<div class="oz-empty">No offers yet. Buyers see your listing in their bank app.</div>'}</section>
       <button type="button" class="oz-buy line" data-nw-close>Close the listing</button><div class="err" role="alert">${esc(ui.err)}</div>`;
   }
   /* ----- Messages: the crew's burner chat ----- */
@@ -382,6 +382,15 @@ const NW = (() => {
   const isCasinoTx = t => t.from === 'casino' || t.to === 'casino';
   const casinoOn = s => typeof Casino !== 'undefined' && Casino.isOpen(s);
 
+  /* the bank's look in each world (Nov 24): Bebbit Banking for guests and staff, the Federal Credit
+     Union for the FBI. Same bank underneath; Names.say() in core.js swaps the name in every line. */
+  function bankLogo(me) {
+    const b = Names.bank(me);
+    if (b === 'Bebbit Banking') return '<svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="9" fill="#5b3fd6"/><text x="16" y="22.5" text-anchor="middle" font-family="Plus Jakarta Sans, Inter, sans-serif" font-weight="800" font-size="19" fill="#fff">b</text><circle cx="24.5" cy="8" r="3" fill="#7ee0b5"/></svg>';
+    if (b === 'Federal Credit Union') return '<svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="9" fill="#0e2240"/><path d="M16 6.5l9.5 5H6.5z" fill="#d4b25c"/><path d="M9 13.5h2.6v7.5H9zM14.7 13.5h2.6v7.5h-2.6zM20.4 13.5H23v7.5h-2.6zM7 22.5h18V25H7z" fill="#d4b25c"/></svg>';
+    return '<svg viewBox="0 0 32 32" aria-hidden="true"><defs><linearGradient id="nbg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8f7bff"/><stop offset="1" stop-color="#36d1c4"/></linearGradient></defs><rect width="32" height="32" rx="9" fill="url(#nbg)"/><path d="M19.5 8.5a8 8 0 1 0 4 14.6A9.5 9.5 0 0 1 19.5 8.5z" fill="#fff"/></svg>';
+  }
+  const bankTag = me => ({ 'Bebbit Banking': 'Banking by bebbit', 'Federal Credit Union': 'Members only · Since 1935' })[Names.bank(me)] || 'Private Banking';
   function renderBank(s, me, ui) {
     const w = walletOf(me); if (!w) return '<div class="nb"><div class="nb-panel">No NightBank account.</div></div>';
     const tabs = [['acct', 'Account']].concat(typeof Casino !== 'undefined' && Casino.allowed(me) ? [['casino', 'Casino']] : [], isLender(me) ? [['lend', 'Lending']] : []);
@@ -389,7 +398,7 @@ const NW = (() => {
     const why = blockedWhy(s, me, w), out = isOut(s, me.id), cs = ui.bsub === 'casino';
     const body = cs ? (typeof Casino !== 'undefined' ? Casino.render(s, me, ui, w) : '') : ui.bsub === 'lend' ? lendView(s, me, ui, w) : acctView(s, me, ui, w);
     return `<div class="nb${cs ? ' nb-casino' : ''}">
-      <div class="nb-top"><div class="nb-brand"><svg viewBox="0 0 32 32" aria-hidden="true"><defs><linearGradient id="nbg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8f7bff"/><stop offset="1" stop-color="#36d1c4"/></linearGradient></defs><rect width="32" height="32" rx="9" fill="url(#nbg)"/><path d="M19.5 8.5a8 8 0 1 0 4 14.6A9.5 9.5 0 0 1 19.5 8.5z" fill="#fff"/></svg><div><b>NightBank</b><small>${cs ? 'Private Banking · Casino floor' : 'Private Banking'}</small></div></div>
+      <div class="nb-top"><div class="nb-brand">${bankLogo(me)}<div><b>${esc(Names.bank(me))}</b><small>${esc(bankTag(me))}${cs ? ' · Casino floor' : ''}</small></div></div>
         <span class="nb-secure ${why ? 'bad' : ''}">${LOCK}${why ? (out ? 'Locked' : 'Frozen') : 'Secured'}</span></div>
       <div class="nb-seg" role="tablist">${tabs.map(([k, l]) => `<button type="button" role="tab" data-nb-sub="${k}" aria-selected="${ui.bsub === k}">${l}${k === 'casino' && casinoOn(s) ? '<i class="nb-live" title="Tables open"></i>' : ''}${k === 'acct' && loans(s).some(x => x.to === w && x.status === 'offer') ? '<i class="nb-dot" title="Loan offer waiting"></i>' : ''}</button>`).join('')}</div>
       ${why ? `<div class="nb-alert">${LOCK}<div><b>${out ? 'Account locked' : 'Account frozen'}</b><p>${esc(why)}</p></div></div>` : ''}
@@ -465,7 +474,7 @@ const NW = (() => {
           ${ui.sent ? `<div class="nb-ok">✓ Sent ${esc(ui.sent)}</div>` : ''}${errBox(ui, 'send')}</form>
         <div class="nb-panel"><div class="nb-h">Activity <span class="nb-count">${count}</span></div>${rows}</div>
       </div></div>
-      <p class="nb-fine">NightBank Private · Accounts are confidential. Only you can see your balance. Tip: type amounts like 250K or 1.5M.</p>`;
+      <p class="nb-fine">${esc(Names.bank(me))} · Accounts are confidential. Only you can see your balance. Tip: type amounts like 250K or 1.5M.</p>`;
   }
 
   /* ---------- Cameron's lending desk ---------- */
@@ -639,7 +648,7 @@ const NW = (() => {
     if ((el = q('[data-nw-addpitch]'))) {
       const s = DB.fresh(), sale = N(s).sale; if (!sale) return true;
       if (isOut(s, me.id)) { ui.err = blockedWhy(s, me, walletOf(me)); return done(); }
-      const u = { 'nw/sale/pitched': sale.pitched.concat([el.dataset.nwAddpitch]) }; alertWallet(u, el.dataset.nwAddpitch, 'Private offer', 'A seller on NightBank has something you\'ll want. Check your NightBank tab.'); DB.update(u); return true;
+      const u = { 'nw/sale/pitched': sale.pitched.concat([el.dataset.nwAddpitch]) }; alertWallet(u, el.dataset.nwAddpitch, 'Private offer', 'A private seller has something you\'ll want. Check your NightBank tab.'); DB.update(u); return true;
     }
     if ((el = q('[data-nw-accept]'))) {
       const s = DB.fresh(), b = (N(s).bids || {})[el.dataset.nwAccept];
@@ -716,7 +725,7 @@ const NW = (() => {
       if (ask < 1) return fail('Set an asking price.');
       if (!ui.pitch.length) return fail('Pitch it to at least one buyer.');
       const u = { 'nw/sale': { ask, pitched: ui.pitch.slice(), by: me.id, at: Date.now() } };
-      ui.pitch.forEach(b => alertWallet(u, b, 'Private offer', 'A seller on NightBank has something you\'ll want. Check your NightBank tab.'));
+      ui.pitch.forEach(b => alertWallet(u, b, 'Private offer', 'A private seller has something you\'ll want. Check your NightBank tab.'));
       Clock.log(u, 'nightwire', `${me.name} opened a private sale (asking ${money(ask)}) to ${ui.pitch.map(wname).join(', ')}.`);
       DB.update(u); ui.ask = ''; ui.pitch = []; return ok();
     }

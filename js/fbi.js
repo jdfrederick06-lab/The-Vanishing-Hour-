@@ -227,13 +227,13 @@ const FBI = (() => {
     return `<div class="card">${agents().map(a => `<div class="fb-agent"><span class="dot ${G.online(s, a.id) ? 'on' : ''}"></span><div style="flex:1;min-width:0"><b>${esc(a.name)}${a.id === me.id ? ' <span class="chip">you</span>' : ''}</b><small>${esc(a.role)}</small></div><span class="mono mute" style="font-size:12px">${mine(a.id)} lookups</span></div>`).join('')}</div>
       <div class="sec-title">Warrants · ${wl} of ${C().warrants || 0} left</div>
       <div class="card">${Object.entries(w).map(([id, x]) => {
-        /* a warrant also lets the lead freeze that person's NightBank account */
+        /* a warrant also lets the lead freeze that person's bank account */
         const acct = typeof NW !== 'undefined' ? NW.walletOf(G.byId(id)) : null, fz = acct && NW.frozen(s, acct);
         const btn = isLead(me) && acct ? (fz ? (fz.by === 'fbi' ? `<button class="btn small" data-fb-freeze="${id}">Unfreeze account</button>` : '<span class="chip">account frozen</span>') : `<button class="btn small danger" data-fb-freeze="${id}">Freeze account</button>`) : fz ? '<span class="chip bad">account frozen</span>' : '';
         return `<div class="fb-ev fb-wr"><span class="mono">${esc(wallTime(x.at))}</span><span style="flex:1;min-width:0">${esc(G.byId(id).name)}</span>${btn}</div>`;
       }).join('') || '<div class="empty" style="padding:8px">No warrants issued.</div>'}
         ${isLead(me) ? `<form class="fb-q" data-fb-form="warrant" style="margin-top:10px"><select class="field" data-fb="warrant" aria-label="Issue a warrant for"><option value="">Issue a warrant for…</option>${ppl.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('')}</select><button class="btn primary" type="submit" ${wl ? '' : 'disabled'}>Issue</button></form>
-          <p class="mute" style="font-size:12px;margin-top:8px">A warrant unseals that person's sealed records and tells them to show agents what they're carrying. It also lets you freeze their NightBank account, so they can't move money.</p>` :'<p class="mute" style="font-size:12px;margin-top:8px">Only the Special Agent in Charge can issue warrants.</p>'}</div>`;
+          <p class="mute" style="font-size:12px;margin-top:8px">A warrant unseals that person's sealed records and tells them to show agents what they're carrying. It also lets you freeze their bank account, so they can't move money.</p>` :'<p class="mute" style="font-size:12px;margin-top:8px">Only the Special Agent in Charge can issue warrants.</p>'}</div>`;
   }
 
   function render(s, me, ui) {
@@ -288,7 +288,7 @@ const FBI = (() => {
       if (!isLead(me) || !(F(s).warrants || {})[id] || !acct) return true;
       const fz = NW.frozen(s, acct), u = {};
       if (fz && fz.by !== 'fbi') return true;
-      if (!fz && !Ask.sure(`Freeze ${c.name}'s NightBank account (${NW.wname(acct)})? They won't be able to move money until you unfreeze it.`, () => onClick(e, ctx))) return true;
+      if (!fz && !Ask.sure(`Freeze ${c.name}'s bank account (${NW.wname(acct)})? They won't be able to move money until you unfreeze it.`, () => onClick(e, ctx))) return true;
       if (fz) NW.unfreeze(u, acct, me.id); else NW.freeze(u, acct, 'fbi', me.id);
       DB.update(u); return true;
     }

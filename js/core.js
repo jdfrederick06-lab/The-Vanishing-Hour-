@@ -41,7 +41,7 @@ const G = {
     return [].concat(to || []).map(t => {
       if (t === 'all') return 'Everyone';
       if (t.startsWith('g:')) return STORY.groups[t.slice(2)] ? STORY.groups[t.slice(2)].name : t;
-      if (t.startsWith('door:')) return STORY.worlds[t.slice(5)] ? STORY.worlds[t.slice(5)].name : t;
+      if (t.startsWith('door:')) return STORY.worlds[t.slice(5)] ? Names.world(t.slice(5)) : t;
       const c = G.byId(t); return c ? c.name.split(' ')[0] : t;
     }).join(', ');
   },
@@ -475,6 +475,29 @@ const Report = (() => {
   window.addEventListener('unhandledrejection', e => err('unhandled: ' + ((e.reason && e.reason.message) || e.reason)));
   return { err };
 })();
+
+/* ---------- the names players see (Nov 24) ----------
+   The bank goes by a different name in each world: Bebbit Banking (guests and staff), the Federal
+   Credit Union (FBI) and Omnizon Wallet (NIGHTWIRE). They all work the same; it's one system.
+   NIGHTWIRE itself goes by Omnizon. The story files still say "NightBank" and "NIGHTWIRE";
+   Names.say(text, reader) swaps them for whoever is reading, as the text is shown.
+   The host terminal keeps the real names. */
+const Names = {
+  world: d => d === 'nightwire' ? 'Omnizon' : ((typeof STORY !== 'undefined' && STORY.worlds && STORY.worlds[d]) || {}).name || d,
+  bank(ch) {
+    let d = null; try { d = ch && !ch.host && ch.group ? G.door(ch) : null; } catch (e) { }
+    return d === 'bebbit' ? 'Bebbit Banking' : d === 'fbi' ? 'Federal Credit Union' : d === 'nightwire' ? 'Omnizon Wallet' : 'NightBank';
+  },
+  say(text, ch) {
+    if (text == null) return text;
+    const t = String(text).replace(/NIGHTWIRE/g, 'Omnizon'), b = Names.bank(ch);
+    if (b === 'NightBank') return t;
+    return t.replace(/NightBank receipt/g, 'bank receipt')
+      .replace(/\b(person's|their|someone's|a|any) NightBank account/g, '$1 bank account')
+      .replace(/NightBank (?:wallet|account)/g, b === 'Omnizon Wallet' ? b : b + ' account')
+      .replace(/NightBank/g, b);
+  }
+};
 
 /* ---------- in-page confirmations (instead of the browser's "Are you sure?" popups) ----------
    Ask.sure(text, again, opts) is used inside ordinary click/submit handlers:

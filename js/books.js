@@ -41,116 +41,182 @@
     return out;
   }
 
-  /* ---------- the host book ---------- */
+  /* ---------- the host book (Nov 24: the complete book, one per host) ----------
+     Everything a host needs, in order: their job, the truth, getting ready (countdown, shopping,
+     rooms and decor, props, the website), the night step by step, every solution, their players,
+     the vote and the reveal, and every dossier they look after. The hand-written parts live in
+     settings/reveal.js (STORY.reveal.guide), which only the hosts can unlock. */
   const ANSWERS = {
     vault: 'Combination ' + ((STORY.nightwire.vault || {}).combo || [24, 61, 9]).join(', ') + ' (left, right, left). Maintenance override in Host > Games if they get stuck.',
     camera: 'Pick the live feed for each camera; the keypad feed shows the 9. If it fails, Host > Games > Release footage gives the vault footage to the FBI.',
+    decrypt: 'Keys: Ellery, 2001, Harlow. Reveals June Ellery\'s child, born February 2001, adopted 2008.',
     record: 'Keys: Ellery, 2001, Harlow. Reveals June Ellery\'s child, born February 2001, adopted 2008.',
+    messages: '14 messages back in order (costs one FBI lookup). Reads as a handler (Noor) and a witness (Victor).',
     phone: '14 messages back in order (costs one FBI lookup). Reveals Victor\'s last texts.',
     photo: 'Caption on the back: "Victor Ashgrove and J. E— at the Harbor gallery, December 2000." First to finish posts it to Bebbit.',
     differences: 'Seven differences; the last is Indigo\'s hidden mark.',
     ledger: 'Three entries hide money (12,500 / 20,000 / 17,500). The answer: $50,000 to Vale Fine Art Advisory.',
     doorlog: 'Badge T-03 (an FBI temporary badge) into the vault stairwell at 7:44, after Charlie.'
   };
+  /* a character's one-card summary: goals, who to find, their moments, what they have */
+  function quick(c) {
+    const goals = firstLines(secOf(c, /goal/i), 4).map(l => md(clip(l.replace(/^([-*]|\d+\.)\s+/, ''), 150)));
+    const find = firstLines(secOf(c, /who to find/i), 6).filter(l => !/^\|\s*(who|person|name)\s*\|/i.test(l)).slice(0, 4).map(l => /^\|/.test(l) ? tableRow(l) : md(clip(l.replace(/^([-*]|\d+\.)\s+/, ''), 140)));
+    const moments = []; STORY.phases.forEach((p, i) => (p.cues || []).forEach(q => { if (q.to && [].concat(q.to).some(t => t === c.id || t === 'g:' + c.group)) moments.push(`<b>${clockAt(start(i) + q.at)}</b> ${md(q.title || '')}`); }));
+    const pw = (STORY.bebbit.powers || {})[c.id], w = typeof NW !== 'undefined' ? NW.walletOf(c) : null;
+    const extras = [];
+    if (pw) extras.push('Bebbit: ' + Object.entries(pw).map(([k, n]) => `${n} ${{ delete: 'removals', trace: 'traces', hack: 'disguised posts' }[k] || k}`).join(', '));
+    if (w && typeof NW !== 'undefined') extras.push(Names.bank(c) + ': ' + money((NW.wallets()[w] || {}).start) + (NW.wallets()[w] && NW.wallets()[w].members.length > 1 || /^g:/.test(String((NW.wallets()[w] || {}).members)) ? ' (shared account)' : ''));
+    const gm = (STORY.games || []).filter(g => [].concat(g.who).includes(c.id)); if (gm.length) extras.push('Your game: ' + gm.map(g => g.name).join(', '));
+    firstLines(secOf(c, /bribe/i), 2).forEach(l => extras.push(l.replace(/^[-*]\s+/, '').replace(/\*\*/g, '').replace(/^Paying to keep your secret: /, 'To bury your secret: ')));
+    return { goals, find, moments, extras };
+  }
   function hostBook(k) {
-    const H = hostOf(k), groups = H.groups || null;
+    const H = hostOf(k), groups = H.groups || null, GD = (STORY.reveal || {}).guide || {};
     const inScope = c => !groups || groups.includes(c.group);
     const touches = to => !groups || G.touches(to, groups);
-    const cast = STORY.characters.filter(inScope), names = players();
+    const mine = r => k === 'main' || r === k || r === 'all';
+    const cast = STORY.characters.filter(inScope).sort((a, b) => a.group.localeCompare(b.group) || a.name.localeCompare(b.name)), names = players();
     const R = STORY.reveal || {}, killer = G.byId(R.killer);
-    const sec = (id, title, body, cls) => `<section class="bk-sec ${cls || ''}" id="${id}"><h2>${title}</h2>${body}</section>`;
-    const toc = [];
-    const add = (id, title, body, cls) => { toc.push([id, title]); return sec(id, title, body, cls); };
+    const nm = id => (G.byId(id) || { name: id }).name;
+    const ROLE = { main: 'Main host', fbi: 'FBI handler', crew: 'Crew handler', all: 'Every host' };
+    const toc = []; let part = 0;
+    const partH = (t, sub) => { part++; toc.push(['p' + part, `Part ${part} · ${t}`, true]); return `<div class="bk-part" id="p${part}"><small>Part ${part}</small><h1>${esc(t)}</h1>${sub ? `<p>${esc(sub)}</p>` : ''}</div>`; };
+    const add = (id, title, body) => { toc.push([id, title]); return `<section class="bk-sec" id="${id}"><h2>${esc(title)}</h2>${body}</section>`; };
+    const tbl = (head, rows, cls) => `<table class="bk-t ${cls || ''}"><tr>${head.map(h => `<th>${esc(h)}</th>`).join('')}</tr>${rows.map(r => `<tr>${r.map(x => `<td>${md(x)}</td>`).join('')}</tr>`).join('')}</table>`;
+    const ul = (arr, check) => arr.length ? `<ul class="${check ? 'bk-check' : ''}">${arr.map(t => `<li>${check ? box : ''}${md(t)}</li>`).join('')}</ul>` : '';
     const games = (STORY.games || []).filter(g => !groups || G.touches(g.who, groups) || (g.backup && G.touches(g.backup, groups)));
     const opensAt = o => o.phase ? clockAt(start(STORY.phases.findIndex(p => p.id === o.phase))) : o.min != null ? clockAt(o.min) : 'when the host opens it';
-
+    const gameMin = t => { const m = String(t).match(/^(\d+):(\d\d)$/); return m ? Number(m[1]) * 60 + Number(m[2]) + (Number(m[1]) < 7 ? 12 * 60 : 0) - 19 * 60 : null; };
+    const mems = (GD.memories || []).filter(m => inScope(G.byId(m[1]) || {}) || k === 'main');
     let html = '';
-    /* the truth */
-    html += add('truth', 'The truth, on one page',
-      `<p class="bk-lead">${killer ? `<b>The killer is ${esc(killer.name)}.</b> ` : ''}The painting was stolen by the ${esc(groupName(R.thiefGroup || 'crew'))}${R.diamondThief && G.byId(R.diamondThief) ? `; ${esc(G.byId(R.diamondThief).name)} went for the diamond` : ''}. Keep this book closed around players.</p>` +
-      (R.chapters || []).map(ch => `<div class="bk-ch"><small>${esc(ch.kicker || '')}</small><b>${esc(ch.title)}${ch.big ? ' ' + esc(ch.big) : ''}</b>${(ch.body || []).map(p => `<p>${md(p)}</p>`).join('')}</div>`).join(''));
-    /* codes and links */
+
+    /* ===== Part 1: your night ===== */
+    html += partH('Your night', 'Who you are tonight, and how to use this book');
+    html += add('job', 'Your job tonight', ((GD.jobs || {})[k] || []).map(p => `<p>${md(p)}</p>`).join('') +
+      (groups ? `<p>You look after <b>${esc(groups.map(groupName).join(', '))}</b>: ${cast.length} players.</p>` : '') +
+      `<p class="bk-note">How to use this book: read Parts 1 to 3 the week before. Keep Part 4 open on the night; it runs in clock order. Part 5 has every answer. The dossiers for your players are at the back.</p>`);
+    html += add('contacts', 'Contacts', `<table class="bk-t bk-fill">${(GD.contacts || []).map(([a, b]) => `<tr><td><b>${esc(a)}</b></td><td>${esc(b)}</td><td class="bk-line"></td></tr>`).join('')}</table>`);
     html += add('codes', 'Codes and links',
       `<table class="bk-t"><tr><th>What</th><th>Where</th><th>Code word</th></tr>
         ${(k === 'main' ? STORY.hosts : [H]).map(h => `<tr><td>${esc(h.label)} (host terminal)</td><td class="mono">${esc(site)}host.html</td><td class="mono"><b>${esc(h.code)}</b></td></tr>`).join('')}
-        <tr><td>Players sign in</td><td class="mono">${esc(site)}gala/</td><td>their own code word (cast list)</td></tr>
+        <tr><td>Players sign in</td><td class="mono">${esc(site)}gala/</td><td>their own code word (see Part 6)</td></tr>
         ${k === 'main' ? `<tr><td>Big screen (projector)</td><td class="mono">${esc(site)}reveal.html</td><td>host code</td></tr><tr><td>Print pages</td><td class="mono">print.html · posters.html · badges.html · books.html</td><td>host code</td></tr>` : ''}</table>
-       <p>If a phone dies, the player can sign in on any other phone with the same code word; nothing is lost. A host can sign in on several devices at once.</p>`);
-    /* before the doors */
-    const arrive = STORY.phases[0];
-    const pre = k === 'main' ? [
-      'Laptop for the host terminal, charged, signed in with the main host code',
-      'Projector or TV showing reveal.html (sign in with the host code, press F for full screen)',
-      'Wi-Fi works in every room; test one phone in the farthest room',
-      'Evidence printed and placed (see "Evidence and props" below); June\'s painting is ready to hang in the vault',
-      'Props handed to their holders before the briefings',
-      'Badges cut and in sleeves, laid out by group; posters and signs up',
-      'NFC tag behind June\'s painting (tap it once with a signed-in phone to test)',
-      'Host terminal > Setup: night reset, test speed back to x1',
-      'Host terminal > Health: no errors showing'
-    ] : ['Your badge and this book', 'Sign in to the host terminal with your code on your phone or laptop', 'Read your groups\' dossiers below the cast list once more', 'Know where your groups\' briefing happens'];
-    html += add('before', 'Before the doors open', `<ul class="bk-check">${pre.concat(arrive.todo || []).map(t => `<li>${box}${md(t)}</li>`).join('')}</ul>`);
-    /* run of show */
-    html += add('show', 'Run of show', STORY.phases.map((p, i) => {
+       <p>If a phone dies, the player signs in on any other phone with the same code word; nothing is lost. A host can be signed in on several devices at once.</p>`);
+
+    /* ===== Part 2: the truth ===== */
+    html += partH('The truth', 'Keep this book closed around players');
+    html += add('truth', 'What really happened',
+      `<p class="bk-lead">${killer ? `<b>The killer is ${esc(killer.name)}.</b> ` : ''}The painting was stolen by the ${esc(groupName(R.thiefGroup || 'crew'))}${R.diamondThief && G.byId(R.diamondThief) ? `; ${esc(G.byId(R.diamondThief).name)} went for the diamond` : ''}.</p>` +
+      (R.chapters || []).map(ch => `<div class="bk-ch"><small>${esc(ch.kicker || '')}</small><b>${esc(ch.title)}${ch.big ? ' ' + esc(ch.big) : ''}</b>${(ch.body || []).map(p => `<p>${md(p)}</p>`).join('')}</div>`).join(''));
+    if (GD.solve) html += add('solve', 'How players get to the killer', `<p>No single clue names ${esc(killer ? killer.name : 'the killer')}. Players have to answer five questions, each from two or three places (paper, FBI Headquarters, Bebbit, Omnizon), so no one group can solve it alone.</p>` +
+      tbl(['#', 'The question', 'What answers it', 'Clues'], GD.solve.map((r, i) => [String(i + 1), '**' + r[0] + '**', r[1], r[2]])) + (GD.theft ? `<p>${md(GD.theft)}</p>` : ''));
+    if (GD.wins) html += add('wins', 'Who wins', tbl(['Group', 'They win if'], GD.wins.map(r => ['**' + r[0] + '**', r[1]])));
+
+    /* ===== Part 3: getting ready ===== */
+    html += partH('Getting ready', 'Weeks before, the day before, and the room');
+    html += add('countdown', 'Countdown', (GD.countdown || []).map(s => { const items = s.items.filter(([r]) => mine(r)); return items.length ? `<h3>${esc(s.when)}</h3><ul class="bk-check">${items.map(([r, t]) => `<li>${box}${md(t)}${k === 'main' && r !== 'main' ? ` <span class="bk-who-tag">${esc(ROLE[r] || r)}</span>` : ''}</li>`).join('')}</ul>` : ''; }).join(''));
+    const shop = (GD.shopping || []).filter(([, , r]) => mine(r));
+    if (shop.length) html += add('shopping', 'Shopping and supplies', tbl(['', 'Item', 'How many'].concat(k === 'main' ? ['Who brings it'] : []), shop.map(([t, n, r]) => [box, t, n].concat(k === 'main' ? [ROLE[r] || r] : [])), 'bk-shop') +
+      `<p class="bk-note">Printed pieces (evidence, props, badges, posters, cheat cards, dossiers) come from the print pages; see the countdown.</p>`);
+    const rooms = (GD.rooms || []), myRooms = rooms.filter(r => mine(r.owner));
+    html += add('rooms', 'Rooms and decor', `<p>The building is decided in January. Write each room's real name on the line.</p>` +
+      myRooms.map(r => `<div class="bk-room"><div class="bk-room-h"><b>${esc(r.name)}</b>${k === 'main' ? `<span class="bk-who-tag">${esc(ROLE[r.owner] || r.owner)}</span>` : ''}<span class="bk-line">Room:</span></div><p>${md(r.what)}</p>${ul(r.setup || [], true)}${r.decor ? `<p class="bk-note"><b>Look:</b> ${md(r.decor)}</p>` : ''}</div>`).join('') +
+      (k !== 'main' ? `<p class="bk-note">The other rooms (${esc(rooms.filter(r => !mine(r.owner)).map(r => r.name).join(', '))}) are set by the other hosts.</p>` : ''));
+    const D = GD.decor || {};
+    if (k === 'main' && D.look) html += add('decor', 'The look, music and dress code', ul(D.look) + `<p><b>Dress code.</b> ${md(D.dress || '')}</p>` + tbl(['Part of the night', 'Music'], D.music || []) + (D.extras ? `<h3>Also</h3>${ul(D.extras, true)}` : ''));
+    else if (D.dress) html += add('decor', 'Dress code', `<p>${md(D.dress)}</p>`);
+    const propRows = (GD.props || []).filter(([who]) => k === 'main' || cast.some(c => c.name.split(' ')[0] === who));
+    if (propRows.length) html += add('props', 'Props to hand out', tbl(['', 'Who', 'What they get'], propRows.map(([w, t]) => [box, '**' + w + '**', t])) +
+      (k === 'main' ? `<h3>Evidence</h3>${tbl(['#', 'Piece', 'Where it goes / who holds it', 'Clue'], (STORY.evidence || []).map(e => [String(e.item), e.title, e.holder || '', e.clue || '']))}<p class="bk-note">Print from print.html. Scanning a QR tag marks its clue found and shares it with everyone; Host > Games shows which have been scanned.</p>` : ''));
+    const W = GD.website || {};
+    html += add('website', 'The website', ['before', 'during', 'after'].map(t => { const rows = (W[t] || []).filter(([r]) => mine(r)); return rows.length ? `<h3>${{ before: 'Before the doors', during: 'During the night', after: 'At the end' }[t]}</h3>${ul(rows.map(([, x]) => x), t === 'before')}` : ''; }).join('') +
+      `<p class="bk-note">Phones get every cue by themselves on the clock. The host terminal shows Now, Next and a countdown; every host can pause it.</p>`);
+
+    /* ===== Part 4: the night, step by step ===== */
+    html += partH('The night, step by step', 'Keep this part open. It runs in clock order.');
+    toc.push(['show', 'Run of show']);
+    html += `<section class="bk-sec" id="show"><h2>Run of show</h2>` + STORY.phases.map((p, i) => {
+      const G2 = (GD.phases || {})[p.id] || {}, from = start(i), to = from + p.min;
       const cues = (p.cues || []).filter(c => (c.to && touches(c.to)) || (!c.to && k === 'main'));
-      const gs = games.filter(g => g.opens && ((g.opens.phase === p.id) || (g.opens.min != null && g.opens.min >= start(i) && g.opens.min < start(i) + p.min)));
-      return `<div class="bk-phase"><div class="bk-ph"><span class="bk-time">${clockAt(start(i))}</span><b>${esc(p.name)}</b><span class="bk-len">${p.min} min</span></div>
+      const gs = games.filter(g => g.opens && ((g.opens.phase === p.id) || (g.opens.min != null && g.opens.min >= from && g.opens.min < to)));
+      const mm = mems.filter(m => { const t = gameMin(m[0]); return t == null ? p.id === 'act2' : t >= from && t < to; });
+      const steps = k === 'main' ? [['You', G2.main], ['FBI handler', G2.fbi], ['Crew handler', G2.crew]] : [['You', G2[k]]];
+      const hints = Object.entries(G2.hints || {}).filter(([a]) => k === 'main' || (k === 'fbi' ? a === 'fbi' : a === 'crew' || a === 'guest' && false));
+      return `<div class="bk-phase"><div class="bk-ph"><span class="bk-time">${clockAt(from)}</span><b>${esc(p.name)}</b><span class="bk-len">${p.min} min · until ${clockAt(to)}</span></div>
         ${p.note ? `<p>${md(p.note)}</p>` : ''}${p.say ? `<p class="bk-say">Say: "${md(p.say)}"</p>` : ''}
-        ${cues.length ? `<table class="bk-t bk-cues">${cues.map(c => `<tr><td class="bk-time">${clockAt(start(i) + c.at)}</td><td>${c.to ? '<b>' + esc(G.toLabel(c.to)) + '</b>: ' + md(c.title ? c.title + '. ' : '') + md(c.text || '') : '<b>Bebbit</b> (planted): ' + md((c.post || {}).text || '')}${c.host ? `<div class="bk-note">${md(c.host)}</div>` : ''}</td></tr>`).join('')}</table>` : ''}
+        ${steps.filter(([, a]) => a && a.length).map(([who, a]) => `<div class="bk-steps"><h4>${esc(who)}</h4>${ul(a, true)}</div>`).join('')}
+        ${cues.length ? `<h4>On the phones</h4><table class="bk-t bk-cues">${cues.map(c => `<tr><td class="bk-time">${clockAt(from + c.at)}</td><td>${c.to ? '<b>' + esc(Names.say(G.toLabel(c.to))) + '</b>: ' + md(c.title ? c.title + '. ' : '') + md(c.text || '') : '<b>Bebbit</b> (planted): ' + md((c.post || {}).text || '')}${c.host ? `<div class="bk-note">${md(c.host)}</div>` : ''}</td></tr>`).join('')}</table>` : ''}
+        ${mm.length ? `<h4>Memories</h4><table class="bk-t bk-cues">${mm.map(m => `<tr><td class="bk-time">${esc(m[0])}</td><td><b>${esc(nm(m[1]))}</b> (${esc(m[2])}): ${md(m[3])}<div class="bk-note">${md(m[4])}</div></td></tr>`).join('')}</table>` : ''}
         ${gs.length ? `<p class="bk-games">Opens now: ${gs.map(g => esc(g.name)).join(', ')}</p>` : ''}
-        ${(p.todo || []).length && i > 0 ? `<ul class="bk-check">${p.todo.map(t => `<li>${box}${md(t)}</li>`).join('')}</ul>` : ''}</div>`;
-    }).join('') + `<p class="bk-note">Phones get every cue by themselves on the clock. This list is so you know what's happening and can nudge people.</p>`);
-    /* cast */
-    html += add('cast', groups ? 'Your groups and code words' : 'Cast and code words', `<table class="bk-t bk-cast"><tr><th>Character</th><th>Group</th><th>Cover role</th><th>Code word</th><th>Played by</th></tr>
-      ${cast.slice().sort((a, b) => a.group.localeCompare(b.group) || a.name.localeCompare(b.name)).map(c => `<tr><td><b>${esc(c.name)}</b>${c.key ? ' <span class="bk-key">key</span>' : ''}</td><td>${esc(groupName(c.group))}</td><td>${esc(c.role)}</td><td class="mono">${esc(c.code)}</td><td>${esc(names[c.id] || '')}</td></tr>`).join('')}</table>
-      <p class="bk-note">"Key" players drive the story. If one is a no-show, mark them in Host > People; their mini-games pass to a backup by themselves.</p>`);
-    /* evidence */
-    if (k === 'main') html += add('evidence', 'Evidence and props', `<table class="bk-t"><tr><th>#</th><th>Piece</th><th>Where it goes / who holds it</th><th>Clue</th></tr>
-      ${(STORY.evidence || []).map(e => `<tr><td>${e.item}</td><td>${esc(e.title)}</td><td>${esc(e.holder || '')}</td><td>${esc(e.clue || '')}</td></tr>`).join('')}
-      ${(STORY.props || []).map(p => `<tr><td>prop</td><td>${esc(p.title)}</td><td>${esc(p.holder || '')}</td><td></td></tr>`).join('')}</table>
-      <p class="bk-note">Print from print.html. Scanning a QR tag marks its clue found and shares it with everyone; Host > Games shows which have been scanned.</p>`);
-    /* games */
-    if (games.length) html += add('games', 'Mini-games and answers', games.map(g => `<div class="bk-game"><b>${esc(g.name)}</b> · ${esc(G.toLabel(g.who))}${g.backup ? ' (backup: ' + esc(G.toLabel(g.backup)) + ')' : ''} · opens ${esc(opensAt(g.opens || {}))}${g.clue ? ' · clue ' + esc(g.clue) : ''}<p>${md(g.blurb || '')}</p><p class="bk-ans">Answer: ${md(ANSWERS[g.id] || 'see Host > Games')}</p></div>`).join('') +
+        ${hints.length ? `<div class="bk-hints"><h4>If they're stuck, nudge</h4>${hints.map(([a, l]) => `<p><b>${esc({ guest: 'Guests', fbi: 'Agents', crew: 'Crew' }[a] || a)}:</b> ${l.map(x => '"' + md(x) + '"').join(' · ')}</p>`).join('')}</div>` : ''}
+        ${(p.todo || []).length ? `<h4>Before you move on</h4><ul class="bk-check">${p.todo.map(t => `<li>${box}${md(t)}</li>`).join('')}</ul>` : ''}</div>`;
+    }).join('') + `</section>`;
+
+    /* ===== Part 5: solutions ===== */
+    html += partH('Every answer', 'Clues, red herrings, locks, games and records');
+    if (GD.clues) html += add('clues', 'The 15 clues', tbl(['#', 'Clue', 'Form', 'Who has it / how it\'s found', 'From', 'What it proves', 'Backup'], GD.clues, 'bk-small-t'));
+    if (GD.herrings) html += add('herrings', 'The red herrings', tbl(['#', 'Red herring', 'Points at', 'The innocent truth', 'How players clear it'], GD.herrings, 'bk-small-t'));
+    if (GD.decoys) html += add('decoys', 'Decoys built into the story', tbl(['Decoy', 'Points at', 'Why it\'s innocent'], GD.decoys, 'bk-small-t'));
+    if (GD.locks) html += add('locks', 'The locked props', tbl(['Lock', 'What it holds', 'How it opens'].concat(k === 'main' ? ['Set by'] : []), GD.locks.map(r => r.slice(0, 3).concat(k === 'main' ? [ROLE[r[3]] || r[3]] : []))));
+    if (games.length) html += add('games', 'Mini-games and answers', games.map(g => `<div class="bk-game"><b>${esc(g.name)}</b> · ${esc(Names.say(G.toLabel(g.who)))}${g.backup ? ' (backup: ' + esc(Names.say(G.toLabel(g.backup))) + ')' : ''} · opens ${esc(opensAt(g.opens || {}))}${g.clue ? ' · clue ' + esc(g.clue) : ''}<p>${md(Names.say(g.blurb || ''))}</p><p class="bk-ans">Answer: ${md(ANSWERS[g.id] || 'see Host > Games')}</p></div>`).join('') +
       `<p class="bk-note">Host > Games can open a game early, close it, mark it solved, add 30 seconds or send a hint.</p>`);
-    /* money */
+    if (!groups || groups.includes('fbi')) {
+      const F = STORY.fbi || {}, recs = STORY.records || [];
+      html += add('fbi', 'The FBI\'s tools and records', `<ul><li>${F.lookups || 10} record lookups for the whole team (a "no match" still costs one). Host > FBI: +1 lookup.</li>
+        <li>${esc(nm(F.lead))} leads: ${F.warrants || 3} warrants (unseal records, freeze bank accounts), detentions, and releasing statements to the room.</li>
+        <li>Sealed sections need a warrant; restricted sections open only for ${esc((F.cleared || []).map(nm).join(', '))}.</li>
+        <li>The FBI has Bebbit read-only, can't play the casino, and their votes count double.</li></ul>
+        <h3>What each lookup finds</h3>` + tbl(['Record', 'Says', 'Locked parts'], recs.map(r => [`**${r.title || r.names[0]}**${r.noMatch ? ' (no match: a fake identity)' : ''}`, (r.fields || []).map(f => f[0] + ': ' + f[1]).concat(r.notes || []).join(' · '), (r.sections || []).map(s => `**${s.title}**${s.needs ? ' (' + (s.needs === 'warrant' ? 'warrant' : 'clearance') + ')' : ''}${s.clue ? ' · clue ' + s.clue : ''}: ${s.body.replace(/\n/g, ' ')}`).join('<br>')]), 'bk-small-t'));
+    }
     if (!groups || groups.includes('crew')) {
       const N = STORY.nightwire, ws = N.wallets || {};
-      html += add('money', 'Money at a glance', `<table class="bk-t"><tr><th>Account</th><th>Who</th><th>Starts with</th></tr>${Object.entries(ws).map(([id, w]) => `<tr><td class="mono">${esc(w.name)}</td><td>${esc([].concat(w.members).map(m => m.startsWith('g:') ? groupName(m.slice(2)) : (G.byId(m) || { name: m }).name).join(', '))}</td><td>${money(w.start)}${w.pending ? ' + ' + money(w.pending.amount) + ' on delivery (void when Victor dies)' : ''}</td></tr>`).join('')}</table>
-        <ul><li>The crew needs to sell the painting for about ${money(N.goal)} to one of: ${esc((N.buyers || []).map(b => (G.byId(b) || { name: b }).name).join(', '))}. Sale money is held until ${esc((STORY.phases.find(p => p.id === N.escrowUntil) || {}).name || 'later')}.</li>
+      html += add('money', 'Money and Omnizon', tbl(['Account', 'Who', 'Starts with'], Object.entries(ws).map(([id, w]) => [`\`${w.name}\``, [].concat(w.members).map(m => m.startsWith('g:') ? groupName(m.slice(2)) : nm(m)).join(', '), money(w.start) + (w.pending ? ' + ' + money(w.pending.amount) + ' on delivery (void when Victor dies)' : '')])) +
+        `<ul><li>The crew needs to sell the painting for about ${money(N.goal)} to one of: ${esc((N.buyers || []).map(nm).join(', '))}. Sale money is held until ${esc((STORY.phases.find(p => p.id === N.escrowUntil) || {}).name || 'later')}.</li>
+        <li>Each player's bank goes by a different name: Bebbit Banking (guests and staff), the Federal Credit Union (FBI), Omnizon Wallet (crew). It's one bank underneath.</li>
         <li>The rich can "free up" more money once a night; it arrives after a wait on the game clock.</li>
-        <li>Casino: the house always wins in the end; its take goes to ${esc((G.byId((N.casino || {}).beneficiary) || {}).name || 'the foundation')}, ${Math.round(((N.casino || {}).harperCut || 0) * 100)}% to ${esc((G.byId((N.casino || {}).feeTo) || {}).name || 'Harper')}. The FBI can't play.</li>
+        <li>Casino: the house always wins in the end; its take goes to ${esc(nm((N.casino || {}).beneficiary) || 'the foundation')}, ${Math.round(((N.casino || {}).harperCut || 0) * 100)}% to ${esc(nm((N.casino || {}).feeTo) || 'Harper')}. The FBI can't play.</li>
         <li>Cameron lends ${money((N.lending || {}).min)} to ${money((N.lending || {}).max)}; an overdue loan lets Cameron freeze the borrower by court order and name them publicly.</li>
-        <li>Host > NIGHTWIRE: + or - money for anyone, freeze or unfreeze, make freed-up money arrive now.</li></ul>`);
+        <li>Host terminal > Omnizon: + or - money for anyone, freeze or unfreeze, make freed-up money arrive now.</li></ul>
+        <h3>On Omnizon tonight</h3>` + tbl(['File', 'Seller', 'Price', 'Who can buy', 'Appears'], (N.market || []).map(it => [it.title, it.seller, money(it.price), it.for.map(groupName).join(', '), it.from ? clockAt(start(STORY.phases.findIndex(p => p.id === it.from))) : 'from the start'])));
     }
-    if (!groups || groups.includes('fbi')) {
-      const F = STORY.fbi || {};
-      html += add('fbi', 'The FBI\'s tools', `<ul><li>${F.lookups || 10} record lookups for the whole team (a "no match" still costs one). Host > FBI: +1 lookup.</li>
-        <li>${esc((G.byId(F.lead) || { name: 'The lead' }).name)} leads: ${F.warrants || 3} warrants (unseal records, freeze accounts), detentions, and releasing statements to the room.</li>
-        <li>Records sections marked sealed need a warrant; restricted sections open only for ${esc((F.cleared || []).map(id => (G.byId(id) || { name: id }).name).join(', '))}.</li>
-        <li>The FBI has Bebbit read-only, and FBI votes count double.</li></ul>`);
-    }
-    /* the vote and the reveal */
+
+    /* ===== Part 6: your players ===== */
+    html += partH(groups ? 'Your players' : 'The cast', 'Code words, and everything each player is trying to do');
+    html += add('cast', groups ? 'Your groups and code words' : 'Cast and code words', tbl(['Character', 'Group', 'Cover role', 'Code word', 'Played by'], cast.map(c => [`**${c.name}**${c.key ? ' <span class="bk-key">key</span>' : ''}`, groupName(c.group), c.role, '`' + c.code + '`', names[c.id] || ''])) +
+      `<p class="bk-note">"Key" players drive the story. If one is a no-show, mark them in Host > People; their mini-games pass to a backup by themselves.</p>`);
+    html += add('guide', 'Player by player', cast.map(c => { const q = quick(c); return `<div class="bk-who g-${c.group}"><div class="bk-who-h"><b>${esc(c.name)}</b><span>${esc(groupName(c.group))} · ${esc(c.role)}${names[c.id] ? ' · ' + esc(names[c.id]) : ''}</span><span class="mono">${esc(c.code)}</span></div>
+      <div class="bk-cols"><div>${q.goals.length ? `<h4>Goals</h4><ul>${q.goals.map(g => `<li>${g}</li>`).join('')}</ul>` : ''}${q.find.length ? `<h4>Finds</h4><ul>${q.find.map(g => `<li>${g}</li>`).join('')}</ul>` : ''}</div>
+      <div>${q.moments.length ? `<h4>Moments</h4><ul class="bk-mom">${q.moments.map(m => `<li>${m}</li>`).join('')}</ul>` : ''}${q.extras.length ? `<h4>Has</h4><ul>${q.extras.map(x => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}</div></div></div>`; }).join(''));
+
+    /* ===== Part 7: the end ===== */
+    html += partH('The end of the night', 'The vote, the arrest and the reveal');
     html += add('reveal', 'The vote, the arrest and the reveal', `<ol>
         <li>Voting opens by itself at "${esc((STORY.phases.find(p => p.id === 'vote') || {}).name || 'The accusation')}" (or Host > Vote > Open). Phones ask: who stole the painting, and who is the killer.</li>
-        <li>When voting closes, ${esc((STORY.vote.arrestBy || []).map(id => (G.byId(id) || { name: id }).name).join(', then '))} makes the arrest on their phone (the first one who is present).</li>
-        <li>${k === 'main' ? 'Host > Vote: press Next to step through the slides. Read the line under each slide aloud. The big screen and every phone follow.' : 'Jacob runs the reveal from the main terminal.'}</li></ol>
-      ${k === 'main' ? `<div class="bk-script">${(R.chapters || []).map((ch, j) => `<p><span class="bk-time">${j + 1}</span><b>${esc(ch.title)}${ch.big ? ' ' + esc(ch.big) : ''}</b><br><span class="bk-say">"${md(ch.say || '')}"</span></p>`).join('')}</div>` : ''}`);
-    /* trouble */
+        <li>When voting closes, ${esc((STORY.vote.arrestBy || []).map(nm).join(', then '))} makes the arrest on their phone (the first one who is present).</li>
+        <li>${k === 'main' ? 'Host > Vote: press Next to step through the slides. Read the line under each slide aloud. The big screen and every phone follow.' : 'Jacob runs the reveal from the main terminal. Stand with your group.'}</li>
+        <li>Then announce each group's result (see "Who wins" in Part 2).</li></ol>
+      <div class="bk-script">${(R.chapters || []).map((ch, j) => `<p><span class="bk-time">${j + 1}</span><b>${esc(ch.title)}${ch.big ? ' ' + esc(ch.big) : ''}</b><br><span class="bk-say">"${md(ch.say || '')}"</span></p>`).join('')}</div>`);
     html += add('trouble', 'When something goes wrong', `<table class="bk-t">
-      <tr><td><b>A phone can't sign in</b></td><td>Check the code word in the cast list (no spaces). Open ${esc(site)}gala/ in the phone's browser, not a social app.</td></tr>
+      <tr><td><b>A phone can't sign in</b></td><td>Check the code word in Part 6 (no spaces). Open ${esc(site)}gala/ in the phone's browser, not inside a social app.</td></tr>
       <tr><td><b>A phone dies</b></td><td>Sign in on any phone with the same code word. Everything is still there.</td></tr>
-      <tr><td><b>Someone didn't come</b></td><td>Host > People > No-show. Their games pass to a backup; the vote skips them.</td></tr>
+      <tr><td><b>Someone didn't come</b></td><td>Host > People > No-show. Their games pass to a backup; the vote skips them. Every key clue has a backup (Part 5).</td></tr>
       <tr><td><b>Someone is out of line</b></td><td>Host > People > Throw out: no vote, no money. "Let back in" undoes it.</td></tr>
       <tr><td><b>Something looks broken</b></td><td>Host > Health: errors from phones and who is connected. Reloading the page fixes most things.</td></tr>
       <tr><td><b>Running late</b></td><td>Space pauses the clock; + adds 5 minutes; N moves to the next phase.</td></tr>
-      <tr><td><b>A game is stuck</b></td><td>Host > Games: send a hint, add 30 seconds, or mark it solved.</td></tr></table>`);
+      <tr><td><b>Players are stuck</b></td><td>Use the nudges in Part 4, or Host > Messages to send one privately. Host > Games: hint, +30 seconds, or mark solved.</td></tr>
+      <tr><td><b>A co-host is missing</b></td><td>The main host's book has every co-host step in Part 4. The crew handler's timed setups matter most.</td></tr></table>`);
     html += add('keys', 'Host terminal keys', `<table class="bk-t"><tr><td class="mono">Space</td><td>pause / resume (or start the night)</td></tr><tr><td class="mono">+ / -</td><td>add 5 minutes / take away 1 minute</td></tr><tr><td class="mono">N / B</td><td>next phase / back one phase (both ask first)</td></tr><tr><td class="mono">M</td><td>quick message</td></tr><tr><td class="mono">/</td><td>search the cast</td></tr><tr><td class="mono">P</td><td>hide the screen (privacy blur)</td></tr><tr><td class="mono">1-9</td><td>switch section</td></tr></table>`);
+
+    /* ===== Appendix: every dossier this host looks after ===== */
+    toc.push(['dossiers', `Appendix · ${groups ? 'Your players\' dossiers' : 'All ' + cast.length + ' dossiers'}`, true]);
+    html += `<div class="bk-part" id="dossiers"><small>Appendix</small><h1>${groups ? 'Your players\' dossiers' : 'Every dossier'}</h1><p>${cast.length} dossiers, each on its own page.</p></div>` + cast.map(c => dossierPage(c, names)).join('');
 
     const cover = `<section class="bk-cover"><small>The Vanishing Hour · ${esc(CONFIG.EVENT)} · ${esc(CONFIG.SEASON)}</small><h1>Host book</h1><h3>${esc(H.label)}${H.role === 'main' ? ' · ' + esc(H.name) : ''}</h3>
       <p class="bk-conf">Confidential. The whole solution is inside.</p>
       <p>${esc(CONFIG.INVITE.DATE)} · ${esc(CONFIG.INVITE.TIME)} · ${esc(CONFIG.INVITE.PLACE)}</p>
       ${groups ? `<p>You look after: <b>${esc(groups.map(groupName).join(', '))}</b> (${cast.length} players).</p>` : ''}
-      <ol class="bk-toc">${toc.map(([id, t]) => `<li><a href="#${id}">${esc(t)}</a></li>`).join('')}</ol>
+      <ol class="bk-toc">${toc.map(([id, t, big]) => `<li class="${big ? 'big' : ''}"><a href="#${id}">${esc(t)}</a></li>`).join('')}</ol>
       <p class="bk-note">Printed ${esc(new Date().toLocaleDateString())}. Built from the story files, so reprint after changes.</p></section>`;
     return `<article class="bk-book">${cover}${html}</article>`;
   }
@@ -162,23 +228,14 @@
     if (only !== 'all') list = G.byId(only) ? list.filter(c => c.id === only) : list.filter(c => c.group === only);
     return list.slice().sort((a, b) => a.group.localeCompare(b.group) || a.name.localeCompare(b.name));
   }
-  const secOf = (c, re) => (Dossier.sections(STORY.dossiers[c.id] || '').find(x => x.title && re.test(x.title)) || null);
+  const secOf = (c, re) => (Dossier.sections(Names.say(STORY.dossiers[c.id] || '', c)).find(x => x.title && re.test(x.title)) || null);
   const firstLines = (sec, n) => !sec ? [] : sec.lines.map(l => l.trim()).filter(l => l && !/^\|\s*:?-{2,}/.test(l) && !/^#/.test(l)).slice(0, n);
   const clip = (s, n) => s.length > n ? s.slice(0, n - 1).replace(/\s+\S*$/, '') + '…' : s;
   const tableRow = l => { const cells = l.replace(/^\||\|$/g, '').split('|').map(x => x.trim()); return cells.length > 1 ? `<b>${md(cells[0])}</b>: ${md(clip(cells.slice(1).join(' · '), 110))}` : md(clip(l, 140)); };
 
   /* ---------- cheat cards ---------- */
   function card(c, names) {
-    const goals = firstLines(secOf(c, /goal/i), 4).map(l => md(clip(l.replace(/^([-*]|\d+\.)\s+/, ''), 150)));
-    const find = firstLines(secOf(c, /who to find/i), 6).filter(l => !/^\|\s*(who|person|name)\s*\|/i.test(l)).slice(0, 4).map(l => /^\|/.test(l) ? tableRow(l) : md(clip(l.replace(/^([-*]|\d+\.)\s+/, ''), 140)));
-    const moments = []; STORY.phases.forEach((p, i) => (p.cues || []).forEach(q => { if (q.to && [].concat(q.to).some(t => t === c.id || t === 'g:' + c.group)) moments.push(`<b>${clockAt(start(i) + q.at)}</b> ${md(q.title || '')}`); }));
-    const pw = (STORY.bebbit.powers || {})[c.id], w = typeof NW !== 'undefined' ? NW.walletOf(c) : null;
-    const extras = [];
-    if (pw) extras.push('Bebbit: ' + Object.entries(pw).map(([k, n]) => `${n} ${{ delete: 'removals', trace: 'traces', hack: 'disguised posts' }[k] || k}`).join(', '));
-    if (w && typeof NW !== 'undefined') extras.push('NightBank: ' + money((NW.wallets()[w] || {}).start) + (NW.wallets()[w] && NW.wallets()[w].members.length > 1 || /^g:/.test(String((NW.wallets()[w] || {}).members)) ? ' (shared account)' : ''));
-    const gm = (STORY.games || []).filter(g => [].concat(g.who).includes(c.id)); if (gm.length) extras.push('Your game: ' + gm.map(g => g.name).join(', '));
-    /* the bribe lines from the dossier (Nov 24), shortened for the card */
-    firstLines(secOf(c, /bribe/i), 2).forEach(l => extras.push(l.replace(/^[-*]\s+/, '').replace(/\*\*/g, '').replace(/^Bribes: /, 'Bribes: ').replace(/^Paying to keep your secret: /, 'To bury your secret: ')));
+    const { goals, find, moments, extras } = quick(c);
     return `<div class="bk-card g-${c.group}"><header><div><small>${esc(groupName(c.group))} · for ${esc(c.name.split(' ')[0])} only</small><h3>${esc(c.name)}</h3><p>${esc(c.role)}</p></div>
         <div class="bk-code"><small>Your code word</small><b class="mono">${esc(c.code)}</b><small>${esc(site.replace(/^https?:\/\//, ''))}gala/</small>${names[c.id] ? `<small>${esc(names[c.id])}</small>` : ''}</div></header>
       <div class="bk-cols"><div>${goals.length ? `<h4>Your goals</h4><ul>${goals.map(g => `<li>${g}</li>`).join('')}</ul>` : ''}${find.length ? `<h4>Find</h4><ul>${find.map(g => `<li>${g}</li>`).join('')}</ul>` : ''}</div>
@@ -192,16 +249,16 @@
   }
 
   /* ---------- dossier printouts ---------- */
-  function dossiers() {
-    const names = players();
-    return who().map(c => {
-      const secs = Dossier.sections(STORY.dossiers[c.id] || ''), intro = secs.shift(), world = G.door(c);
-      return `<article class="bk-dos w-${world}"><header class="bk-dh"><div class="bk-stamp">${esc((Dossier.STAMP || {})[world] || 'PRIVATE & CONFIDENTIAL')}</div><small>Dossier · for ${esc(c.name)} only${names[c.id] ? ' · ' + esc(names[c.id]) : ''}</small><h2>${esc(c.name)}</h2><p>${esc(c.role)} · ${esc(groupName(c.group))} · code word <span class="mono">${esc(c.code)}</span></p>${intro && intro.lines.join('').trim() ? intro.html : ''}</header>
+  function dossierPage(c, names) {
+    const secs = Dossier.sections(Names.say(STORY.dossiers[c.id] || '', c)), intro = secs.shift(), world = G.door(c);
+    return `<article class="bk-dos w-${world}"><header class="bk-dh"><div class="bk-stamp">${esc((Dossier.STAMP || {})[world] || 'PRIVATE & CONFIDENTIAL')}</div><small>Dossier · for ${esc(c.name)} only${names[c.id] ? ' · ' + esc(names[c.id]) : ''}</small><h2>${esc(c.name)}</h2><p>${esc(c.role)} · ${esc(groupName(c.group))} · code word <span class="mono">${esc(c.code)}</span></p>${intro && intro.lines.join('').trim() ? intro.html : ''}</header>
         ${secs.filter(x => x.title).map(x => `<section class="bk-ds ${Dossier.KIND(x.title)}"><h3>${Dossier.inline(x.title)}</h3>${x.html}</section>`).join('')}
         <footer>Never show this file to anyone. Tell people what you choose, in your own words.</footer></article>`;
-    }).join('') || '<p>No one to print.</p>';
   }
-
+  function dossiers() {
+    const names = players();
+    return who().map(c => dossierPage(c, names)).join('') || '<p>No one to print.</p>';
+  }
   /* ---------- the page ---------- */
   function draw() {
     const H = host.role === 'main' ? null : (hostOf(host.role).groups || null);
