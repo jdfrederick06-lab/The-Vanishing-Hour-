@@ -192,7 +192,7 @@ const NW = (() => {
     const search = ui.sub === 'market' && ui.view === 'home'
       ? `<form class="oz-search" data-nw-form="search" role="search"><label><input data-nw="q" type="search" value="${esc(ui.q)}" placeholder="Search Omnizon" aria-label="Search Omnizon" autocomplete="off" enterkeyhint="search"></label><button type="submit" aria-label="Search">${IC.search}</button></form>` : '';
     return `<div class="oz-band">${search}
-      <div class="oz-as"><span><i class="oz-dot"></i>Shopping as <b>${esc(wname(w))}</b></span><span>Wallet <b>${money(balance(s, w))}</b></span></div>
+      <div class="oz-as"><span><i class="oz-dot"></i>Shopping as <b>${esc(wname(w))}</b></span><span>Wallet <b data-count="${balance(s, w)}" data-count-k="band">${money(balance(s, w))}</b></span></div>
       <nav class="oz-depts" aria-label="Departments">${list.map(([k, l, ic, x]) => `<button type="button" data-nw-sub="${k}" aria-current="${ui.sub === k}">${ic}${l}${x}</button>`).join('')}</nav></div>`;
   }
   const holdBox = (s, me, why) => `<div class="oz-hold">${IC.lock}<div><b>${isOut(s, me.id) ? 'Your account has been closed' : 'Your wallet is on hold'}</b><span>${esc(why)}</span></div></div>`;
@@ -239,8 +239,8 @@ const NW = (() => {
         <div class="oz-hero oz-t-${TINT[k]}">${art(k, 196)}<span class="oz-cap">${mine ? 'In your library' : gone ? 'No longer available' : 'Full file unlocks after purchase'}</span></div>
         ${mine ? `<div class="oz-teaser"><b>About this file</b>${esc(it.teaser)}</div>` : ''}</div>`;
     let right;
-    if (placing) right = `<div class="oz-done" style="border-left-color:var(--oz-blue)">${IC.wait}<div><b style="color:var(--oz-blue)">Placing your order…</b><span>Confirming payment with the seller.</span></div></div>`;
-    else if (mine) right = `${ui.bought === it.id ? `<div class="oz-done">${IC.done}<div><b>Order placed</b><span>Paid from ${esc(wname(w))}. Your file is below.</span></div></div>` : ''}
+    if (placing) right = `<div class="oz-track" role="status"><b>Placing your order…</b><div class="oz-track-bar"><i></i></div><div class="oz-track-steps"><span>Paid</span><span>In escrow</span><span>Delivering</span></div></div>`;
+    else if (mine) right = `${ui.bought === it.id ? `<div class="oz-done oz-pop">${IC.done}<div><b>Order placed</b><span>Paid from ${esc(wname(w))}. Your file is below.</span></div></div>` : ''}
         <div class="oz-file"><div class="oz-file-h">${IC.check}Delivered to your library<span>${esc(wallTime(got.at))}${got.by && got.by !== me.id ? ' · bought by ' + esc(first(got.by)) : ''}</span></div>
         <div class="oz-file-b${ui.fresh === it.id ? ' fresh' : ''}">${esc(it.body)}</div></div>`;
     else right = `<div class="oz-pg">
@@ -279,7 +279,7 @@ const NW = (() => {
   function walletCard(s, w) {
     const p = pendingState(s, w), e = escrowed(s, w), others = membersOf(w).length - 1;
     return `<div class="oz-wcard"><div class="oz-wcard-top">${MARK(26)}<span class="oz-word"><b>Omnizon Wallet</b><small>${esc(wname(w))}${others > 0 ? ' · shared with ' + others : ''}</small></span><em>•••• ${last4(w)}</em></div>
-      <div><small>Available balance</small>${price(balance(s, w), true)}</div>
+      <div><small>Available balance</small><span data-count="${balance(s, w)}" data-count-k="wcard" data-count-html="1">${price(balance(s, w), true)}</span></div>
       ${e ? `<div class="oz-wcard-row"><span>In escrow · released ${esc(releaseAt())}</span><b class="warn">${money(e)}</b></div>` : ''}
       ${p ? `<div class="oz-wcard-row"><span>${esc(p.label)}</span><b class="${p.void ? 'void' : 'warn'}">${p.void ? 'Void' : money(p.amount)}</b></div><p class="${p.void ? 'void' : ''}">${p.void ? 'Your client is gone. That money is never coming.' : 'If the client goes dark, this delivery payment is void.'}</p>` : ''}</div>`;
   }
@@ -328,7 +328,7 @@ const NW = (() => {
     const goal = C().goal || 0, got = sale && sale.sold ? sale.sold.amt : 0;
     const head = `<section class="oz-sec"><div class="oz-sc"><span>${IC.sell}</span><div><b>Seller Central</b><small>Private listing · ${esc(C().saleItem)}</small></div></div>
       <div class="oz-goal"><div class="oz-goal-n">${price(got)}<span>of your ${money(goal)} goal</span></div><div class="oz-bar"><i style="width:${(goal ? Math.min(100, got / goal * 100) : 0).toFixed(1)}%"></i></div></div></section>`;
-    if (!sale) return head + `<form class="oz-sec oz-form" data-nw-form="list"><span class="oz-sec-h">Create a private listing</span><span class="oz-hint">Only the buyers you pick can see it. They bid from their NightBank, and the money waits in escrow.</span>
+    if (!sale) return head + `<form class="oz-sec oz-form" data-nw-form="list"><span class="oz-sec-h">Create a private listing</span><span class="oz-hint">Only the buyers you pick can see it. They bid from their own bank app, and the money waits in escrow.</span>
         <label>Asking price<span class="oz-amt"><span>$</span><input class="field" data-nw="ask" inputmode="decimal" placeholder="e.g. 25M" value="${esc(ui.ask)}" aria-label="Asking price" autocomplete="off"></span></label>
         <span class="oz-sec-h" style="font-size:13px">Offer it to</span>${(C().buyers || []).map(b => `<label class="oz-check"><input type="checkbox" data-nw-pitch="${b}" ${ui.pitch.includes(b) ? 'checked' : ''}>${esc(wname(b))}</label>`).join('')}
         <button class="oz-buy" type="submit">Publish listing</button>${errBox(ui, 'list')}</form>`;
@@ -338,7 +338,7 @@ const NW = (() => {
         <div class="oz-sum"><div><span>Asking</span><span><b>${money(sale.ask)}</b></span></div><div><span>Offered to</span><span>${sale.pitched.map(b => esc(wname(b))).join(', ')}</span></div></div>
         ${more.length ? `<div class="oz-btns">${more.map(b => `<button type="button" class="oz-btn" data-nw-addpitch="${b}">+ Offer to ${esc(wname(b))}</button>`).join('')}</div>` : ''}</section>
       <section class="oz-sec"><span class="oz-sec-h">Offers <span class="oz-badge">${bids.length}</span></span>
-        ${bids.map((b, i) => `<div class="oz-bid${i === 0 ? ' top' : ''}"><div><b>${esc(wname(b.from))}</b><small>${esc(wallTime(b.at))}${i === 0 && bids.length > 1 ? ' · highest' : ''}</small></div><strong>${money(b.amt)}</strong><button type="button" class="oz-btn go" data-nw-accept="${b.id}">Accept</button></div>`).join('') || '<div class="oz-empty">No offers yet. Buyers see your listing in their NightBank.</div>'}</section>
+        ${bids.map((b, i) => `<div class="oz-bid${i === 0 ? ' top' : ''}"><div><b>${esc(wname(b.from))}</b><small>${esc(wallTime(b.at))}${i === 0 && bids.length > 1 ? ' · highest' : ''}</small></div><strong>${money(b.amt)}</strong><button type="button" class="oz-btn go" data-nw-accept="${b.id}">Accept</button></div>`).join('') || '<div class="oz-empty">No offers yet. Buyers see your listing in their bank app.</div>'}</section>
       <button type="button" class="oz-buy line" data-nw-close>Close the listing</button><div class="err" role="alert">${esc(ui.err)}</div>`;
   }
   /* ----- Messages: the crew's burner chat ----- */
@@ -357,7 +357,10 @@ const NW = (() => {
     if (ui.sub === 'casino') return `<div class="oz nw">${band(s, me, ui, w)}${hold}</div><div class="nb nb-casino nw-casino">${Casino.render(s, me, ui, w)}</div>`;
     const body = ui.sub === 'wallet' ? walletView(s, me, ui, w) : ui.sub === 'sale' ? saleView(s, me, ui) : ui.sub === 'burner' ? burnerView(s, me, ui)
       : ui.view === 'checkout' ? checkoutView(s, me, ui, w) : ui.view === 'item' ? itemView(s, me, ui, w) : shopView(s, me, ui, w);
-    return `<div class="oz nw">${band(s, me, ui, w)}${hold}${body}${ui.sub === 'market' || ui.sub === 'wallet' ? FOOT : ''}</div>`;
+    /* a new page slides in once: the class stays for 0.8s, so a redraw in between doesn't restart or cut it */
+    const vk = ui.sub + '/' + ui.view + '/' + ui.item; if (ui.lastView !== vk) { ui.lastView = vk; ui.inUntil = Date.now() + 800; }
+    const fresh = Date.now() < (ui.inUntil || 0);
+    return `<div class="oz nw${fresh ? ' oz-in' : ''}">${band(s, me, ui, w)}${hold}${body}${ui.sub === 'market' || ui.sub === 'wallet' ? FOOT : ''}</div>`;
   }
   /** live search: show and hide the product cards without redrawing under the typing */
   function filterShop(q) {
@@ -382,6 +385,15 @@ const NW = (() => {
   const isCasinoTx = t => t.from === 'casino' || t.to === 'casino';
   const casinoOn = s => typeof Casino !== 'undefined' && Casino.isOpen(s);
 
+  /* the bank's look in each world (Nov 24): Bebbit Banking for guests and staff, the Federal Credit
+     Union for the FBI. Same bank underneath; Names.say() in core.js swaps the name in every line. */
+  function bankLogo(me) {
+    const b = Names.bank(me);
+    if (b === 'Bebbit Banking') return '<svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="9" fill="#5b3fd6"/><text x="16" y="22.5" text-anchor="middle" font-family="Plus Jakarta Sans, Inter, sans-serif" font-weight="800" font-size="19" fill="#fff">b</text><circle cx="24.5" cy="8" r="3" fill="#7ee0b5"/></svg>';
+    if (b === 'Federal Credit Union') return '<svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="9" fill="#0e2240"/><path d="M16 6.5l9.5 5H6.5z" fill="#d4b25c"/><path d="M9 13.5h2.6v7.5H9zM14.7 13.5h2.6v7.5h-2.6zM20.4 13.5H23v7.5h-2.6zM7 22.5h18V25H7z" fill="#d4b25c"/></svg>';
+    return '<svg viewBox="0 0 32 32" aria-hidden="true"><defs><linearGradient id="nbg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8f7bff"/><stop offset="1" stop-color="#36d1c4"/></linearGradient></defs><rect width="32" height="32" rx="9" fill="url(#nbg)"/><path d="M19.5 8.5a8 8 0 1 0 4 14.6A9.5 9.5 0 0 1 19.5 8.5z" fill="#fff"/></svg>';
+  }
+  const bankTag = me => ({ 'Bebbit Banking': 'Banking by bebbit', 'Federal Credit Union': 'Members only · Since 1935' })[Names.bank(me)] || 'Private Banking';
   function renderBank(s, me, ui) {
     const w = walletOf(me); if (!w) return '<div class="nb"><div class="nb-panel">No NightBank account.</div></div>';
     const tabs = [['acct', 'Account']].concat(typeof Casino !== 'undefined' && Casino.allowed(me) ? [['casino', 'Casino']] : [], isLender(me) ? [['lend', 'Lending']] : []);
@@ -389,7 +401,7 @@ const NW = (() => {
     const why = blockedWhy(s, me, w), out = isOut(s, me.id), cs = ui.bsub === 'casino';
     const body = cs ? (typeof Casino !== 'undefined' ? Casino.render(s, me, ui, w) : '') : ui.bsub === 'lend' ? lendView(s, me, ui, w) : acctView(s, me, ui, w);
     return `<div class="nb${cs ? ' nb-casino' : ''}">
-      <div class="nb-top"><div class="nb-brand"><svg viewBox="0 0 32 32" aria-hidden="true"><defs><linearGradient id="nbg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8f7bff"/><stop offset="1" stop-color="#36d1c4"/></linearGradient></defs><rect width="32" height="32" rx="9" fill="url(#nbg)"/><path d="M19.5 8.5a8 8 0 1 0 4 14.6A9.5 9.5 0 0 1 19.5 8.5z" fill="#fff"/></svg><div><b>NightBank</b><small>${cs ? 'Private Banking · Casino floor' : 'Private Banking'}</small></div></div>
+      <div class="nb-top"><div class="nb-brand">${bankLogo(me)}<div><b>${esc(Names.bank(me))}</b><small>${esc(bankTag(me))}${cs ? ' · Casino floor' : ''}</small></div></div>
         <span class="nb-secure ${why ? 'bad' : ''}">${LOCK}${why ? (out ? 'Locked' : 'Frozen') : 'Secured'}</span></div>
       <div class="nb-seg" role="tablist">${tabs.map(([k, l]) => `<button type="button" role="tab" data-nb-sub="${k}" aria-selected="${ui.bsub === k}">${l}${k === 'casino' && casinoOn(s) ? '<i class="nb-live" title="Tables open"></i>' : ''}${k === 'acct' && loans(s).some(x => x.to === w && x.status === 'offer') ? '<i class="nb-dot" title="Loan offer waiting"></i>' : ''}</button>`).join('')}</div>
       ${why ? `<div class="nb-alert">${LOCK}<div><b>${out ? 'Account locked' : 'Account frozen'}</b><p>${esc(why)}</p></div></div>` : ''}
@@ -451,7 +463,7 @@ const NW = (() => {
         <div class="nb-card t-${tier(b).toLowerCase()}"><div class="nb-shine" aria-hidden="true"></div>
           <div class="nb-row"><span class="nb-holder">${esc(me.name)}</span><svg class="nb-cl" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 7c2.5 3 2.5 7 0 10M12 5c3.5 4 3.5 10 0 14M16 3c4.5 5 4.5 13 0 18"/></svg></div>
           <span class="nb-chip" aria-hidden="true"></span>
-          <div class="nb-bal"><small>Available balance</small><b>${money(b)}</b></div>
+          <div class="nb-bal"><small>Available balance</small><b data-count="${b}" data-count-k="nb">${money(b)}</b></div>
           <div class="nb-row"><span class="nb-num">•••• •••• •••• ${last4(w)}</span><span class="nb-tier">${tier(b)}</span></div></div>
         <div class="nb-stats"><div><small>Money in tonight</small><b class="pos">+${money(inSum)}</b></div><div><small>Money out tonight</small><b class="neg">−${money(outSum)}</b></div></div>
         ${loanPanel(s, me, w, ui)}${offer}${freeUpPanel(s, me, w, ui)}
@@ -465,7 +477,7 @@ const NW = (() => {
           ${ui.sent ? `<div class="nb-ok">✓ Sent ${esc(ui.sent)}</div>` : ''}${errBox(ui, 'send')}</form>
         <div class="nb-panel"><div class="nb-h">Activity <span class="nb-count">${count}</span></div>${rows}</div>
       </div></div>
-      <p class="nb-fine">NightBank Private · Accounts are confidential. Only you can see your balance. Tip: type amounts like 250K or 1.5M.</p>`;
+      <p class="nb-fine">${esc(Names.bank(me))} · Accounts are confidential. Only you can see your balance. Tip: type amounts like 250K or 1.5M.</p>`;
   }
 
   /* ---------- Cameron's lending desk ---------- */
@@ -639,7 +651,7 @@ const NW = (() => {
     if ((el = q('[data-nw-addpitch]'))) {
       const s = DB.fresh(), sale = N(s).sale; if (!sale) return true;
       if (isOut(s, me.id)) { ui.err = blockedWhy(s, me, walletOf(me)); return done(); }
-      const u = { 'nw/sale/pitched': sale.pitched.concat([el.dataset.nwAddpitch]) }; alertWallet(u, el.dataset.nwAddpitch, 'Private offer', 'A seller on NightBank has something you\'ll want. Check your NightBank tab.'); DB.update(u); return true;
+      const u = { 'nw/sale/pitched': sale.pitched.concat([el.dataset.nwAddpitch]) }; alertWallet(u, el.dataset.nwAddpitch, 'Private offer', 'A private seller has something you\'ll want. Check your NightBank tab.'); DB.update(u); return true;
     }
     if ((el = q('[data-nw-accept]'))) {
       const s = DB.fresh(), b = (N(s).bids || {})[el.dataset.nwAccept];
@@ -716,7 +728,7 @@ const NW = (() => {
       if (ask < 1) return fail('Set an asking price.');
       if (!ui.pitch.length) return fail('Pitch it to at least one buyer.');
       const u = { 'nw/sale': { ask, pitched: ui.pitch.slice(), by: me.id, at: Date.now() } };
-      ui.pitch.forEach(b => alertWallet(u, b, 'Private offer', 'A seller on NightBank has something you\'ll want. Check your NightBank tab.'));
+      ui.pitch.forEach(b => alertWallet(u, b, 'Private offer', 'A private seller has something you\'ll want. Check your NightBank tab.'));
       Clock.log(u, 'nightwire', `${me.name} opened a private sale (asking ${money(ask)}) to ${ui.pitch.map(wname).join(', ')}.`);
       DB.update(u); ui.ask = ''; ui.pitch = []; return ok();
     }
