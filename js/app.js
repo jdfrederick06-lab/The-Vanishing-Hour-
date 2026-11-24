@@ -40,7 +40,7 @@
 
   const icons = {
     now: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
-    world: { fbi: '<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>', bebbit: '<svg viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/></svg>', nightwire: '<svg viewBox="0 0 24 24"><path d="M4 7l5 5-5 5M12 17h8"/></svg>' }[WORLD],
+    world: { fbi: '<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>', bebbit: '<svg viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/></svg>', nightwire: '<svg viewBox="0 0 24 24"><path d="M5 8h14l-1.2 11.2a2 2 0 0 1-2 1.8H8.2a2 2 0 0 1-2-1.8z"/><path d="M9 8V6.5a3 3 0 0 1 6 0V8"/></svg>' }[WORLD],
     bank: '<svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M7 15h4"/></svg>',
     beb: '<svg viewBox="0 0 24 24"><path d="M5 4h11a4 4 0 014 4v5a4 4 0 01-4 4H9l-4 3z"/><path d="M9 9h6M9 12h4"/></svg>',
     people: '<svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.6-3.6 3.2-5.5 6.5-5.5s5.900 1.900 6.500 5.500M16 4.800a3.500 3.500 0 010 6.400M18 14.800c2 .700 3.200 2.400 3.600 5.200"/></svg>',
@@ -57,7 +57,8 @@
     const chip = `<button class="me-chip" data-tab="me" aria-label="Your file"><span class="avatar">${esc(initials(ME.name))}</span>${esc(ME.name.split(' ')[0])}</button>`;
     if (WORLD === 'fbi') return `<div class="fbi-strip">CLASSIFIED // LAW ENFORCEMENT SENSITIVE</div><div class="head-fbi"><svg width="40" height="40" viewBox="0 0 44 44" aria-hidden="true"><circle cx="22" cy="22" r="20.5" fill="#0e2240" stroke="#d4b25c" stroke-width="1.5"/><path d="M22 10 L24.9 18.4 L33.8 18.4 L26.6 23.6 L29.4 32 L22 26.8 L14.6 32 L17.4 23.6 L10.2 18.4 L19.1 18.4 Z" fill="#d4b25c"/></svg><div><div class="fbi-word" style="letter-spacing:2px">FEDERAL BUREAU</div><div class="t">Headquarters</div></div>${chip}</div>`;
     if (WORLD === 'bebbit') return `<div class="head-beb"><div class="beb-mark sm">b</div>bebbit${chip}</div>`;
-    return `<div class="head-nw"><div class="nw-logo sm" data-t="nightwire"><span>nightwire</span></div>${chip}</div>`;
+    /* NIGHTWIRE wears its Omnizon disguise (Nov 24) */
+    return `<div class="head-oz">${NW.brand.mark(30)}${NW.brand.word}${chip}</div>`;
   };
 
   /* alerts addressed to me, newest first */
@@ -67,12 +68,12 @@
   const HERO = {
     fbi: { tag: 'Case ' + STORY.fbi.caseNo, wait: 'Standby', live: 'Active', before: 'Your team is on standby. Read your file now. Your briefing starts when the doors open.' },
     bebbit: { tag: 'b/thegala', wait: 'Starting soon', live: 'Live', before: "Everyone's still getting ready. The feed goes live when the doors open." },
-    nightwire: { tag: '// secure channel', wait: 'idle', live: 'live', before: 'Channel open. Read your file and stay quiet until the signal comes.' }
+    nightwire: { tag: 'omnizon · secure session', wait: 'Not started', live: 'Live', before: 'Your account is ready. Read your file now and stay quiet until the doors open.' }
   }[WORLD];
   function hero(r) {
     const C = 2 * Math.PI * 27, live = r.state === 'live' || r.state === 'paused';
     const frac = live ? r.frac : r.state === 'over' ? 1 : 0;
-    const status = r.state === 'paused' ? (WORLD === 'nightwire' ? 'paused' : 'Paused') : live ? HERO.live : r.state === 'over' ? (WORLD === 'nightwire' ? 'closed' : 'Closed') : HERO.wait;
+    const status = r.state === 'paused' ? 'Paused' : live ? HERO.live : r.state === 'over' ? 'Closed' : HERO.wait;
     let kicker, name, sub, center;
     if (r.state === 'before') { kicker = CONFIG.EVENT; name = "The doors aren't open yet"; sub = HERO.before; center = '<span class="hero-dot"></span>'; }
     else if (r.state === 'over') { kicker = CONFIG.EVENT; name = 'The night is over'; sub = 'Thank you for playing.'; center = '<span class="hero-end">✓</span>'; }
@@ -144,12 +145,11 @@
         <p class="idc-bio">${esc(ME.role)}</p>
         <div class="idc-stats"><div><b>${mine.length}</b><small>posts</small></div><div><b>${votes}</b><small>upvotes</small></div><div><b>${coms}</b><small>comments</small></div></div></div>`;
     }
+    /* NIGHTWIRE: an Omnizon account card */
     const w = NW.walletOf(ME);
-    return `<div class="idc idc-nw"><div class="idc-scan" aria-hidden="true"></div>
-      <div class="idc-row mono"><span>&gt; operator profile</span><span class="idc-ok">● verified</span></div>
-      <b class="idc-handle-nw" data-t="${esc((ME.alias || first).toLowerCase())}">${esc((ME.alias || first).toLowerCase())}</b>
-      <div class="idc-grid mono"><span>name</span><span>${esc(ME.name.toLowerCase())}</span><span>cover</span><span>${esc(ME.role.toLowerCase())}</span><span>wallet</span><span>${w ? NW.money(NW.balance(s, w)) : 'none'}</span><span>key</span><span>${esc(serial.toLowerCase())}</span></div>
-      <div class="idc-bars" aria-hidden="true">${Array.from({ length: 34 }, (_, i) => `<i style="height:${30 + (i * 37 % 70)}%"></i>`).join('')}</div></div>`;
+    return `<div class="idc idc-oz"><div class="idc-oz-top">${NW.brand.mark(28)}${NW.brand.word}<span class="idc-oz-tier">Verified</span></div>
+      <div class="idc-oz-name">${esc(ME.alias || first.toLowerCase())}<small>${esc(ME.name)} · ${esc(ME.role)}</small></div>
+      <div class="idc-oz-grid"><span>Wallet</span><span>${w ? esc(NW.wname(w)) : 'None'}</span><span>Balance</span><span>${w ? NW.money(NW.balance(s, w)) : '$0'}</span><span>Account key</span><span>${esc(serial)}</span></div></div>`;
   }
 
   function meView(s) {
@@ -182,7 +182,7 @@
       if (hasGames) Games.mount(tab === 'tasks');
     }
     const b = (id, label, ic, badge) => `<button data-tab="${id}" aria-current="${tab === id}">${ic}${label}${badge ? `<span class="badge">${badge}</span>` : ''}</button>`;
-    const items = [b('now', 'Now', icons.now, unseen), b('world', W.tab, icons.world)];
+    const items = [b('now', 'Now', icons.now, unseen), b('world', WORLD === 'nightwire' ? 'Omnizon' : W.tab, icons.world)];
     if (WORLD !== 'bebbit') items.push(b('beb', 'Bebbit', icons.beb));
     if (hasBank) items.push(b('bank', 'NightBank', icons.bank));
     if (hasGames && Games.forMe(s, ME).length) items.push(b('tasks', TASKS, icons.tasks, Games.openCount(s, ME)));

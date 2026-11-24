@@ -91,18 +91,27 @@
     </div>`;
   }
 
-  /* ---------- NIGHTWIRE: a terminal that boots ---------- */
+  /* ---------- NIGHTWIRE: disguised as Omnizon, an ordinary online store (Nov 24) ---------- */
   function nightwire() {
-    return `<div class="fx-nw" id="scene"><canvas id="rain" aria-hidden="true"></canvas><div class="nw-crt" aria-hidden="true"></div>
-      <main class="nw-panel" id="card">
-        <div class="nw-logo big glitch" data-t="nightwire"><span>nightwire</span></div>
-        <div class="nw-boot mono" id="term" aria-hidden="true"></div>
-        <form id="f" autocomplete="off" class="nw-gate">${field('Handle key', 'handle key')}<button class="btn primary" type="submit">&gt; connect</button><div class="err" id="err" role="alert"></div></form>
-        <p class="nw-fine">If you don't know what this is, you're in the wrong place.</p>
-      </main></div>`;
+    const mark = '<svg width="34" height="34" viewBox="0 0 30 30" aria-hidden="true"><rect width="30" height="30" rx="8" fill="#f26a1b"/><circle cx="15" cy="15" r="7.5" fill="none" stroke="#0b0d12" stroke-width="3.4"/><rect x="19.5" y="19.5" width="5" height="5" rx="1.2" fill="#1f5fd6"/></svg>';
+    const tick = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 4v5c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V7z"/></svg>';
+    return `<div class="oz-door" id="scene">
+      <header class="oz-door-top"><a aria-label="Omnizon">${mark}<span class="oz-word"><b>omnizon</b><small>a Nightwire company</small></span></a></header>
+      <div class="oz-door-main">
+        <main class="oz-door-card" id="card">
+          <h1>Sign in</h1>
+          <p>Enter the account key from your invitation.</p>
+          <form id="f" autocomplete="off"><label for="code">Account key</label><input class="field" id="code" name="code" placeholder="e.g. WORD-123" autocapitalize="characters" autocorrect="off" spellcheck="false" autocomplete="off"><button class="btn primary" type="submit">Continue</button><div class="err" id="err" role="alert"></div></form>
+          <p class="oz-door-fine">By continuing, you agree to Omnizon's Conditions of Use and Privacy Notice.</p>
+          <div class="oz-door-sep">New to Omnizon?</div>
+          <p class="oz-door-fine" style="text-align:center">Accounts are by invitation only.</p>
+        </main>
+        <div class="oz-door-trust"><span>${tick}Encrypted checkout</span><span>${tick}Escrow on every order</span><span>${tick}No order history</span></div>
+      </div>
+      <footer class="oz-door-foot">Conditions of Use · Privacy Notice · Help<br>© Omnizon, a Nightwire company</footer></div>`;
   }
 
-  document.title = { gala: CONFIG.EVENT, fbi: 'FBI Headquarters', bebbit: 'bebbit', nightwire: 'NIGHTWIRE' }[door];
+  document.title = { gala: CONFIG.EVENT, fbi: 'FBI Headquarters', bebbit: 'bebbit', nightwire: 'Omnizon: Sign in' }[door];
   $('#root').innerHTML = ({ gala, fbi, bebbit, nightwire }[door] || gala)();
 
   /* ---------- typed terminal lines ---------- */
@@ -132,18 +141,6 @@
     });
   }
   if (door === 'fbi') type(['> SECURE TERMINAL · ART CRIME TEAM', '> CASE ' + ((STORY.fbi || {}).caseNo || '') + ' · STATUS: ACTIVE', '> AUTHENTICATION REQUIRED'], $('#term'), 22);
-  if (door === 'nightwire') {
-    const f = $('#f'); f.classList.add('waiting');
-    type(['> handshake relay 1 .......... ok', '> handshake relay 2 .......... ok', '> handshake relay 3 .......... ok', '> logs: disabled · trace: none', '> awaiting handle key_'], $('#term'), 12, () => f.classList.remove('waiting'));
-    const cv = $('#rain'), g = cv.getContext('2d'), glyph = '01アカサタナ#$%&*+<>=ABCDEF0123456789';
-    let cols = [], w = 0, h = 0;
-    const size = () => { w = cv.width = innerWidth; h = cv.height = innerHeight; cols = Array.from({ length: Math.ceil(w / 16) }, () => rnd(-h, 0)); };
-    size(); addEventListener('resize', size);
-    if (!calm) setInterval(() => {
-      g.fillStyle = 'rgba(5,6,5,.18)'; g.fillRect(0, 0, w, h); g.font = '14px JetBrains Mono, monospace';
-      cols.forEach((y, i) => { g.fillStyle = Math.random() < .04 ? '#e2ffad' : 'rgba(182,255,59,.55)'; g.fillText(glyph[Math.random() * glyph.length | 0], i * 16, y); cols[i] = y > h + rnd(0, 400) ? 0 : y + 16; });
-    }, 70);
-  }
 
   /* ---------- sign-in, with a little ceremony ---------- */
   const card = $('#card');
@@ -156,7 +153,7 @@
       gala: `<div class="dk-light"></div><div class="dk-txt"><small>Welcome to the Ashgrove Gala</small><b>${esc(name)}</b></div>`,
       fbi: `<div class="dk-txt"><small>IDENTITY VERIFIED</small><b>${esc(who ? who.name.toUpperCase() : '')}</b><div class="dk-bar"><i></i></div><span class="dk-stamp">ACCESS GRANTED</span></div>`,
       bebbit: `<div class="dk-txt"><div class="beb-mark">b</div><small>Welcome back</small><b>${esc(name)}</b></div>`,
-      nightwire: `<div class="dk-txt mono"><small>&gt; decrypting handle</small><div class="dk-bar"><i></i></div><b>&gt; connected</b></div>`
+      nightwire: `<div class="dk-txt"><small>Signing you in securely</small><div class="dk-bar"><i></i></div><b>Hello, ${esc(name)}</b></div>`
     }[door];
     document.body.appendChild(ov); card.classList.add('leaving');
     setTimeout(go, door === 'gala' ? 1700 : 1500);
@@ -166,7 +163,7 @@
     const code = $('#code').value, err = $('#err');
     if (!normCode(code)) { err.textContent = 'Enter your code word first.'; return; }
     /* the code word is checked against the locked story (Boot.tryCode), so no list of code words is ever on the page */
-    const fail = () => { err.textContent = { fbi: 'Badge code not recognized.', nightwire: 'handle key rejected.' }[door] || "That code word didn't work. Check your invitation."; card.classList.remove('shake'); void card.offsetWidth; card.classList.add('shake'); };
+    const fail = () => { err.textContent = { fbi: 'Badge code not recognized.', nightwire: "We couldn't find an account with that key." }[door] || "That code word didn't work. Check your invitation."; card.classList.remove('shake'); void card.offsetWidth; card.classList.add('shake'); };
     const btn = e.target.querySelector('button'); if (btn) btn.disabled = true;
     Boot.tryCode(code).then(r => {
       if (btn) btn.disabled = false;

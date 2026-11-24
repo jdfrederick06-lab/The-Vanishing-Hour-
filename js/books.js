@@ -27,7 +27,7 @@
   const start = i => Clock.startOf(S0, i);
   const groupName = g => (STORY.groups[g] || {}).name || g;
   const hostOf = k => STORY.hosts.find(h => h.role === k) || STORY.hosts[0];
-  const money = n => '$' + Number(n || 0).toLocaleString('en-US');
+  const money = n => typeof NW !== 'undefined' ? NW.money(n) : '$' + Number(n || 0).toLocaleString('en-US');
   const md = s => Dossier.inline(String(s || ''));
   const box = '<span class="bk-box"></span>';
 
@@ -177,6 +177,8 @@
     if (pw) extras.push('Bebbit: ' + Object.entries(pw).map(([k, n]) => `${n} ${{ delete: 'removals', trace: 'traces', hack: 'disguised posts' }[k] || k}`).join(', '));
     if (w && typeof NW !== 'undefined') extras.push('NightBank: ' + money((NW.wallets()[w] || {}).start) + (NW.wallets()[w] && NW.wallets()[w].members.length > 1 || /^g:/.test(String((NW.wallets()[w] || {}).members)) ? ' (shared account)' : ''));
     const gm = (STORY.games || []).filter(g => [].concat(g.who).includes(c.id)); if (gm.length) extras.push('Your game: ' + gm.map(g => g.name).join(', '));
+    /* the bribe lines from the dossier (Nov 24), shortened for the card */
+    firstLines(secOf(c, /bribe/i), 2).forEach(l => extras.push(l.replace(/^[-*]\s+/, '').replace(/\*\*/g, '').replace(/^Bribes: /, 'Bribes: ').replace(/^Paying to keep your secret: /, 'To bury your secret: ')));
     return `<div class="bk-card g-${c.group}"><header><div><small>${esc(groupName(c.group))} · for ${esc(c.name.split(' ')[0])} only</small><h3>${esc(c.name)}</h3><p>${esc(c.role)}</p></div>
         <div class="bk-code"><small>Your code word</small><b class="mono">${esc(c.code)}</b><small>${esc(site.replace(/^https?:\/\//, ''))}gala/</small>${names[c.id] ? `<small>${esc(names[c.id])}</small>` : ''}</div></header>
       <div class="bk-cols"><div>${goals.length ? `<h4>Your goals</h4><ul>${goals.map(g => `<li>${g}</li>`).join('')}</ul>` : ''}${find.length ? `<h4>Find</h4><ul>${find.map(g => `<li>${g}</li>`).join('')}</ul>` : ''}</div>

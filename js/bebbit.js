@@ -33,8 +33,17 @@ const Bebbit = (() => {
   const big = n => n >= 1e6 ? (n / 1e6).toFixed(n >= 1e7 ? 0 : 1).replace(/\.0$/, '') + 'M' : n >= 1e4 ? (n / 1e3).toFixed(n >= 1e5 ? 0 : 1).replace(/\.0$/, '') + 'K' : n.toLocaleString('en-US');
   const tick = id => prof(id).verified ? '<svg class="bb-tick" viewBox="0 0 24 24" aria-label="Verified"><path d="M12 1.8l2.6 1.9 3.2-.2 1 3 2.6 1.9-1 3.1 1 3-2.6 1.9-1 3-3.2-.1L12 22.2l-2.6-1.9-3.2.2-1-3-2.6-1.9 1-3.1-1-3 2.6-1.9 1-3 3.2.1z" fill="currentColor"/><path d="M7.6 12.2l3 3 5.8-6" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>' : '';
   const list = s => Object.entries(B(s).posts || {}).map(([id, p]) => Object.assign({ id }, p));
-  const nVotes = (s, id) => Object.keys((B(s).votes || {})[id] || {}).length;
-  const voted = (s, id, me) => !!(((B(s).votes || {})[id] || {})[me]);
+  /* votes/{post}/{character} = true (up) or 'down' (Nov 24). The score is ups minus downs.
+     At DOWN_HIDE downvotes a post is hidden from players ("removed by the community"); hosts still
+     see it in full in Host > Bebbit, marked, and can show it again (posts/{id}/keep = true). */
+  const DOWN_HIDE = () => C().downvoteHide || 5;
+  const votesOf = (s, id) => Object.values((B(s).votes || {})[id] || {});
+  const ups = (s, id) => votesOf(s, id).filter(v => v !== 'down').length;
+  const downs = (s, id) => votesOf(s, id).filter(v => v === 'down').length;
+  const nVotes = (s, id) => ups(s, id) - downs(s, id);
+  const myVote = (s, id, me) => { const v = (((B(s).votes || {})[id] || {})[me]); return v === 'down' ? 'down' : v ? 'up' : null; };
+  const voted = (s, id, me) => myVote(s, id, me) === 'up';
+  const buried = (s, p) => !p.keep && downs(s, p.id) >= DOWN_HIDE();
   const comments = (s, id) => Object.entries((B(s).comments || {})[id] || {}).map(([cid, c]) => Object.assign({ id: cid }, c)).sort((a, b) => a.at - b.at);
   const limit = (me, power) => (((C().powers || {})[me.id]) || {})[power] || 0;
   const used = (s, id, power) => (((B(s).used || {})[id]) || {})[power] || 0;
@@ -43,7 +52,7 @@ const Bebbit = (() => {
   const ago = ts => { const m = Math.floor((Date.now() - ts) / 60000); return m < 1 ? 'now' : m < 60 ? m + 'm' : Math.floor(m / 60) + 'h'; };
   /** Only our own shrunk photos (data:image) or files shipped with the site are shown. */
   const safeImg = src => typeof src === 'string' && (/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(src) || /^[\w\-./]+\.(jpe?g|png|webp)$/i.test(src)) ? src : '';
-  const hot = (s, p) => p.deleted ? -1 : (nVotes(s, p.id) + comments(s, p.id).length * 0.5 + 1) / Math.pow((Date.now() - p.at) / 60000 + 8, 0.9);
+  const hot = (s, p) => p.deleted || buried(s, p) ? -1 : (Math.max(0, nVotes(s, p.id)) + comments(s, p.id).length * 0.5 + 1) / Math.pow((Date.now() - p.at) / 60000 + 8, 0.9);
   function photoCount(s) {
     const id = C().photoCount; if (!id) return 0;
     const set = new Set(); list(s).filter(p => p.real === id && p.photo && !p.deleted).forEach(p => (p.tags || []).forEach(t => t !== id && set.add(t)));
@@ -111,6 +120,7 @@ const Bebbit = (() => {
   }
   function card(s, me, ui, p) {
     if (p.deleted) return `<article class="bb-post bb-removed">[removed by Bebbit] <span>· ${ago(p.at)}</span></article>`;
+    if (buried(s, p)) return `<article class="bb-post bb-removed">[removed by the community · ${downs(s, p.id)} downvotes] <span>· ${ago(p.at)}</span></article>`;
     const a = who(p.by), n = nVotes(s, p.id), cs = comments(s, p.id), ro = !canWrite(me), img = safeImg(p.photo);
     const tr = (B(s).traces || {})[p.id], mineTrace = tr && tr.by === me.id;
     const pow = (limit(me, 'trace') && !mineTrace ? `<button class="btn small ghost" data-bb-trace="${p.id}" ${left(s, me, 'trace') ? '' : 'disabled'}>Trace · ${left(s, me, 'trace')}</button>` : '')
@@ -124,7 +134,7 @@ const Bebbit = (() => {
       ${tags.length ? `<div class="bb-with">with ${tags.map(t => `<button class="bb-link" data-bb-profile="${t}">${esc(G.byId(t).name)}</button>`).join(', ')}</div>` : ''}
       ${traceBox}
       <footer class="bb-acts">
-        <button class="bb-act" data-bb-vote="${p.id}" aria-pressed="${voted(s, p.id, me.id)}" ${ro ? 'disabled' : ''} aria-label="Upvote"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M12 5l7 8h-4v6H9v-6H5z"/></svg>${n}</button>
+        <span class="bb-votes"><button class="bb-act" data-bb-vote="${p.id}" aria-pressed="${myVote(s, p.id, me.id) === 'up'}" ${ro ? 'disabled' : ''} aria-label="Upvote"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M12 5l7 8h-4v6H9v-6H5z"/></svg></button><b class="bb-score">${n}</b><button class="bb-act bb-down" data-bb-down="${p.id}" aria-pressed="${myVote(s, p.id, me.id) === 'down'}" ${ro ? 'disabled' : ''} aria-label="Downvote"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M12 19l-7-8h4V5h6v6h4z"/></svg></button></span>
         <button class="bb-act" data-bb-open="${p.id}" aria-expanded="${!!ui.open[p.id]}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"/></svg>${cs.length}</button>
         ${pow ? `<span class="bb-pow">${pow}</span>` : ''}
       </footer>
@@ -179,9 +189,15 @@ const Bebbit = (() => {
     if ((el = q('[data-bb="unphoto"]'))) { ui.draft.photo = null; ctx.redraw(true); return true; }
     if ((el = q('[data-bb-untag]'))) { ui.draft.tags = ui.draft.tags.filter(t => t !== el.dataset.bbUntag); ctx.redraw(true); return true; }
     if ((el = q('[data-bb-open]'))) { const id = el.dataset.bbOpen; ui.open[id] = !ui.open[id]; ctx.redraw(true); return true; }
-    if ((el = q('[data-bb-vote]'))) {
-      if (!canWrite(me)) return true; const id = el.dataset.bbVote, s = DB.fresh();
-      DB.update({ ['beb/votes/' + id + '/' + me.id]: voted(s, id, me.id) ? null : true }); return true;
+    if ((el = q('[data-bb-vote], [data-bb-down]'))) {
+      if (!canWrite(me)) return true;
+      const down = el.hasAttribute('data-bb-down'), id = down ? el.dataset.bbDown : el.dataset.bbVote, s = DB.fresh(), cur = myVote(s, id, me.id);
+      const want = down ? (cur === 'down' ? null : 'down') : (cur === 'up' ? null : true);
+      const u = { ['beb/votes/' + id + '/' + me.id]: want };
+      /* the vote that hides a post goes in the host log, so it can be checked and brought back */
+      const p = (B(s).posts || {})[id];
+      if (p && want === 'down' && !p.keep && downs(s, id) + (cur === 'down' ? 0 : 1) === DOWN_HIDE()) Clock.log(u, 'bebbit', `A post by ${shown(who(p.by))} was hidden after ${DOWN_HIDE()} downvotes: ${(p.text || '[photo]').slice(0, 60)} (Host > Bebbit can show it again)`);
+      DB.update(u); return true;
     }
     if ((el = q('[data-bb-del]'))) {
       const id = el.dataset.bbDel, s = DB.fresh(), p = (B(s).posts || {})[id], n = left(s, me, 'delete');
@@ -246,5 +262,5 @@ const Bebbit = (() => {
     return true;
   }
 
-  return { newUI, render, onClick, onInput, onChange, onSubmit, post, shrink, who, shown, list, nVotes, comments, used, photoCount, safeImg, ago, tint, prof, follows, big };
+  return { newUI, render, onClick, onInput, onChange, onSubmit, post, shrink, who, shown, list, nVotes, ups, downs, buried, comments, used, photoCount, safeImg, ago, tint, prof, follows, big };
 })();

@@ -15,7 +15,9 @@
 const NW = (() => {
   const C = () => STORY.nightwire || {};
   const N = s => s.nw || {};
-  const money = n => '$' + Math.round(n).toLocaleString('en-US');
+  /* balances have cents (Nov 24): "$1,549.21"; whole amounts still show as "$5,000" */
+  const cents = n => Math.round((Number(n) || 0) * 100) / 100;
+  const money = n => { const v = cents(n); return (v < 0 ? '-$' : '$') + Math.abs(v).toLocaleString('en-US', { minimumFractionDigits: v % 1 ? 2 : 0, maximumFractionDigits: 2 }); };
   const first = id => { const c = G.byId(id); return c ? c.name.split(' ')[0] : id; };
 
   /* ---------- wallets ----------
@@ -49,7 +51,7 @@ const NW = (() => {
      hosts) work the balance out from that history; everyone else sees the balance the account last
      published at nw/bal/{w} (needed when the crew takes a buyer's bid, or a borrower takes a loan). */
   function sees(w) { const me = DB.who ? DB.who() : null; if (!me || me.host) return true; return Route.wallet(w).some(b => b === 'p/' + me.id || b === 'g/' + me.group); }
-  function computed(s, w) { const st = (W()[w] || {}).start || 0, f = fuOf(s, w); return txs(s).reduce((b, t) => b + (t.to === w && !held(s, t) ? t.amt : 0) - (t.from === w ? t.amt : 0), st + (fuReady(s, f) ? f.amt : 0)); }
+  function computed(s, w) { const st = (W()[w] || {}).start || 0, f = fuOf(s, w); return cents(txs(s).reduce((b, t) => b + (t.to === w && !held(s, t) ? t.amt : 0) - (t.from === w ? t.amt : 0), st + (fuReady(s, f) ? f.amt : 0))); }
   function balance(s, w) {
     if (sees(w)) return computed(s, w);
     const p = (N(s).bal || {})[w]; return p ? p.amt : ((W()[w] || {}).start || 0);
@@ -61,7 +63,7 @@ const NW = (() => {
     return DB.guard('w_' + w, s => {
       const have = balance(s, w); if (have < amt) return null;
       const u = build(s); if (!u) return null;
-      u['nw/bal/' + w] = { amt: have - amt, at: Date.now() };
+      u['nw/bal/' + w] = { amt: cents(have - amt), at: Date.now() };
       return u;
     });
   }
@@ -125,108 +127,244 @@ const NW = (() => {
     Clock.log(u, 'nightwire', `${G.byId(by) ? G.byId(by).name : by} sent ${money(amt)} from ${wname(from)} to ${wname(to)}${memo ? ' ("' + memo + '")' : ''}.`);
   }
 
-  /* ---------- screens ---------- */
-  const newUI = () => ({ sub: 'market', bsub: 'acct', open: null, send: { to: '', amt: '', memo: '', handle: '' }, bid: '', ask: '', pitch: [], chat: '', err: '', errFor: '', sent: null,
+  /* ---------- screens: Omnizon, "a Nightwire company" (Nov 24) ----------
+     NIGHTWIRE looks like an ordinary online store (black, orange, blue) that is secretly
+     the dark-web market. Departments: Shop (the market, with a product page and a checkout),
+     Wallet, Sell (crew: the private sale, "Seller Central"), Messages (crew: the burner) and
+     Casino. "Place your order" on the checkout is the confirmation, so there's no extra pop-up. */
+  const newUI = () => ({ sub: 'market', bsub: 'acct', open: null, view: 'home', item: null, cat: 'all', q: '', bought: null,
+    send: { to: '', amt: '', memo: '', handle: '' }, bid: '', ask: '', pitch: [], chat: '', err: '', errFor: '', sent: null,
     lend: { to: '', amt: '', rate: 150, term: 30 }, unf: '', cs: null });
-  /* an error shows only in the panel it belongs to (send, bid, lend, freeup, loan) */
+  /* an error shows only in the panel it belongs to (send, bid, lend, freeup, loan, buy, list, unfreeze) */
   const errBox = (ui, key) => `<div class="err" role="alert">${(ui.errFor || 'send') === key ? esc(ui.err) : ''}</div>`;
   const say = (ui, key, msg) => { ui.err = msg; ui.errFor = key; };
-  const handleLine = (s, me, w) => `<div class="nw-hd"><span><b>●</b> 3 relays · ${80 + (Date.now() / 7000 | 0) % 60} ms</span><span class="nw-amber">auto-wipe 23:59</span></div><div class="nw-handle">handle <b>${esc(wname(w))}</b>${me.group === 'crew' ? ' · client verified' : ''}</div>`;
-  function subs(me, ui) {
-    const list = (me.group === 'crew' ? [['market', 'MARKET'], ['wallet', 'WALLET'], ['sale', 'SALE'], ['burner', 'BURNER']] : [['market', 'MARKET'], ['wallet', 'WALLET']])
-      .concat(typeof Casino !== 'undefined' && Casino.allowed(me) ? [['casino', 'CASINO']] : []);
-    return `<div class="nw-tabs" style="grid-template-columns:repeat(${list.length},1fr)">${list.map(([k, l]) => `<button data-nw-sub="${k}" aria-current="${ui.sub === k}">${l}</button>`).join('')}</div>`;
+
+  const MARK = (n = 30) => `<svg class="oz-mark" width="${n}" height="${n}" viewBox="0 0 30 30" aria-hidden="true"><rect width="30" height="30" rx="8" fill="#f26a1b"/><circle cx="15" cy="15" r="7.5" fill="none" stroke="#0b0d12" stroke-width="3.4"/><rect x="19.5" y="19.5" width="5" height="5" rx="1.2" fill="#1f5fd6"/></svg>`;
+  const WORD = '<span class="oz-word"><b>omnizon</b><small>a Nightwire company</small></span>';
+  const IC = {
+    search: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/></svg>',
+    shop: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8h14l-1.2 11.2a2 2 0 0 1-2 1.8H8.2a2 2 0 0 1-2-1.8z"/><path d="M9 8V6.5a3 3 0 0 1 6 0V8"/></svg>',
+    wallet: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="18" height="13" rx="2.5"/><path d="M3 10h18M15.5 14.5h2"/></svg>',
+    sell: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12.5V4h8.5L21 13.5 13.5 21z"/><circle cx="7.5" cy="8.5" r="1.4"/></svg>',
+    msg: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"/></svg>',
+    casino: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3.5"/><circle cx="9" cy="9" r="1"/><circle cx="15" cy="15" r="1"/><circle cx="15" cy="9" r="1"/><circle cx="9" cy="15" r="1"/></svg>',
+    shield: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 4v5c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V7z"/></svg>',
+    shieldOk: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 4v5c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V7z"/><path d="M8.5 12l2.5 2.5 4.5-5"/></svg>',
+    check: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
+    back: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>',
+    lock: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>',
+    clock: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
+    done: '<svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="15" fill="#0f7b3f"/><path d="M9.5 16.5l4.5 4.5 8.5-9" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    wait: '<svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="12" fill="none" stroke="#e3e6ec" stroke-width="4"/><path d="M16 4a12 12 0 0 1 12 12" fill="none" stroke="#1f5fd6" stroke-width="4" stroke-linecap="round"><animateTransform attributeName="transform" type="rotate" from="0 16 16" to="360 16 16" dur=".8s" repeatCount="indefinite"/></path></svg>',
+    ring: '<svg width="18" height="18" viewBox="0 0 30 30" aria-hidden="true"><circle cx="15" cy="15" r="8" fill="none" stroke="#f26a1b" stroke-width="3.6"/></svg>'
+  };
+  /* what each file looks like in the store (story.js can set it.kind to override) */
+  const KIND = { vault: 'blueprint', bankvictor: 'statement', shells: 'statement', ashfall: 'casefile', tips: 'casefile', devereaux: 'casefile', donors: 'list', bebbitdata: 'list', birth: 'envelope', dna: 'helix' };
+  const DEPT = { blueprint: 'Blueprints', statement: 'Financial records', casefile: 'Background checks', list: 'Data and lists', envelope: 'Sealed records', helix: 'Sealed records' };
+  const TINT = { blueprint: 'blue', statement: 'orange', casefile: 'gray', list: 'green', envelope: 'sand', helix: 'violet' };
+  const kindOf = it => it.kind || KIND[it.id] || 'casefile';
+  const ART = {
+    blueprint: '<rect x="25" y="24" width="76" height="84" rx="3" fill="#0b0d12" opacity=".12"/><rect x="22" y="20" width="76" height="84" rx="3" fill="#1f5fd6"/><path d="M32 20v84M42 20v84M52 20v84M62 20v84M72 20v84M82 20v84M22 30h76M22 40h76M22 50h76M22 60h76M22 70h76M22 80h76M22 90h76" stroke="#fff" stroke-opacity=".16" stroke-width="1"/><path d="M32 34h56v36H32zM60 34v36M32 52h28M66 78h22v18H66z" fill="none" stroke="#fff" stroke-width="2"/><circle cx="77" cy="87" r="4" fill="none" stroke="#f26a1b" stroke-width="2.2"/><rect x="32" y="84" width="24" height="3" rx="1.5" fill="#f26a1b"/>',
+    statement: '<rect x="29" y="20" width="68" height="88" rx="3" fill="#0b0d12" opacity=".12"/><rect x="26" y="16" width="68" height="88" rx="3" fill="#fff"/><path d="M26 19a3 3 0 0 1 3-3h62a3 3 0 0 1 3 3v11H26z" fill="#0b0d12"/><rect x="32" y="21" width="22" height="4" rx="2" fill="#f26a1b"/><rect x="33" y="38" width="38" height="3" rx="1.5" fill="#c9d2e3"/><rect x="76" y="38" width="12" height="3" rx="1.5" fill="#c9d2e3"/><rect x="33" y="48" width="32" height="3" rx="1.5" fill="#c9d2e3"/><rect x="76" y="48" width="12" height="3" rx="1.5" fill="#c9d2e3"/><rect x="30" y="55" width="60" height="9" rx="2" fill="#ffe2cf"/><rect x="33" y="58" width="36" height="3" rx="1.5" fill="#e0560f"/><rect x="76" y="58" width="12" height="3" rx="1.5" fill="#e0560f"/><rect x="33" y="70" width="40" height="3" rx="1.5" fill="#c9d2e3"/><rect x="76" y="70" width="12" height="3" rx="1.5" fill="#c9d2e3"/><path d="M33 86h55" stroke="#0b0d12" stroke-width="1.5"/><rect x="68" y="90" width="20" height="4" rx="2" fill="#0b0d12"/>',
+    casefile: '<rect x="21" y="34" width="84" height="68" rx="4" fill="#0b0d12" opacity=".12"/><path d="M18 30a4 4 0 0 1 4-4h24l7 7h45a4 4 0 0 1 4 4v59a4 4 0 0 1-4 4H22a4 4 0 0 1-4-4z" fill="#1a2233"/><rect x="27" y="44" width="66" height="48" rx="3" fill="#fff"/><rect x="33" y="51" width="19" height="23" rx="2" fill="#dfe4ec"/><circle cx="42.5" cy="59" r="4.5" fill="#8a94a8"/><path d="M35 73c1.5-5 4.3-7 7.5-7s6 2 7.5 7z" fill="#8a94a8"/><rect x="57" y="53" width="29" height="3" rx="1.5" fill="#c9d2e3"/><rect x="57" y="61" width="22" height="3" rx="1.5" fill="#c9d2e3"/><rect x="57" y="69" width="26" height="3" rx="1.5" fill="#c9d2e3"/><rect x="33" y="81" width="42" height="5" rx="1.5" fill="#0b0d12"/><g transform="rotate(-9 82 32)"><rect x="64" y="25" width="36" height="13" rx="2" fill="#fff1e8" stroke="#e0560f" stroke-width="2"/><rect x="69" y="30" width="26" height="3" rx="1.5" fill="#e0560f"/></g>',
+    list: '<rect x="29" y="20" width="68" height="88" rx="3" fill="#0b0d12" opacity=".12"/><rect x="26" y="16" width="68" height="88" rx="3" fill="#fff"/><rect x="46" y="11" width="28" height="11" rx="3" fill="#0b0d12"/>'
+      + [0, 1, 2, 3].map(i => { const y = 32 + i * 17, on = i !== 2; return `<rect x="34" y="${y}" width="11" height="11" rx="2.5" fill="${on ? '#0f7b3f' : '#fff'}" stroke="${on ? '#0f7b3f' : '#f26a1b'}" stroke-width="2"/>${on ? `<path d="M36.5 ${y + 5.8}l2.4 2.4 4-4.6" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>` : ''}<rect x="51" y="${y + 4}" width="${[34, 28, 36, 24][i]}" height="3" rx="1.5" fill="${on ? '#c9d2e3' : '#f26a1b'}"/>`; }).join(''),
+    envelope: '<rect x="19" y="37" width="88" height="60" rx="4" fill="#0b0d12" opacity=".12"/><rect x="16" y="33" width="88" height="60" rx="4" fill="#fff"/><path d="M16 37l44 31 44-31" fill="none" stroke="#c9d2e3" stroke-width="2.5"/><circle cx="60" cy="68" r="11" fill="#e0560f"/><circle cx="60" cy="68" r="6.5" fill="none" stroke="#fff" stroke-opacity=".7" stroke-width="1.6"/><rect x="24" y="80" width="22" height="3" rx="1.5" fill="#c9d2e3"/><rect x="74" y="41" width="22" height="9" rx="1.5" fill="none" stroke="#1f5fd6" stroke-width="1.6"/><rect x="78" y="44.5" width="14" height="2" rx="1" fill="#1f5fd6"/>',
+    helix: '<path d="M46 26h28M50 54h20M50 66h20M46 94h28" stroke="#c9d2e3" stroke-width="3.5" stroke-linecap="round"/><path d="M42 18c0 21 36 21 36 42s-36 21-36 42" fill="none" stroke="#1f5fd6" stroke-width="5.5" stroke-linecap="round"/><path d="M78 18c0 21-36 21-36 42s36 21 36 42" fill="none" stroke="#f26a1b" stroke-width="5.5" stroke-linecap="round"/>'
+  };
+  const art = (k, n) => `<svg width="${n}" height="${n}" viewBox="0 0 120 120" aria-hidden="true">${ART[k] || ART.casefile}</svg>`;
+  const PROMO = '<svg width="92" height="92" viewBox="0 0 96 96" aria-hidden="true"><rect x="18" y="16" width="56" height="68" rx="4" fill="#174aa8"/><rect x="24" y="10" width="56" height="68" rx="4" fill="#fff"/><rect x="24" y="10" width="56" height="12" rx="4" fill="#0b0d12"/><rect x="31" y="30" width="34" height="4" rx="2" fill="#c9d2e3"/><rect x="31" y="39" width="42" height="4" rx="2" fill="#c9d2e3"/><rect x="31" y="48" width="26" height="4" rx="2" fill="#f26a1b"/><circle cx="68" cy="68" r="12" fill="#f26a1b"/><path d="M62.5 68l4 4 7-8" fill="none" stroke="#0b0d12" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  /* the same made-up rating for a file every time */
+  const hsh = v => { let h = 7; for (const ch of String(v)) h = (h * 31 + ch.charCodeAt(0)) >>> 0; return h; };
+  const rating = it => { const h = hsh(it.id + it.seller), r = 4.3 + (h % 7) / 10; return { r: r.toFixed(1), str: r >= 4.7 ? '★★★★★' : '★★★★☆', n: 40 + h % 290 }; };
+  const starLine = (it, word) => { const st = rating(it); return `<span class="oz-stars" aria-label="${st.r} out of 5 stars, ${st.n} ratings"><i aria-hidden="true">${st.str}</i>${st.n}${word ? ' ratings' : ''}</span>`; };
+  /** "$150,000" with a small raised dollar sign (and cents when asked for, or when there are some) */
+  const price = (n, big) => { const v = Math.abs(cents(n)), w = Math.floor(v), c = Math.round((v - w) * 100); return `<span class="oz-price${big ? ' oz-bigprice' : ''}" aria-label="${money(v)}"><sup>$</sup>${w.toLocaleString('en-US')}${big || c ? `<sup>${String(c).padStart(2, '0')}</sup>` : ''}</span>`; };
+  const searchText = it => (it.title + ' ' + it.seller + ' ' + DEPT[kindOf(it)] + ' ' + (it.teaser || '')).toLowerCase();
+  const FOOT = '<p class="oz-foot"><b>Omnizon</b>, a Nightwire company · Conditions of Use · Privacy Notice<br>Your session is encrypted and wiped at 23:59. No order history is kept.</p>';
+
+  /* the dark band under the header: search (shop only), who you're shopping as, and the departments */
+  function band(s, me, ui, w) {
+    const sale = N(s).sale, bids = Object.keys(N(s).bids || {}).length, offers = loans(s).filter(l => l.to === w && l.status === 'offer').length;
+    const list = [['market', 'Shop', IC.shop, ''], ['wallet', 'Wallet', IC.wallet, offers ? `<span class="oz-n">${offers}</span>` : '']]
+      .concat(me.group === 'crew' ? [['sale', 'Sell', IC.sell, sale && !sale.sold && bids ? `<span class="oz-n">${bids}</span>` : ''], ['burner', 'Messages', IC.msg, '']] : [])
+      .concat(typeof Casino !== 'undefined' && Casino.allowed(me) ? [['casino', 'Casino', IC.casino, casinoOn(s) ? '<i class="oz-live" title="Tables open"></i>' : '']] : []);
+    const search = ui.sub === 'market' && ui.view === 'home'
+      ? `<form class="oz-search" data-nw-form="search" role="search"><label><input data-nw="q" type="search" value="${esc(ui.q)}" placeholder="Search Omnizon" aria-label="Search Omnizon" autocomplete="off" enterkeyhint="search"></label><button type="submit" aria-label="Search">${IC.search}</button></form>` : '';
+    return `<div class="oz-band">${search}
+      <div class="oz-as"><span><i class="oz-dot"></i>Shopping as <b>${esc(wname(w))}</b></span><span>Wallet <b>${money(balance(s, w))}</b></span></div>
+      <nav class="oz-depts" aria-label="Departments">${list.map(([k, l, ic, x]) => `<button type="button" data-nw-sub="${k}" aria-current="${ui.sub === k}">${ic}${l}${x}</button>`).join('')}</nav></div>`;
   }
+  const holdBox = (s, me, why) => `<div class="oz-hold">${IC.lock}<div><b>${isOut(s, me.id) ? 'Your account has been closed' : 'Your wallet is on hold'}</b><span>${esc(why)}</span></div></div>`;
+  const backBtn = label => `<button type="button" class="oz-back" data-nw-back>${IC.back}${label}</button>`;
+
+  /* ----- Shop: the market ----- */
+  function shopView(s, me, ui, w) {
+    const items = marketFor(me), vis = items.filter(it => available(s, it)), soon = items.length - vis.length;
+    const mineN = vis.filter(it => owns(s, w, it.id)).length;
+    const cats = [...new Set(vis.map(it => DEPT[kindOf(it)]))];
+    if (ui.cat !== 'all' && !(cats.includes(ui.cat) || (ui.cat === 'mine' && mineN))) ui.cat = 'all';
+    const inCat = vis.filter(it => ui.cat === 'all' || (ui.cat === 'mine' ? owns(s, w, it.id) : DEPT[kindOf(it)] === ui.cat));
+    const q = ui.q.trim().toLowerCase(), hit = it => !q || searchText(it).includes(q), shown = inCat.filter(hit).length;
+    const drop = vis.find(it => it.from && !owns(s, w, it.id) && !soldTo(s, it.id));
+    const promo = drop
+      ? `<section class="oz-promo"><div><small>Just dropped</small><b>${esc(drop.title)}</b><span>New from ${esc(drop.seller)}. One copy. The first buyer gets it.</span><button type="button" class="oz-btn go" data-nw-item="${drop.id}" style="align-self:flex-start;margin-top:4px">See the listing</button></div>${PROMO}</section>`
+      : `<section class="oz-promo"><div><small>Tonight only</small><b>Files from verified sellers</b><span>Every file sells once. Paid through Omnizon Escrow and delivered in seconds.</span></div>${PROMO}</section>`;
+    const pills = `<div class="oz-pills" role="toolbar" aria-label="Categories">${['all'].concat(cats).map(c => `<button type="button" class="oz-pill" data-nw-cat="${esc(c)}" aria-pressed="${ui.cat === c}">${c === 'all' ? 'All' : esc(c)}</button>`).join('')}${mineN ? `<button type="button" class="oz-pill" data-nw-cat="mine" aria-pressed="${ui.cat === 'mine'}">Your library <small>${mineN}</small></button>` : ''}</div>`;
+    const card = it => {
+      const k = kindOf(it), mine = owns(s, w, it.id), gone = !mine && !!soldTo(s, it.id);
+      return `<button type="button" class="oz-card${gone ? ' gone' : ''}" data-nw-item="${it.id}" data-oz-q="${esc(searchText(it))}"${hit(it) ? '' : ' hidden'}>
+        <span class="oz-thumb oz-t-${TINT[k]}">${mine ? '<span class="oz-tag own">In your library</span>' : gone ? '<span class="oz-tag sold">Sold</span>' : it.from ? '<span class="oz-tag">New</span>' : ''}${art(k, 92)}</span>
+        <span class="oz-cb"><span class="oz-ct">${esc(it.title)}</span>${starLine(it)}${price(it.price)}
+          ${mine ? `<span class="oz-meta ok">${IC.check}Delivered · tap to open</span>` : gone ? '<span class="oz-meta no">Sold to another buyer</span>' : `<span class="oz-meta">${IC.shield}Escrow · Instant</span>`}</span></button>`;
+    };
+    const title = ui.cat === 'all' ? (me.group === 'crew' ? 'Picked for your crew' : 'Picked for you') : ui.cat === 'mine' ? 'Your library' : ui.cat;
+    return `${promo}${pills}
+      <div class="oz-h"><h2>${esc(title)}</h2><span data-oz-count>${shown} ${shown === 1 ? 'result' : 'results'}</span></div>
+      <div class="oz-grid">${inCat.map(card).join('')}</div>
+      <div class="oz-none" data-oz-none${shown ? ' hidden' : ''}><b>No results${q ? ' for "' + esc(ui.q.trim()) + '"' : ''}</b>Try another word, or browse All.</div>
+      ${soon ? `<div class="oz-soon">${IC.clock}<div><b>${soon} more ${soon === 1 ? 'listing' : 'listings'} coming later tonight</b>Sellers are still uploading. Check back after the next part of the night.</div></div>` : ''}
+      ${errBox(ui, 'buy')}`;
+  }
+  const findItem = (s, me, id) => { const it = (C().market || []).find(x => x.id === id); return it && it.for.includes(me.group) && available(s, it) ? it : null; };
+
+  /* ----- the product page (an owned file opens here) ----- */
+  function itemView(s, me, ui, w) {
+    const it = findItem(s, me, ui.item); if (!it) { ui.view = 'home'; return shopView(s, me, ui, w); }
+    const k = kindOf(it), mine = owns(s, w, it.id), gone = !mine && !!soldTo(s, it.id), why = blockedWhy(s, me, w);
+    const got = mine ? N(s).bought[w][it.id] : null, placing = !mine && ui.bought === it.id;
+    const left = `<div class="oz-pg">
+        <div class="oz-store"><b>Visit the ${esc(it.seller)} store</b>${starLine(it, true)}</div>
+        <h1>${esc(it.title)}</h1>
+        <div class="oz-hero oz-t-${TINT[k]}">${art(k, 196)}<span class="oz-cap">${mine ? 'In your library' : gone ? 'No longer available' : 'Full file unlocks after purchase'}</span></div>
+        ${mine ? `<div class="oz-teaser"><b>About this file</b>${esc(it.teaser)}</div>` : ''}</div>`;
+    let right;
+    if (placing) right = `<div class="oz-done" style="border-left-color:var(--oz-blue)">${IC.wait}<div><b style="color:var(--oz-blue)">Placing your order…</b><span>Confirming payment with the seller.</span></div></div>`;
+    else if (mine) right = `${ui.bought === it.id ? `<div class="oz-done">${IC.done}<div><b>Order placed</b><span>Paid from ${esc(wname(w))}. Your file is below.</span></div></div>` : ''}
+        <div class="oz-file"><div class="oz-file-h">${IC.check}Delivered to your library<span>${esc(wallTime(got.at))}${got.by && got.by !== me.id ? ' · bought by ' + esc(first(got.by)) : ''}</span></div>
+        <div class="oz-file-b${ui.fresh === it.id ? ' fresh' : ''}">${esc(it.body)}</div></div>`;
+    else right = `<div class="oz-pg">
+        ${price(it.price, true)}
+        <div class="oz-lines"><span><b>Instant digital delivery</b> to your Omnizon library</span>${gone ? '<span class="oz-low">Sold. Another buyer got this file first.</span>' : '<span class="oz-low">Only 1 left. Sells once.</span>'}</div>
+        <div class="oz-teaser"><b>About this file</b>${esc(it.teaser)}</div>
+        ${gone ? '' : `<div class="oz-payfrom"><span>Pay from</span><b>${esc(wname(w))} · ${money(balance(s, w))}</b></div>
+        <button type="button" class="oz-buy" data-nw-checkout="${it.id}"${why ? ' disabled' : ''}>Buy now</button>
+        <div class="oz-escrow">${IC.shieldOk}<span><b>Omnizon Escrow.</b> The seller is paid only after your file is delivered.</span></div>`}
+        ${errBox(ui, 'buy')}</div>`;
+    return `${backBtn(ui.cat === 'mine' ? 'Back to your library' : 'Back to results')}<div class="oz-cols"><div>${left}</div><div>${right}</div></div>`;
+  }
+
+  /* ----- checkout: "Place your order" buys it ----- */
+  function checkoutView(s, me, ui, w) {
+    const it = findItem(s, me, ui.item); if (!it || owns(s, w, it.id) || soldTo(s, it.id)) { ui.view = 'item'; return itemView(s, me, ui, w); }
+    const k = kindOf(it), b = balance(s, w), short = b < it.price, why = blockedWhy(s, me, w), others = membersOf(w).length - 1;
+    const step = (n, t) => `<div class="oz-step"><i>${n}</i><span>${t}</span></div>`;
+    return `${backBtn('Back to item')}<div class="oz-co oz-cols"><div>
+        <h1>Review your order</h1>
+        <section class="oz-sec"><div class="oz-co-item"><span class="oz-thumb oz-t-${TINT[k]}">${art(k, 50)}</span><div><b>${esc(it.title)}</b><span>Sold by ${esc(it.seller)} · Digital file</span></div><strong>${money(it.price)}</strong></div></section>
+        <section class="oz-sec"><span class="oz-sec-h">Pay from</span><div class="oz-wl"><span>${IC.ring}</span><span><b>${esc(wname(w))} wallet</b>Available ${money(b)}${others > 0 ? ` · shared with ${others} ${others === 1 ? 'other' : 'others'}` : ''}</span></div></section>
+        <section class="oz-sec"><span class="oz-sec-h">How Omnizon Escrow works</span>
+          ${step(1, '<b>You pay now.</b> The money leaves your wallet and is held by Omnizon.')}${step(2, '<b>The file arrives</b> in your library within seconds.')}${step(3, '<b>The seller is paid.</b> Nothing traces back to you.')}</section>
+      </div><div>
+        <section class="oz-sec oz-sum"><div><span>Item</span><span>${money(it.price)}</span></div><div><span>Relay fee</span><span>$0</span></div>
+          <div class="tot"><span>Order total</span><span>${money(it.price)}</span></div>
+          ${short ? `<div class="short"><span>You're short by</span><span>${money(it.price - b)}</span></div>` : `<div><span>Left in your wallet after</span><span>${money(b - it.price)}</span></div>`}</section>
+        ${why ? holdBox(s, me, why) : ''}
+        <div class="oz-place"><button type="button" class="oz-buy" data-nw-buy="${it.id}" data-nw-now="1"${short || why ? ' disabled' : ''}>${short ? 'Not enough in your wallet' : 'Place your order'}</button>
+          <small>By placing your order you agree to Omnizon's Conditions of Use. All sales final.</small>${errBox(ui, 'buy')}</div>
+      </div></div>`;
+  }
+
+  /* ----- Wallet ----- */
   function walletCard(s, w) {
-    const p = pendingState(s, w), b = balance(s, w), esc_ = escrowed(s, w);
-    return `<div class="nw-card"><div class="nw-row nw-k"><span>BALANCE</span><span>${esc(wname(w))}</span></div>
-      <div class="nw-big">${money(b)}</div>
-      ${esc_ ? `<div class="nw-row" style="border-top:1px dashed var(--line);padding-top:8px"><span class="nw-k">IN ESCROW · RELEASED ${esc(releaseAt())}</span><span class="nw-amber">${money(esc_)}</span></div>` : ''}
-      ${p ? `<div class="nw-row" style="border-top:1px dashed var(--line);padding-top:8px"><span class="nw-k">${esc(p.label.toUpperCase())}</span><span class="${p.void ? 'nw-red' : 'nw-hi'}">${p.void ? 'VOID' : money(p.amount)}</span></div>
-        <div class="${p.void ? 'nw-red' : 'nw-amber'}" style="font-size:11px">${p.void ? '! Your client is gone. That money is never coming.' : '! If the client goes dark, the delivery payment is void.'}</div>` : ''}</div>`;
+    const p = pendingState(s, w), e = escrowed(s, w), others = membersOf(w).length - 1;
+    return `<div class="oz-wcard"><div class="oz-wcard-top">${MARK(26)}<span class="oz-word"><b>Omnizon Wallet</b><small>${esc(wname(w))}${others > 0 ? ' · shared with ' + others : ''}</small></span><em>•••• ${last4(w)}</em></div>
+      <div><small>Available balance</small>${price(balance(s, w), true)}</div>
+      ${e ? `<div class="oz-wcard-row"><span>In escrow · released ${esc(releaseAt())}</span><b class="warn">${money(e)}</b></div>` : ''}
+      ${p ? `<div class="oz-wcard-row"><span>${esc(p.label)}</span><b class="${p.void ? 'void' : 'warn'}">${p.void ? 'Void' : money(p.amount)}</b></div><p class="${p.void ? 'void' : ''}">${p.void ? 'Your client is gone. That money is never coming.' : 'If the client goes dark, this delivery payment is void.'}</p>` : ''}</div>`;
   }
-  function marketView(s, me, ui) {
-    const w = walletOf(me), items = marketFor(me);
-    const vis = items.filter(it => available(s, it)), soon = items.length - vis.length;
-    return `${walletCard(s, w)}<div class="nw-row"><span class="nw-hi"><b>&gt; market // data drops</b></span><span class="nw-k">${vis.length} listed</span></div>
-      <div class="nw-items">${vis.map(it => {
-        const mine = owns(s, w, it.id), openIt = ui.open === it.id, gone = !mine && !!soldTo(s, it.id);
-        return `<div class="nw-item${it.from ? ' hot' : ''}${gone ? ' gone' : ''}">
-          <div class="nw-row"><b class="nw-it">${esc(it.title.toUpperCase())}</b>${gone ? '<span class="nw-red">SOLD</span>' : it.from && !mine ? '<span class="nw-hot">NEW</span>' : '<span class="nw-k">1 copy</span>'}</div>
-          <div class="nw-k">${esc(it.teaser)}</div>
-          ${mine && openIt ? `<div class="nw-body${ui.fresh === it.id ? ' fresh' : ''}">${esc(it.body)}</div>` : ''}
-          <div class="nw-row"><span class="nw-k">seller ${esc(it.seller)} · ★ 4.${(it.price / 1000 | 0) % 9 + 1}</span>
-            ${mine ? `<button class="nw-btn ghost" data-nw-open="${it.id}">${openIt ? 'HIDE' : 'OPEN FILE'}</button>` : gone ? '<span class="nw-k">sold to another buyer</span>' : `<button class="nw-btn" data-nw-buy="${it.id}">${money(it.price)}</button>`}</div></div>`;
-      }).join('')}</div>
-      ${soon ? `<div class="nw-k" style="text-align:center;padding:8px">${soon} more ${soon === 1 ? 'drop' : 'drops'} coming later tonight.</div>` : ''}
-      <div class="err" role="alert">${esc(ui.err)}</div>`;
-  }
-  const payeeOptions = (me, w, ui) => `<option value="">${'Choose someone…'}</option>${payees(me, w).map(c => `<option value="${c.id}" ${ui.send.to === c.id ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}<option value="__handle" ${ui.send.to === '__handle' ? 'selected' : ''}>Another account (enter its handle)</option>`;
-  function sendForm(s, me, ui, w) {
-    return `<form class="nw-card nw-form" data-nw-form="send"><div class="nw-hi"><b>&gt; nightbank // send</b></div>
-      <select class="field" data-nw="to" aria-label="Send to">${payeeOptions(me, w, ui)}</select>
-      ${ui.send.to === '__handle' ? `<input class="field" data-nw="handle" placeholder="account handle" value="${esc(ui.send.handle)}" aria-label="Account handle" autocapitalize="off" spellcheck="false">` : ''}
-      <input class="field" data-nw="amt" inputmode="decimal" placeholder="amount ($, or 250K / 1.5M)" value="${esc(ui.send.amt)}" aria-label="Amount" autocomplete="off">
-      <input class="field" data-nw="memo" maxlength="80" placeholder="memo (optional)" value="${esc(ui.send.memo)}" aria-label="Memo">
-      <button class="nw-btn" type="submit">&gt; send</button><div class="err" role="alert">${esc(ui.err)}</div></form>`;
-  }
-  function ledger(s, w) {
-    const mine = txs(s).filter(t => t.from === w || t.to === w);
-    return `<div class="nw-row"><span class="nw-hi"><b>&gt; ledger</b></span><span class="nw-k">${mine.length}</span></div><div class="nw-card">${mine.map(t => {
-      const out = t.from === w;
-      return `<div class="nw-tx"><span class="nw-k">${esc(wallTime(t.at))}</span><span style="flex:1;min-width:0">${out ? 'to' : 'from'} ${esc(out ? (t.toName || wname(t.to)) : wname(t.from))}${t.memo ? ` <span class="nw-k">"${esc(t.memo)}"</span>` : ''}</span><span class="${out ? 'nw-red' : 'nw-hi'}">${out ? '−' : '+'}${money(t.amt)}</span></div>`;
-    }).join('') || '<div class="nw-k">No activity.</div>'}</div>`;
-  }
-  function nwLoans(s, me, w) {
+  function loansBox(s, me, w, ui) {
     const mine = loans(s).filter(l => l.to === w && (l.status === 'offer' || l.status === 'active'));
     if (!mine.length) return '';
-    return `<div class="nw-row"><span class="nw-hi"><b>&gt; loans // ${esc(wname(LC().lender).toLowerCase())}</b></span><span class="nw-k">${mine.length}</span></div>` + mine.map(l => l.status === 'offer'
-      ? `<div class="nw-item"><div>${money(l.amt)} at ${l.rate}% · repay ${money(l.owed)}, due ${l.term} min after you accept</div><div class="nw-row" style="justify-content:flex-start"><button class="nw-btn" data-nw-loanok="${l.id}">ACCEPT</button><button class="nw-btn ghost" data-nw-loanno="${l.id}">DECLINE</button></div></div>`
-      : `<div class="nw-item"><div class="nw-row"><span>owe ${money(l.owed)}</span><span class="${isLate(s, l) ? 'nw-red' : 'nw-amber'}">${isLate(s, l) ? 'OVERDUE' : 'DUE ' + hmm(l.due)}</span></div><button class="nw-btn" data-nw-repay="${l.id}">REPAY ${money(l.owed)}</button></div>`).join('');
+    return `<section class="oz-sec"><span class="oz-sec-h">Loans from ${esc(wname(LC().lender))}</span>${mine.map(l => l.status === 'offer'
+      ? `<div class="oz-loan"><div><b>${money(l.amt)} offered</b><small>${l.rate}% interest · you'd repay ${money(l.owed)} within ${l.term} minutes of accepting</small></div><div class="oz-btns"><button type="button" class="oz-btn go" data-nw-loanok="${l.id}">Accept</button><button type="button" class="oz-btn" data-nw-loanno="${l.id}">Decline</button></div></div>`
+      : `<div class="oz-loan${isLate(s, l) ? ' late' : ''}"><div><b>You owe ${money(l.owed)}</b><small>${isLate(s, l) ? 'Overdue' + (l.court ? ' · wallet frozen by court order' : '') : esc(dueLabel(s, l))}</small></div><div class="oz-btns"><button type="button" class="oz-btn go" data-nw-repay="${l.id}">Repay ${money(l.owed)}</button></div></div>`).join('')}${errBox(ui, 'loan')}</section>`;
   }
   /* Jules: unfreeze one account, once */
   function unfreezeTool(s, me, ui) {
     if (!(C().unfreezers || []).includes(me.id)) return '';
     const used = (N(s).unfroze || {})[me.id], list = Object.keys(N(s).frozen || {});
-    return `<form class="nw-card nw-form" data-nw-form="unfreeze"><div class="nw-hi"><b>&gt; exploit // unfreeze an account</b></div>
-      ${used ? `<div class="nw-k">used: ${esc(wname(used.w))} unfrozen at ${esc(wallTime(used.at))}. one shot, gone.</div>`
-        : list.length ? `<select class="field" data-nw="unf" aria-label="Account to unfreeze"><option value="">choose a frozen account…</option>${list.map(x => `<option value="${x}" ${ui.unf === x ? 'selected' : ''}>${esc(wname(x))}</option>`).join('')}</select><button class="nw-btn" type="submit">&gt; run exploit (1 use)</button>`
-        : '<div class="nw-k">no frozen accounts on the network. 1 use left.</div>'}</form>`;
+    return `<form class="oz-sec oz-form" data-nw-form="unfreeze"><span class="oz-sec-h">Account recovery <span class="oz-badge ${used ? '' : 'hot'}">${used ? 'Used' : '1 use'}</span></span>
+      ${used ? `<span class="oz-hint">You unfroze ${esc(wname(used.w))} at ${esc(wallTime(used.at))}. It only works once.</span>`
+        : `<span class="oz-hint">Lift a freeze on any wallet on the network. Works once.</span>${list.length ? `<select class="field" data-nw="unf" aria-label="Wallet to unfreeze"><option value="">Choose a frozen wallet…</option>${list.map(x => `<option value="${x}" ${ui.unf === x ? 'selected' : ''}>${esc(wname(x))}</option>`).join('')}</select><button class="oz-btn dark" type="submit">Unfreeze it</button>` : '<span class="oz-hint"><b>No frozen wallets right now.</b></span>'}`}
+      ${errBox(ui, 'unfreeze')}</form>`;
   }
-  function walletView(s, me, ui) {
-    const w = walletOf(me);
-    return walletCard(s, w) + nwLoans(s, me, w) + unfreezeTool(s, me, ui) + sendForm(s, me, ui, w) + ledger(s, w);
+  const payeeOptions = (me, w, ui) => `<option value="">Choose someone…</option>${payees(me, w).map(c => `<option value="${c.id}" ${ui.send.to === c.id ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}<option value="__handle" ${ui.send.to === '__handle' ? 'selected' : ''}>Another account (enter its handle)</option>`;
+  function sendForm(s, me, ui, w) {
+    return `<form class="oz-sec oz-form" data-nw-form="send"><span class="oz-sec-h">Send money</span>
+      <label>To<select class="field" data-nw="to" aria-label="Send to">${payeeOptions(me, w, ui)}</select></label>
+      ${ui.send.to === '__handle' ? `<label>Account handle<input class="field" data-nw="handle" placeholder="their account handle" value="${esc(ui.send.handle)}" autocapitalize="off" spellcheck="false"></label>` : ''}
+      <label>Amount<span class="oz-amt"><span>$</span><input class="field" data-nw="amt" inputmode="decimal" placeholder="0" value="${esc(ui.send.amt)}" aria-label="Amount" autocomplete="off"></span></label>
+      <label>Note <i>(optional)</i><input class="field" data-nw="memo" maxlength="80" placeholder="What's it for?" value="${esc(ui.send.memo)}"></label>
+      <button class="oz-buy" type="submit">Send</button><span class="oz-hint">Tip: type amounts like 250K or 1.5M.</span>
+      ${ui.sent ? `<div class="oz-ok">✓ Sent ${esc(ui.sent)}</div>` : ''}${errBox(ui, 'send')}</form>`;
+  }
+  function activity(s, w) {
+    const all = txs(s).filter(t => t.from === w || t.to === w), plain = all.filter(t => !isCasinoTx(t)), play = all.filter(isCasinoTx);
+    const net = play.reduce((n, t) => n + (t.to === w ? t.amt : -t.amt), 0);
+    const row = (av, cls, who, sub, amt, out) => `<div class="oz-tx"><span class="oz-av ${cls}">${av}</span><div><b>${esc(who)}</b><small>${esc(sub)}</small></div><strong class="${out ? '' : 'pos'}">${out ? '−' : '+'}${money(amt)}</strong></div>`;
+    const rows = (play.length ? row('♠', 'buy', 'Charity casino', `${play.length} plays · last ${wallTime(play[0].at)}`, Math.abs(net), net < 0) : '')
+      + plain.map(t => { const out = t.from === w, buy = t.to === 'market', who = buy ? 'Omnizon order' : out ? (t.toName || wname(t.to)) : wname(t.from);
+        return row(buy ? '🛒' : esc(ini(who)), buy ? 'buy' : out ? '' : 'in', who, (t.memo ? t.memo + ' · ' : '') + wallTime(t.at) + (held(s, t) ? ' · in escrow' : ''), t.amt, out); }).join('');
+    return `<section class="oz-sec"><span class="oz-sec-h">Activity <span class="oz-badge">${plain.length + (play.length ? 1 : 0)}</span></span>${rows || '<div class="oz-empty">No activity yet. Orders and transfers show up here.</div>'}</section>`;
+  }
+  function walletView(s, me, ui, w) {
+    return `<div class="oz-cols"><div>${walletCard(s, w)}${loansBox(s, me, w, ui)}${unfreezeTool(s, me, ui)}</div><div>${sendForm(s, me, ui, w)}${activity(s, w)}</div></div>`;
   }
 
+  /* ----- Sell: Seller Central (the crew's private sale of the painting) ----- */
   function saleView(s, me, ui) {
     const sale = N(s).sale, bids = Object.entries(N(s).bids || {}).map(([id, b]) => Object.assign({ id }, b)).sort((a, b) => b.amt - a.amt);
     const goal = C().goal || 0, got = sale && sale.sold ? sale.sold.amt : 0;
-    const prog = `<div class="nw-card"><div class="nw-row nw-k"><span>SALE GOAL</span><span>${money(goal)}</span></div><div class="nw-big">${money(got)}</div>
-      <div class="nw-grid">${Array.from({ length: 20 }, (_, i) => `<i class="${i < Math.round(got / goal * 20) ? 'on' : ''}"></i>`).join('')}</div></div>`;
-    if (!sale) return prog + `<form class="nw-card nw-form" data-nw-form="list"><div class="nw-hi"><b>&gt; open a private sale</b></div><div class="nw-k">${esc(C().saleItem)}</div>
-        <input class="field" data-nw="ask" inputmode="numeric" placeholder="asking price ($)" value="${esc(ui.ask)}" aria-label="Asking price">
-        <div class="nw-k">Pitch it to:</div>${(C().buyers || []).map(b => `<label class="check"><input type="checkbox" data-nw-pitch="${b}" ${ui.pitch.includes(b) ? 'checked' : ''}>${esc(wname(b))}</label>`).join('')}
-        <button class="nw-btn" type="submit">&gt; open sale</button><div class="err" role="alert">${esc(ui.err)}</div></form>`;
-    if (sale.sold) return prog + `<div class="nw-card"><div class="nw-hi"><b>SOLD</b></div><div>${esc(C().saleItem)} sold to <b>${esc(wname(sale.sold.to))}</b> for ${money(sale.sold.amt)}.</div><div class="nw-k">${escrowed(s, 'crew') ? `The money is in escrow until ${esc(releaseAt())}. ` : ''}Now get it out of the building.</div></div>`;
-    return prog + `<div class="nw-card"><div class="nw-row"><span class="nw-hi"><b>&gt; sale open</b></span><span class="nw-k">asking ${money(sale.ask)}</span></div>
-        <div class="nw-k">Pitched to: ${sale.pitched.map(b => esc(wname(b))).join(', ')}</div>
-        <div class="nw-row" style="gap:6px;flex-wrap:wrap">${(C().buyers || []).filter(b => !sale.pitched.includes(b)).map(b => `<button class="nw-btn ghost" data-nw-addpitch="${b}">+ ${esc(wname(b))}</button>`).join('')}</div></div>
-      <div class="nw-row"><span class="nw-hi"><b>&gt; bids</b></span><span class="nw-k">${bids.length}</span></div>
-      ${bids.map(b => `<div class="nw-item"><div class="nw-row"><b>${esc(wname(b.from))}</b><span class="nw-hi">${money(b.amt)}</span></div><div class="nw-row"><span class="nw-k">${esc(wallTime(b.at))}</span><button class="nw-btn" data-nw-accept="${b.id}">ACCEPT</button></div></div>`).join('') || '<div class="nw-k" style="padding:6px 2px">No bids yet. Buyers see your offer in their NightBank.</div>'}
-      <button class="nw-btn ghost" data-nw-close>CLOSE THE SALE</button><div class="err" role="alert">${esc(ui.err)}</div>`;
+    const head = `<section class="oz-sec"><div class="oz-sc"><span>${IC.sell}</span><div><b>Seller Central</b><small>Private listing · ${esc(C().saleItem)}</small></div></div>
+      <div class="oz-goal"><div class="oz-goal-n">${price(got)}<span>of your ${money(goal)} goal</span></div><div class="oz-bar"><i style="width:${(goal ? Math.min(100, got / goal * 100) : 0).toFixed(1)}%"></i></div></div></section>`;
+    if (!sale) return head + `<form class="oz-sec oz-form" data-nw-form="list"><span class="oz-sec-h">Create a private listing</span><span class="oz-hint">Only the buyers you pick can see it. They bid from their NightBank, and the money waits in escrow.</span>
+        <label>Asking price<span class="oz-amt"><span>$</span><input class="field" data-nw="ask" inputmode="decimal" placeholder="e.g. 25M" value="${esc(ui.ask)}" aria-label="Asking price" autocomplete="off"></span></label>
+        <span class="oz-sec-h" style="font-size:13px">Offer it to</span>${(C().buyers || []).map(b => `<label class="oz-check"><input type="checkbox" data-nw-pitch="${b}" ${ui.pitch.includes(b) ? 'checked' : ''}>${esc(wname(b))}</label>`).join('')}
+        <button class="oz-buy" type="submit">Publish listing</button>${errBox(ui, 'list')}</form>`;
+    if (sale.sold) return head + `<section class="oz-sec"><span class="oz-badge ok" style="align-self:flex-start">Sold</span><b style="font-size:16px">Sold to ${esc(wname(sale.sold.to))} for ${money(sale.sold.amt)}</b><span class="oz-hint">${escrowed(s, 'crew') ? `The money is in escrow until ${esc(releaseAt())}. ` : ''}Now get it out of the building.</span></section>`;
+    const more = (C().buyers || []).filter(b => !sale.pitched.includes(b));
+    return head + `<section class="oz-sec"><span class="oz-sec-h">Your listing <span class="oz-badge hot">Live</span></span>
+        <div class="oz-sum"><div><span>Asking</span><span><b>${money(sale.ask)}</b></span></div><div><span>Offered to</span><span>${sale.pitched.map(b => esc(wname(b))).join(', ')}</span></div></div>
+        ${more.length ? `<div class="oz-btns">${more.map(b => `<button type="button" class="oz-btn" data-nw-addpitch="${b}">+ Offer to ${esc(wname(b))}</button>`).join('')}</div>` : ''}</section>
+      <section class="oz-sec"><span class="oz-sec-h">Offers <span class="oz-badge">${bids.length}</span></span>
+        ${bids.map((b, i) => `<div class="oz-bid${i === 0 ? ' top' : ''}"><div><b>${esc(wname(b.from))}</b><small>${esc(wallTime(b.at))}${i === 0 && bids.length > 1 ? ' · highest' : ''}</small></div><strong>${money(b.amt)}</strong><button type="button" class="oz-btn go" data-nw-accept="${b.id}">Accept</button></div>`).join('') || '<div class="oz-empty">No offers yet. Buyers see your listing in their NightBank.</div>'}</section>
+      <button type="button" class="oz-buy line" data-nw-close>Close the listing</button><div class="err" role="alert">${esc(ui.err)}</div>`;
   }
+  /* ----- Messages: the crew's burner chat ----- */
   function burnerView(s, me, ui) {
     const msgs = Object.values(N(s).chat || {}).sort((a, b) => a.at - b.at).slice(-60);
-    return `<div class="nw-card nw-chat">${msgs.map(m => `<div><span class="nw-k">${esc(wallTime(m.at))} ${esc(first(m.by).toLowerCase())}&gt;</span> ${esc(m.text)}</div>`).join('') || '<div class="nw-k">burner open. crew only. no logs.</div>'}</div>
-      <form class="nw-input" data-nw-form="chat"><span class="nw-hi">&gt;</span><input data-nw="chat" value="${esc(ui.chat)}" maxlength="240" placeholder="message the crew" aria-label="Message the crew"><button class="nw-btn" type="submit">SEND</button></form>`;
+    return `<div class="oz-msgs"><div class="oz-msgs-h"><span>${MARK(20)}</span><div><b>Crew chat</b><small>Only your crew can see this. Wiped at 23:59.</small></div></div>
+      ${msgs.map(m => { const mine = m.by === me.id; return `<div class="oz-m${mine ? ' me' : ''}">${mine ? '' : `<small>${esc(first(m.by))} · ${esc(wallTime(m.at))}</small>`}<p>${esc(m.text)}</p>${mine ? `<small>${esc(wallTime(m.at))}</small>` : ''}</div>`; }).join('') || '<div class="oz-empty" style="margin:auto;text-align:center">No messages yet. Say something to your crew.</div>'}</div>
+      <form class="oz-compose" data-nw-form="chat"><input data-nw="chat" value="${esc(ui.chat)}" maxlength="240" placeholder="Message your crew" aria-label="Message your crew" autocomplete="off"><button type="submit">Send</button></form>`;
   }
   function render(s, me, ui) {
-    const w = walletOf(me); if (!w) return '<div class="nw-card">No NIGHTWIRE account.</div>';
+    const w = walletOf(me); if (!w) return '<div class="oz nw"><div class="oz-sec">No Omnizon account.</div></div>';
+    const crew = me.group === 'crew', casinoOK = typeof Casino !== 'undefined' && Casino.allowed(me);
+    if (!['market', 'wallet', 'sale', 'burner', 'casino'].includes(ui.sub) || (!crew && (ui.sub === 'sale' || ui.sub === 'burner')) || (ui.sub === 'casino' && !casinoOK)) ui.sub = 'market';
+    const why = blockedWhy(s, me, w), hold = why ? holdBox(s, me, why) : '';
     /* the crew and Vivienne bet from their own wallet; the casino keeps its own look */
-    if (ui.sub === 'casino' && typeof Casino !== 'undefined' && Casino.allowed(me)) return `<div class="nw">${handleLine(s, me, w)}${subs(me, ui)}</div><div class="nb nb-casino nw-casino">${Casino.render(s, me, ui, w)}</div>`;
-    const body = ui.sub === 'wallet' ? walletView(s, me, ui) : ui.sub === 'sale' && me.group === 'crew' ? saleView(s, me, ui) : ui.sub === 'burner' && me.group === 'crew' ? burnerView(s, me, ui) : marketView(s, me, ui);
-    const why = blockedWhy(s, me, w);
-    return `<div class="nw">${handleLine(s, me, w)}${subs(me, ui)}${why ? `<div class="nw-card nw-lock"><b>! ${isOut(s, me.id) ? 'ACCESS REVOKED' : 'WALLET FROZEN'}</b><span>${esc(why)}</span></div>` : ''}${body}</div>`;
+    if (ui.sub === 'casino') return `<div class="oz nw">${band(s, me, ui, w)}${hold}</div><div class="nb nb-casino nw-casino">${Casino.render(s, me, ui, w)}</div>`;
+    const body = ui.sub === 'wallet' ? walletView(s, me, ui, w) : ui.sub === 'sale' ? saleView(s, me, ui) : ui.sub === 'burner' ? burnerView(s, me, ui)
+      : ui.view === 'checkout' ? checkoutView(s, me, ui, w) : ui.view === 'item' ? itemView(s, me, ui, w) : shopView(s, me, ui, w);
+    return `<div class="oz nw">${band(s, me, ui, w)}${hold}${body}${ui.sub === 'market' || ui.sub === 'wallet' ? FOOT : ''}</div>`;
+  }
+  /** live search: show and hide the product cards without redrawing under the typing */
+  function filterShop(q) {
+    const k = q.trim().toLowerCase(); let n = 0;
+    $$('[data-oz-q]').forEach(c => { const hit = !k || c.dataset.ozQ.includes(k); c.hidden = !hit; if (hit) n++; });
+    const cnt = $('[data-oz-count]'); if (cnt) cnt.textContent = n + (n === 1 ? ' result' : ' results');
+    const none = $('[data-oz-none]'); if (none) { none.hidden = n > 0; const b = none.querySelector('b'); if (b) b.textContent = 'No results' + (k ? ' for "' + q.trim() + '"' : ''); }
   }
 
   /* ---------- NightBank ----------
@@ -370,7 +508,7 @@ const NW = (() => {
     const m = String(v || '').trim().toLowerCase().replace(/[$,\s]/g, '').match(/^(\d*\.?\d+)([kmb])?$/);
     if (!m) return 0;
     const n = Number(m[1]) * ({ k: 1e3, m: 1e6, b: 1e9 }[m[2]] || 1);
-    return Number.isFinite(n) ? Math.round(n) : 0;
+    return Number.isFinite(n) ? cents(n) : 0;
   };
   /** Run by the host page with the clock: freed-up money arriving, loans going overdue. */
   function tick(s, u) {
@@ -399,7 +537,12 @@ const NW = (() => {
     const { me, ui } = ctx, q = sel => e.target.closest(sel); let el;
     const done = () => { ctx.redraw(true); return true; };
     const err = (key, m) => { say(ui, key, m); return done(); };
-    if ((el = q('[data-nw-sub]'))) { ui.sub = el.dataset.nwSub; ui.err = ''; return done(); }
+    if ((el = q('[data-nw-sub]'))) { ui.sub = el.dataset.nwSub; ui.err = ''; if (ui.sub === 'market') { ui.view = 'home'; ui.bought = null; } window.scrollTo(0, 0); return done(); }
+    /* Omnizon: categories, the product page, the checkout, back */
+    if ((el = q('[data-nw-cat]'))) { ui.cat = el.dataset.nwCat; return done(); }
+    if ((el = q('[data-nw-item]'))) { ui.view = 'item'; ui.item = el.dataset.nwItem; ui.bought = null; ui.err = ''; window.scrollTo(0, 0); return done(); }
+    if ((el = q('[data-nw-checkout]'))) { ui.view = 'checkout'; ui.item = el.dataset.nwCheckout; ui.err = ''; window.scrollTo(0, 0); return done(); }
+    if (q('[data-nw-back]')) { ui.view = ui.view === 'checkout' ? 'item' : 'home'; ui.bought = null; ui.err = ''; window.scrollTo(0, 0); return done(); }
     if ((el = q('[data-nb-sub]'))) { ui.bsub = el.dataset.nbSub; ui.err = ''; window.scrollTo(0, 0); return done(); }
     if (typeof Casino !== 'undefined' && (ui.bsub === 'casino' || ui.sub === 'casino') && Casino.onClick(e, ctx)) return true;
     if ((el = q('[data-nw-lq]'))) { ui.lend.amt = Number(el.dataset.nwLq).toLocaleString('en-US'); return done(); }
@@ -478,10 +621,11 @@ const NW = (() => {
     if ((el = q('[data-nw-buy]'))) {
       const it = (C().market || []).find(x => x.id === el.dataset.nwBuy), s = DB.fresh(), w = walletOf(me);
       if (!it || owns(s, w, it.id)) return true;
-      const why = blockedWhy(s, me, w); if (why) { ui.err = why; return done(); }
-      if (soldTo(s, it.id)) { ui.err = 'Sold. Someone else bought that file first.'; return done(); }
-      if (balance(s, w) < it.price) { ui.err = 'Insufficient funds.'; return done(); }
-      if (!Ask.sure(`Buy "${it.title}" for ${money(it.price)}?`, () => onClick(e, ctx))) return true;
+      const why = blockedWhy(s, me, w); if (why) return err('buy', why);
+      if (soldTo(s, it.id)) return err('buy', 'Sold. Someone else bought that file first.');
+      if (balance(s, w) < it.price) return err('buy', `Not enough in your wallet. You have ${money(balance(s, w))}.`);
+      /* the checkout's "Place your order" is the confirmation; anywhere else, ask first */
+      if (!el.dataset.nwNow && !Ask.sure(`Buy "${it.title}" for ${money(it.price)}?`, () => onClick(e, ctx))) return true;
       spend(w, it.price, s2 => {
         if (owns(s2, w, it.id) || soldTo(s2, it.id)) return null;
         const u = { ['nw/tx/' + uid('t')]: { from: w, to: 'market', amt: it.price, memo: it.title, by: me.id, at: Date.now(), item: it.id }, ['nw/bought/' + w + '/' + it.id]: { by: me.id, at: Date.now() } };
@@ -489,8 +633,8 @@ const NW = (() => {
         if (it.clue && !(s2.clues && s2.clues[it.clue])) { u['clues/' + it.clue] = { at: Date.now(), by: 'NIGHTWIRE' }; Clock.log(u, 'nightwire', `Evidence ${it.clue} bought on NIGHTWIRE.`); }
         alertWallet(u, w, 'NIGHTWIRE', `${me.name.split(' ')[0]} bought "${it.title}". It's in the market tab.`, me.id);
         return u;
-      }).then(ok => { if (!ok) { ui.err = soldTo(DB.get(), it.id) ? 'Sold. Someone else bought that file first.' : 'Insufficient funds.'; ui.open = null; ctx.redraw(true); } });
-      ui.open = it.id; fresh(ui, it.id); ui.err = ''; return done();
+      }).then(ok => { if (!ok) { say(ui, 'buy', soldTo(DB.get(), it.id) ? 'Sold. Someone else bought that file first.' : 'Not enough in your wallet any more (someone on your account spent first).'); ui.open = null; ui.bought = null; ctx.redraw(true); } });
+      ui.open = it.id; ui.item = it.id; ui.view = 'item'; ui.bought = it.id; fresh(ui, it.id); ui.err = ''; window.scrollTo(0, 0); return done();
     }
     if ((el = q('[data-nw-addpitch]'))) {
       const s = DB.fresh(), sale = N(s).sale; if (!sale) return true;
@@ -519,8 +663,9 @@ const NW = (() => {
   }
   function onInput(e, ctx) {
     const el = e.target, ui = ctx.ui, k = el.dataset && el.dataset.nw;
-    if (typeof Casino !== 'undefined' && ui.bsub === 'casino' && Casino.onInput(e, ctx)) return true;
+    if (typeof Casino !== 'undefined' && (ui.bsub === 'casino' || ui.sub === 'casino') && Casino.onInput(e, ctx)) return true;
     if (!k) return false;
+    if (k === 'q') { ui.q = el.value; filterShop(ui.q); return true; }
     if (k === 'amt' || k === 'memo' || k === 'handle') ui.send[k] = el.value; else if (k === 'bid') ui.bid = el.value; else if (k === 'ask') ui.ask = el.value; else if (k === 'chat') ui.chat = el.value;
     else if (k === 'lamt' || k === 'lrate') {
       if (k === 'lamt') ui.lend.amt = el.value; else ui.lend.rate = Number(el.value);
@@ -545,6 +690,7 @@ const NW = (() => {
     e.preventDefault();
     const { me, ui } = ctx, kind = f.dataset.nwForm, w = walletOf(me), s = DB.fresh();
     const fail = m => { say(ui, kind, m); ctx.redraw(true); return true; }, ok = () => { ui.err = ''; if (document.activeElement) document.activeElement.blur(); ctx.redraw(true); return true; };
+    if (kind === 'search') { if (document.activeElement) document.activeElement.blur(); return true; }
     if (kind === 'send') {
       const amt = amount(ui.send.amt), to = ui.send.to;
       if (!to) return fail('Choose who to send to.');
@@ -604,7 +750,7 @@ const NW = (() => {
     }
     if (kind === 'unfreeze') {
       if (!(C().unfreezers || []).includes(me.id) || (N(s).unfroze || {})[me.id]) return true;
-      const t = ui.unf; if (!t || !frozen(s, t)) { ui.err = 'Choose a frozen account.'; ctx.redraw(true); return true; }
+      const t = ui.unf; if (!t || !frozen(s, t)) return fail('Choose a frozen wallet.');
       if (!Ask.sure(`Unfreeze ${wname(t)}? You can only do this once tonight.`, () => onSubmit(e, ctx))) return true;
       const u = { ['nw/unfroze/' + me.id]: { w: t, at: Date.now() } }; unfreeze(u, t, null, true);
       Clock.log(u, 'nightwire', `${me.name} hacked NightBank and unfroze ${wname(t)}.`);
@@ -619,5 +765,6 @@ const NW = (() => {
   }
 
   return { newUI, render, renderBank, onClick, onInput, onChange, onSubmit, walletOf, wname, balance, spend, publish, sees, txs, money, amount, pendingState, wallets: W, membersOf,
-    tick, arriveNow, freeze, unfreeze, frozen, isOut, blockedWhy, fuCfg, fuOf, fuReady, loans, isLate, nightNow, bname, FROZE, phaseIdx, cfg: C };
+    tick, arriveNow, freeze, unfreeze, frozen, isOut, blockedWhy, fuCfg, fuOf, fuReady, loans, isLate, nightNow, bname, FROZE, phaseIdx, cfg: C,
+    brand: { mark: MARK, word: WORD } };
 })();

@@ -1217,3 +1217,9 @@ body[data-world="gala"] .ask-btns .btn.primary { background: #1d1912; color: #f2
 .ds-nightwire .ds-stamp { border-color: var(--danger); color: var(--danger); mix-blend-mode: normal; }
 .ds-nightwire .ds-sec.secret { box-shadow: inset 3px 0 0 var(--danger); } .ds-nightwire .ds-sec.secret h3, .ds-nightwire .ds-jump.secret { color: var(--danger); }
 @media (prefers-reduced-motion: reduce) { .ds-cover, .ds-stamp { animation: none; } }
+/* Bebbit up/down votes (Nov 24): one pill with the score between the arrows */
+.bb-votes { display: inline-flex; align-items: center; gap: 2px; border-radius: 999px; background: var(--bg); }
+.bb-votes .bb-act { padding: 0 10px; background: transparent; }
+.bb-votes .bb-act[aria-pressed="true"] { background: linear-gradient(135deg, #7a5cff, #5b3fd6); color: #fff; }
+.bb-votes .bb-down[aria-pressed="true"] { background: linear-gradient(135deg, #5d6b8a, #3b4663); box-shadow: none; }
+.bb-score { min-width: 18px; text-align: center; font-size: 13px; }

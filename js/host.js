@@ -392,20 +392,21 @@
   }
   function bebList(s) {
     const all = Bebbit.list(s).sort((a, b) => b.at - a.at);
-    const ps = all.filter(p => hb.show === 'all' || (hb.show === 'flag' && (p.deleted || p.hacked)) || (hb.show === 'photo' && p.photo));
+    const ps = all.filter(p => hb.show === 'all' || (hb.show === 'flag' && (p.deleted || p.hacked || Bebbit.buried(s, p))) || (hb.show === 'photo' && p.photo));
     const fb = (k, l) => `<button class="btn small ghost seg-btn" data-bshow="${k}" aria-pressed="${hb.show === k}">${l}</button>`;
-    return panel(`Every post · ${all.length}`, `<span class="filters">${fb('all', 'All')}${fb('photo', 'Photos')}${fb('flag', 'Removed or disguised')}</span>`,
+    return panel(`Every post · ${all.length}`, `<span class="filters">${fb('all', 'All')}${fb('photo', 'Photos')}${fb('flag', 'Removed, hidden or disguised')}</span>`,
       ps.map(p => {
         const a = Bebbit.who(p.by), r = Bebbit.who(p.real), img = Bebbit.safeImg(p.photo), tr = s.beb.traces && s.beb.traces[p.id];
-        const flags = [p.plant ? '<span class="chip">planted</span>' : '', p.hacked ? `<span class="chip bad">disguised · really ${esc(r.name)}</span>` : '', p.deleted ? `<span class="chip warn">removed by ${esc(G.byId(p.deleted.by) ? G.byId(p.deleted.by).name.split(' ')[0] : 'host')}</span>` : '', tr ? `<span class="chip">traced by ${esc(G.byId(tr.by).name.split(' ')[0])}</span>` : ''].join(' ');
+        const flags = [p.plant ? '<span class="chip">planted</span>' : '', p.hacked ? `<span class="chip bad">disguised · really ${esc(r.name)}</span>` : '', p.deleted ? `<span class="chip warn">removed by ${esc(G.byId(p.deleted.by) ? G.byId(p.deleted.by).name.split(' ')[0] : 'host')}</span>` : '', Bebbit.buried(s, p) ? `<span class="chip warn">hidden by ${Bebbit.downs(s, p.id)} downvotes · players can't see it</span>` : '', p.keep ? '<span class="chip">shown again by the host</span>' : '', tr ? `<span class="chip">traced by ${esc(G.byId(tr.by).name.split(' ')[0])}</span>` : ''].join(' ');
         return `<div class="post ${p.deleted ? 'gone' : ''}">
           <span class="t mono">${esc(wallTime(p.at))}</span>
           <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:6px">
             <div><b>${esc(Bebbit.shown(a))}</b> ${flags}</div>
             ${p.text ? `<div>${esc(p.text)}</div>` : ''}${img ? `<img src="${esc(img)}" alt="" style="max-width:220px;border-radius:10px">` : ''}
-            <div class="mute" style="font-size:12px">${Bebbit.nVotes(s, p.id)} votes · ${Bebbit.comments(s, p.id).length} comments${(p.tags || []).length ? ' · with ' + p.tags.map(t => esc(G.byId(t).name)).join(', ') : ''}</div>
+            <div class="mute" style="font-size:12px">${Bebbit.ups(s, p.id)} up · ${Bebbit.downs(s, p.id)} down · ${Bebbit.comments(s, p.id).length} comments${(p.tags || []).length ? ' · with ' + p.tags.map(t => esc(G.byId(t).name)).join(', ') : ''}</div>
           </div>
-          <button class="btn small ${p.deleted ? '' : 'ghost'}" data-bdel="${p.id}">${p.deleted ? 'Restore' : 'Remove'}</button></div>`;
+          <div style="display:flex;flex-direction:column;gap:6px">${Bebbit.buried(s, p) ? `<button class="btn small" data-bkeep="${p.id}">Show again</button>` : ''}
+          <button class="btn small ${p.deleted ? '' : 'ghost'}" data-bdel="${p.id}">${p.deleted ? 'Restore' : 'Remove'}</button></div></div>`;
       }).join('') || '<div class="empty">No posts yet.</div>');
   }
 
@@ -786,6 +787,11 @@
     }
     if (q('[data-act="rvcsv"]')) return rsvpCSV();
     if ((t = q('[data-bshow]'))) { hb.show = t.dataset.bshow; return render(); }
+    if ((t = q('[data-bkeep]'))) {
+      const id = t.dataset.bkeep, p = DB.get().beb.posts[id], u = { ['beb/posts/' + id + '/keep']: true };
+      Clock.log(u, 'host', 'Showed a Bebbit post again (it had been hidden by downvotes): ' + Bebbit.shown(Bebbit.who(p.by)) + '.');
+      DB.update(u); toast('Post is visible to everyone again'); return render();
+    }
     if ((t = q('[data-bdel]'))) {
       const id = t.dataset.bdel, p = DB.get().beb.posts[id], u = {};
       u['beb/posts/' + id + '/deleted'] = p.deleted ? null : { by: 'host', at: Date.now() };
