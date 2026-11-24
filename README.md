@@ -14,7 +14,7 @@ downloads what it may see (public, its group's, its own). On `localhost` the sit
 | `index.html` | **The invitation**, the page everyone sees first: the rules of the night, when and where, and the reply card. From here, players go through to the gala door |
 | `gala/` | The gala door (the engraved card where players type their code word) |
 | `fbi/`, `bebbit/`, `nightwire/` | The three disguised doors. Any code word works at any door |
-| `app.html` | The player app (FBI Headquarters, Bebbit or NIGHTWIRE, with NightBank, the casino and "My file") |
+| `app.html` | The player app (FBI Headquarters, Bebbit or NIGHTWIRE, with NightBank, the casino and "My file"). NIGHTWIRE is disguised as **Omnizon, a Nightwire company**: an ordinary-looking online store (shop, product page, checkout, wallet, Seller Central, crew messages) |
 | `host.html` | The host terminal |
 | `rsvp.html` | Old link only: it forwards to the invitation |
 | `print.html` | Print the evidence (host only): every clue with its FBI tag and QR code |
@@ -29,7 +29,7 @@ downloads what it may see (public, its group's, its own). On `localhost` the sit
 | `settings/public.js` | What a page knows before anyone signs in |
 | `settings/config.js` | The title, the event details on the invitation, and where data is saved |
 | `js/boot.js` | Unlocks the story with the phone's code word, then starts the page |
-| `css/` | The look: `invite.css` (the invitation), `theme.css` (the five worlds), `fx.css` (animations, doors, NightBank, casino, dossiers), `host.css`, `vote.css`, `bigscreen.css`, `revealart.css`, `printables.css` |
+| `css/` | The look: `invite.css` (the invitation), `theme.css` (the five worlds), `fx.css` (animations, doors, NightBank, casino, dossiers), `host.css`, `vote.css`, `bigscreen.css`, `revealart.css`, `printables.css`, `omnizon.css` (NIGHTWIRE's store look and its sign-in page) |
 | `js/` | The code: `core.js` (sync, sign-in and clock), `invite.js`, `door.js`, `app.js`, `host.js`, `bebbit.js`, `fbi.js`, `nightwire.js`, `casino.js`, `dossier.js`, `games.js`, `vote.js`, `reveal.js`, `bigscreen.js`, `art.js`, `evdoc.js`, `print.js`, `scan.js`, `tap.js`, `printables.js`, `books.js` |
 
 ## The story is locked
