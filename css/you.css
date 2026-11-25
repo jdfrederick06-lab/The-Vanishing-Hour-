@@ -9,7 +9,8 @@ body { margin: 0; min-height: 100vh; overflow-x: hidden; color: #f1e8d6; backgro
   background-image: radial-gradient(ellipse 90% 60% at 50% 0%, #3d2a2c 0%, transparent 70%), radial-gradient(ellipse 140% 90% at 50% 120%, #140c0d 0%, transparent 60%); background-attachment: fixed; }
 body::before { content: ''; position: fixed; inset: 0; pointer-events: none; opacity: .35; z-index: 0;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.7' numOctaves='2'/%3E%3CfeColorMatrix values='0 0 0 0 .5 0 0 0 0 .4 0 0 0 0 .4 0 0 0 .18 0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E"); }
-.iv-wrap { position: relative; z-index: 1; min-height: 100vh; min-height: 100dvh; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; gap: 18px; padding: max(5vh, 24px) 16px 28px; }
+html { overflow-x: hidden; }
+.iv-wrap { overflow-x: clip; position: relative; z-index: 1; min-height: 100vh; min-height: 100dvh; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; gap: 18px; padding: max(5vh, 24px) 16px 28px; }
 
 /* ---------- the heading over the frame ---------- */
 .iv-top { text-align: center; max-width: 460px; }
@@ -25,7 +26,7 @@ body::before { content: ''; position: fixed; inset: 0; pointer-events: none; opa
 .iv-lamp::before { content: ''; position: absolute; left: 50%; top: 10px; width: 4px; height: 12px; margin-left: -2px; background: linear-gradient(90deg, #6d5118, #e0c078, #6d5118); }
 .iv-lamp i { position: absolute; left: 50%; top: 8px; width: 560px; max-width: 100vw; height: 520px; transform: translateX(-50%); pointer-events: none; z-index: -1;
   background: radial-gradient(ellipse 42% 60% at 50% 0%, rgba(255,228,170,.30), rgba(255,228,170,.08) 55%, transparent 75%); opacity: .55; transition: opacity 1.4s ease; }
-.iv-wall:not(.veiled) .iv-lamp i, .iv-wall.lifting .iv-lamp i { opacity: 1; }
+.iv-wall:not(.veiled) .iv-lamp i, .iv-wall.opening .iv-lamp i { opacity: 1; }
 
 .iv-frame { position: relative; z-index: 1; width: min(88vw, 400px); box-sizing: border-box; padding: 17px; overflow: hidden;
   background: linear-gradient(135deg, #6f5019 0%, #e6c677 14%, #a37b2c 28%, #f3dc98 44%, #8d6823 58%, #dcb962 74%, #7a5a1e 90%, #c9a352 100%);
@@ -51,22 +52,6 @@ body::before { content: ''; position: fixed; inset: 0; pointer-events: none; opa
 .iv-when dd { margin: 0; font: 500 15px/1.3 'Cormorant Garamond', 'Fraunces', Georgia, serif; color: var(--ink); }
 
 /* the velvet drape */
-.iv-drape { position: absolute; z-index: 5; inset: 9px; border: 0; padding: 0; cursor: pointer; transform-origin: 50% 0;
-  border-radius: 1px; box-shadow: inset 0 8px 14px -6px rgba(0,0,0,.6), 0 2px 6px rgba(0,0,0,.4);
-  background: linear-gradient(180deg, rgba(0,0,0,.25), transparent 18%, transparent 70%, rgba(0,0,0,.35)),
-    repeating-linear-gradient(90deg, #4c0c15 0, #7b1a26 9px, #9a2a36 15px, #7b1a26 21px, #4c0c15 30px);
-  transition: transform 1.5s cubic-bezier(.7,0,.25,1), opacity .4s ease 1.2s; }
-.iv-drape::before { content: ''; position: absolute; inset: 0; border-radius: inherit; background: radial-gradient(ellipse 70% 40% at 50% 0%, rgba(255,210,190,.14), transparent 70%); }
-.iv-drape:focus-visible { outline: 2px solid var(--gold2); outline-offset: 6px; }
-.iv-cord { position: absolute; left: 0; right: 0; top: 46%; height: 7px; border-radius: 4px; background: repeating-linear-gradient(60deg, #8a6420 0 3px, #f2d78f 3px 6px, #b08a3a 6px 9px); box-shadow: 0 3px 6px rgba(0,0,0,.5); }
-.iv-cord i { position: absolute; left: 50%; top: -6px; width: 20px; height: 20px; margin-left: -10px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #fbe6a8, #c49a45 55%, #6d5118); box-shadow: 0 3px 6px rgba(0,0,0,.5); }
-.iv-cord i::after { content: ''; position: absolute; left: 50%; top: 16px; width: 16px; height: 46px; margin-left: -8px; border-radius: 3px 3px 8px 8px;
-  background: repeating-linear-gradient(90deg, #9c7630 0 2px, #f0d48a 2px 3px, #b48c3c 3px 5px); transform-origin: 50% 0; animation: ivSway 3.6s ease-in-out infinite; }
-@keyframes ivSway { 50% { transform: rotate(4deg); } }
-.iv-wall.veiled .iv-drape:hover .iv-cord i::after { animation-duration: 1.2s; }
-.iv-wall:not(.veiled) .iv-drape, .iv-wall.lifting .iv-drape { transform: translateY(-104%) scaleY(.35); opacity: 0; pointer-events: none; }
-.iv-wall.covering .iv-drape, .iv-wall.covered .iv-drape { transform: none; opacity: 1; transition: transform .85s cubic-bezier(.5,0,.3,1), opacity .15s; }
-.iv-wall.covered .iv-drape { transition: none; }
 
 /* ---------- under the frame ---------- */
 .iv-below { width: min(88vw, 400px); display: flex; flex-direction: column; align-items: center; gap: 12px; }
@@ -121,15 +106,6 @@ textarea.iv-field { min-height: 92px; resize: vertical; }
 .iv-check circle { stroke-dasharray: 152; stroke-dashoffset: 152; animation: ivDraw .8s .1s ease forwards; }
 .iv-check path { stroke-dasharray: 40; stroke-dashoffset: 40; animation: ivDraw .5s .8s ease forwards; }
 @keyframes ivDraw { to { stroke-dashoffset: 0; } }
-.iv-notes { padding: 0; gap: 0; display: block; }
-.iv-notes summary { list-style: none; cursor: pointer; padding: 16px 48px 16px 18px; display: flex; flex-direction: column; gap: 2px; text-align: left; }
-.iv-notes summary::-webkit-details-marker { display: none; }
-.iv-notes summary::after { content: '+'; position: absolute; right: 18px; top: 22px; font: 400 22px/1 Inter, sans-serif; color: var(--gold); }
-.iv-notes[open] summary::after { content: '–'; }
-.iv-notes .iv-kick { text-align: left; }
-.iv-sum { font-size: 13.5px; color: #a99c83; }
-.iv-notes > :not(summary) { margin: 0 18px 12px; }
-.iv-notes > :last-child { margin-bottom: 18px; }
 .iv-sentlist { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 8px; }
 .iv-sentlist li { padding: 9px 12px; border-left: 2px solid var(--gold3); background: rgba(214,176,98,.06); border-radius: 0 8px 8px 0; font-size: 13.5px; color: #d9cdb5; white-space: pre-wrap; }
 .iv-sentlist time { display: block; margin-bottom: 2px; font: 600 10px 'Cinzel', serif; letter-spacing: .18em; text-transform: uppercase; color: var(--gold3); }
@@ -143,7 +119,77 @@ textarea.iv-field { min-height: 92px; resize: vertical; }
   .iv-check circle, .iv-check path { animation: none; stroke-dashoffset: 0; }
 }
 /* while veiled, the frame holds only the painting; the invitation unfolds on the mat after the unveiling */
-.iv-wall.veiled .iv-mat-text, .iv-wall.lifting .iv-mat-text { display: none; }
+.iv-wall.veiled .iv-mat-text, .iv-wall.opening .iv-mat-text { display: none; }
 .iv-wall.invite .iv-mat-text { animation: ivUnfold 1.3s .2s cubic-bezier(.2,.8,.2,1) both; overflow: hidden; }
 @keyframes ivUnfold { from { max-height: 0; opacity: 0; padding-top: 0; } 60% { opacity: 0; } to { max-height: 900px; opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .iv-wall.invite .iv-mat-text { animation: none; } }
+
+/* ---------- the curtains (Nov 25, v4: "grander, and not going up") ----------
+   Two heavy velvet panels inside the frame. Unveiling: the cord drops, the panels sweep apart and
+   gather at the sides like tied-back theatre curtains, a flash of light and gold sparks, then they fade. */
+.iv-drape { position: absolute; z-index: 5; inset: 9px; border: 0; padding: 0; background: none; cursor: pointer; perspective: 900px; }
+.iv-drape:focus-visible { outline: 2px solid var(--gold2); outline-offset: 6px; }
+.iv-panel { position: absolute; top: -2px; bottom: -2px; width: 51%; pointer-events: none;
+  background: linear-gradient(180deg, rgba(255,200,190,.10), transparent 22%, transparent 72%, rgba(0,0,0,.4)),
+    repeating-linear-gradient(90deg, #4a0b14 0, #7a1a26 8px, #a12d3a 13px, #7a1a26 19px, #4a0b14 27px);
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%);
+  transition: transform 1.9s cubic-bezier(.62,0,.18,1), clip-path 1.9s cubic-bezier(.62,0,.18,1), filter 1.9s, opacity .7s ease 1.9s; }
+.iv-panel.l { left: 0; transform-origin: 0 50%; box-shadow: inset -14px 0 18px -10px rgba(0,0,0,.7); }
+.iv-panel.r { right: 0; transform-origin: 100% 50%; box-shadow: inset 14px 0 18px -10px rgba(0,0,0,.7); }
+.iv-panel::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 10px; background: repeating-linear-gradient(90deg, #c49a45 0 2px, #f0d48a 2px 3px, #8a6420 3px 5px); opacity: .85; }
+.iv-cord { position: absolute; left: 0; right: 0; top: 46%; height: 7px; border-radius: 4px; z-index: 2; background: repeating-linear-gradient(60deg, #8a6420 0 3px, #f2d78f 3px 6px, #b08a3a 6px 9px); box-shadow: 0 3px 6px rgba(0,0,0,.5); transition: transform .6s cubic-bezier(.5,0,.8,.4), opacity .5s .2s; }
+.iv-cord i { position: absolute; left: 50%; top: -6px; width: 20px; height: 20px; margin-left: -10px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #fbe6a8, #c49a45 55%, #6d5118); box-shadow: 0 3px 6px rgba(0,0,0,.5); }
+.iv-cord i::after { content: ''; position: absolute; left: 50%; top: 16px; width: 16px; height: 46px; margin-left: -8px; border-radius: 3px 3px 8px 8px;
+  background: repeating-linear-gradient(90deg, #9c7630 0 2px, #f0d48a 2px 3px, #b48c3c 3px 5px); transform-origin: 50% 0; animation: ivSway 3.6s ease-in-out infinite; }
+@keyframes ivSway { 50% { transform: rotate(4deg); } }
+.iv-wall.veiled:not(.opening) .iv-drape:hover .iv-panel.l { transform: translateX(-4px); transition-duration: .5s; }
+.iv-wall.veiled:not(.opening) .iv-drape:hover .iv-panel.r { transform: translateX(4px); transition-duration: .5s; }
+/* open: gathered at the sides and swagged, then gone */
+.iv-wall.opening .iv-cord, .iv-wall:not(.veiled) .iv-cord { transform: translateY(70px) rotate(8deg); opacity: 0; }
+.iv-wall.opening .iv-panel, .iv-wall:not(.veiled) .iv-panel { transition-delay: .35s, .35s, .35s, 2s; filter: brightness(.8); }
+.iv-wall.opening .iv-panel.l, .iv-wall:not(.veiled) .iv-panel.l { transform: scaleX(.2) skewY(2deg); clip-path: polygon(0 0, 100% 0, 46% 100%, 0 100%); }
+.iv-wall.opening .iv-panel.r, .iv-wall:not(.veiled) .iv-panel.r { transform: scaleX(.2) skewY(-2deg); clip-path: polygon(0 0, 100% 0, 100% 100%, 54% 100%); }
+.iv-wall:not(.veiled):not(.opening) .iv-panel { opacity: 0; }
+.iv-wall:not(.veiled) .iv-drape { pointer-events: none; }
+/* swapping pieces: the curtains sweep closed, then part again */
+.iv-wall.covering:not(.veiled):not(.opening) .iv-panel.l, .iv-wall.covering:not(.veiled):not(.opening) .iv-panel.r, .iv-wall.covered:not(.veiled):not(.opening) .iv-panel.l, .iv-wall.covered:not(.veiled):not(.opening) .iv-panel.r { transform: none; clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%); opacity: 1; filter: none; transition: transform 1.2s cubic-bezier(.55,0,.25,1), clip-path 1.2s cubic-bezier(.55,0,.25,1), filter 1.2s, opacity .3s; }
+.iv-wall.covered:not(.veiled):not(.opening) .iv-panel.l, .iv-wall.covered:not(.veiled):not(.opening) .iv-panel.r { transition: none; }
+/* the moment of reveal: light washes over the canvas, sparks fly */
+.iv-sparks { position: absolute; left: 50%; top: 45%; width: 0; height: 0; z-index: 6; pointer-events: none; }
+.iv-sparks i { position: absolute; width: var(--s); height: var(--s); border-radius: 50%; background: radial-gradient(circle, #fffbe6, #f3d27a 45%, rgba(214,176,98,0) 70%); box-shadow: 0 0 8px 2px rgba(255,214,130,.6);
+  opacity: 0; animation: ivSpark 1.7s cubic-bezier(.15,.7,.3,1) both; }
+@keyframes ivSpark { 10% { opacity: 1; } 70% { opacity: .9; } to { opacity: 0; transform: translate(var(--dx), calc(var(--dy) + 60px)) scale(.4); } }
+.iv-flash { position: absolute; left: -220px; top: -220px; width: 440px; height: 440px; border-radius: 50%; background: radial-gradient(circle, rgba(255,240,200,.55), rgba(255,220,150,.18) 40%, transparent 70%); animation: ivFlash 1.6s ease-out both; }
+@keyframes ivFlash { from { opacity: 0; transform: scale(.4); } 25% { opacity: 1; } to { opacity: 0; transform: scale(1.4); } }
+
+/* ---------- the room: drifting gala lights, dust in the beam, a breathing light ---------- */
+.iv-bokeh { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
+.iv-bokeh i { position: absolute; width: var(--d); height: var(--d); border-radius: 50%; opacity: var(--o); filter: blur(10px);
+  background: radial-gradient(circle, hsla(var(--h), 85%, 72%, .9), hsla(var(--h), 80%, 60%, .25) 55%, transparent 70%);
+  animation-name: ivDrift, ivTwinkle; animation-timing-function: ease-in-out; animation-iteration-count: infinite; animation-direction: alternate; }
+@keyframes ivDrift { to { transform: translate(60px, -80px) scale(1.15); } }
+@keyframes ivTwinkle { 50% { opacity: calc(var(--o) * .4); } }
+.iv-motes { position: absolute; left: 50%; top: 14px; width: 340px; max-width: 92vw; height: 460px; transform: translateX(-50%); z-index: 2; pointer-events: none;
+  -webkit-mask-image: radial-gradient(ellipse 45% 70% at 50% 0%, #000 30%, transparent 75%); mask-image: radial-gradient(ellipse 45% 70% at 50% 0%, #000 30%, transparent 75%); }
+.iv-motes i { position: absolute; width: var(--s); height: var(--s); border-radius: 50%; background: rgba(255,236,190,.9); box-shadow: 0 0 6px rgba(255,220,150,.8); opacity: 0; animation: ivMote ease-in-out infinite; }
+@keyframes ivMote { 20%, 80% { opacity: .75; } 50% { transform: translate(var(--x), var(--y)); opacity: .4; } }
+.iv-lamp i { animation: ivBreathe 7s ease-in-out infinite; }
+@keyframes ivBreathe { 50% { filter: brightness(1.18); } }
+
+/* ---------- a note to the host (folds open) ---------- */
+.iv-notes { display: block; padding: 0; }
+.iv-notes summary { list-style: none; cursor: pointer; position: relative; display: block; padding: 16px 52px 16px 18px; text-align: left; }
+.iv-notes summary::-webkit-details-marker { display: none; }
+.iv-notes summary .iv-kick { text-align: left; }
+.iv-notes summary::after { content: '+'; position: absolute; right: 18px; top: 50%; margin-top: -12px; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; font: 400 18px/1 Inter, sans-serif; color: var(--gold); box-shadow: inset 0 0 0 1px rgba(214,176,98,.5); }
+.iv-notes[open] summary::after { content: '–'; }
+.iv-sum { display: block; margin-top: 2px; font-size: 13.5px; color: #a99c83; }
+.iv-nbody { display: flex; flex-direction: column; gap: 10px; padding: 0 18px 18px; }
+.iv-nbody .iv-field { margin: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  .iv-panel, .iv-cord { transition: none !important; }
+  .iv-bokeh, .iv-motes, .iv-sparks { display: none; }
+  .iv-lamp i { animation: none; }
+}
+.iv-nbody p { font-size: 14px; color: #bfb39a; }

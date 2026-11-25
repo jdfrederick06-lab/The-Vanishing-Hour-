@@ -157,11 +157,11 @@
   /* always there: a note to the host */
   function notes() {
     const mine = HostNote.mine(ME.id);
-    return `<details class="iv-reply iv-notes"${sentNote || mine.length ? ' open' : ''}><summary><span class="iv-kick">A note to the host</span><span class="iv-sum">Questions, a costume idea, anything at all</span></summary>
+    return `<details class="iv-reply iv-notes"${sentNote || mine.length ? ' open' : ''}><summary><span class="iv-kick">A note to the host</span><span class="iv-sum">Questions, ideas, anything at all</span></summary><div class="iv-nbody">
       <p>Only the hosts read it. You can send one from your phone all night, too.</p>
       <textarea class="iv-field" id="hn" maxlength="500" placeholder="Write a note"></textarea>
       <div class="iv-row"><button type="button" class="iv-btn iv-quiet" data-a="note">Send to the host</button>${sentNote ? '<span class="iv-sent">✓ Sent</span>' : ''}</div>
-      ${mine.length ? `<ul class="iv-sentlist" aria-label="Notes you've sent">${mine.slice(0, 5).map(n => `<li><time>${esc(new Date(n.at).toLocaleDateString([], { month: 'short', day: 'numeric' }))}</time>${esc(n.text)}</li>`).join('')}</ul>` : ''}</details>`;
+      ${mine.length ? `<ul class="iv-sentlist" aria-label="Notes you've sent">${mine.slice(0, 5).map(n => `<li><time>${esc(new Date(n.at).toLocaleDateString([], { month: 'short', day: 'numeric' }))}</time>${esc(n.text)}</li>`).join('')}</ul>` : ''}</div></details>`;
   }
 
   /* the page. step: veiled > invite > portrait */
@@ -176,14 +176,25 @@
     if (step === 'invite') return `<button type="button" class="iv-btn" data-a="turn">Who you'll be tonight <span aria-hidden="true">→</span></button>`;
     return label() + `<button type="button" class="iv-link" data-a="unturn">← See the invitation again</button>`;
   }
+  /* the room behind it all: out-of-focus gala lights drifting, dust turning in the picture light */
+  const R = (a, b) => (a + Math.random() * (b - a)).toFixed(1);
+  const ambience = () => calm ? '' : `<div class="iv-bokeh" aria-hidden="true">${Array.from({ length: 14 }, (_, k) => `<i style="left:${R(-5, 95)}%;top:${R(-5, 95)}%;--d:${R(70, 190)}px;--o:${R(.05, .16)};--h:${k % 3 ? '42' : '350'};animation-duration:${R(22, 44)}s,${R(5, 11)}s;animation-delay:-${R(0, 40)}s,-${R(0, 10)}s"></i>`).join('')}</div>`;
+  const motes = () => calm ? '' : `<div class="iv-motes" aria-hidden="true">${Array.from({ length: 22 }, () => `<i style="left:${R(20, 80)}%;top:${R(4, 90)}%;--s:${R(1.5, 3.5)}px;animation-duration:${R(9, 18)}s;animation-delay:-${R(0, 18)}s;--x:${R(-26, 26)}px;--y:${R(-40, 40)}px"></i>`).join('')}</div>`;
+  /* gold sparks thrown off when the curtains part */
+  function sparks() {
+    if (calm) return; const w = $('#wall'); if (!w) return;
+    const b = document.createElement('div'); b.className = 'iv-sparks'; b.setAttribute('aria-hidden', 'true');
+    b.innerHTML = Array.from({ length: 34 }, () => { const a = Math.random() * Math.PI * 2, r = 90 + Math.random() * 170; return `<i style="--dx:${(Math.cos(a) * r).toFixed(0)}px;--dy:${(Math.sin(a) * r * .8 - 30).toFixed(0)}px;--s:${R(2, 5)}px;animation-delay:${R(0, .25)}s"></i>`; }).join('') + '<b class="iv-flash"></b>';
+    w.appendChild(b); setTimeout(() => b.remove(), 2600);
+  }
   function stage(step) {
-    root.innerHTML = `<main class="iv-wrap">
+    root.innerHTML = `${ambience()}<main class="iv-wrap">
       <header class="iv-top" id="top">${heading(step)}</header>
       <div class="iv-wall ${step}" id="wall">
-        <div class="iv-lamp" aria-hidden="true"><i></i></div>
+        <div class="iv-lamp" aria-hidden="true"><i></i></div>${motes()}
         <div class="iv-frame" id="frame">
           <div class="iv-mat" id="mat">${framed(step === 'portrait' ? 'portrait' : 'invite')}</div>
-          <button type="button" class="iv-drape" id="drape" aria-label="Unveil your invitation" ${step === 'veiled' ? '' : 'tabindex="-1" aria-hidden="true"'}><span class="iv-cord" aria-hidden="true"><i></i></span></button>
+          <button type="button" class="iv-drape" id="drape" aria-label="Unveil your invitation" ${step === 'veiled' ? '' : 'tabindex="-1" aria-hidden="true"'}><span class="iv-panel l"></span><span class="iv-panel r"></span><span class="iv-cord" aria-hidden="true"><i></i></span></button>
         </div>
       </div>
       <div class="iv-below" id="below">${below(step)}</div>
@@ -199,18 +210,18 @@
   function unveil() {
     const w = $('#wall'); if (busy || !w || !w.classList.contains('veiled')) return;
     busy = true; if (!prof().opened) save({ opened: Date.now() });
-    w.classList.add('lifting');
-    setTimeout(() => { set('invite'); const d = $('#drape'); d.tabIndex = -1; d.setAttribute('aria-hidden', 'true'); $('.iv-copy').insertAdjacentHTML('afterbegin', '<button type="button" class="iv-link" data-a="replay">Replay the unveiling</button><br>'); busy = false; }, calm ? 0 : 1700);
+    /* the cord falls, the two velvet panels sweep apart and gather at the sides, light and sparks */
+    w.classList.add('opening'); setTimeout(sparks, calm ? 0 : 700);
+    setTimeout(() => { set('invite'); const d = $('#drape'); d.tabIndex = -1; d.setAttribute('aria-hidden', 'true'); $('.iv-copy').insertAdjacentHTML('afterbegin', '<button type="button" class="iv-link" data-a="replay">Replay the unveiling</button><br>'); busy = false; }, calm ? 0 : 2600);
   }
-  /* the drape comes down over the frame, the piece changes, and it lifts again */
+  /* the curtains sweep closed over the frame, the piece changes, and they part again */
   function swap(to) {
     const w = $('#wall'); if (busy || !w) return; busy = true;
     w.classList.add('covering');
     setTimeout(() => {
-      /* swap what's in the frame while the drape hides it, then lift the drape */
       $('#mat').innerHTML = framed(to === 'portrait' ? 'portrait' : 'invite'); set(to); w.classList.add('covered');
-      setTimeout(() => { w.classList.remove('covered'); setTimeout(() => { busy = false; }, calm ? 0 : 1500); }, calm ? 0 : 350);
-    }, calm ? 0 : 900);
+      setTimeout(() => { w.classList.remove('covered'); setTimeout(sparks, calm ? 0 : 500); setTimeout(() => { busy = false; }, calm ? 0 : 2200); }, calm ? 0 : 450);
+    }, calm ? 0 : 1300);
   }
 
   document.addEventListener('click', e => {
