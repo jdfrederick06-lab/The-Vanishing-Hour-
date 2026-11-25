@@ -19,7 +19,7 @@
   const me = document.currentScript, base = me.src.replace(/js\/boot\.js.*$/, '');
   /* Nov 25: publish.ps1 stamps every page with ?v=<publish time>; the scripts boot loads carry it too, so a
      browser never mixes old cached code with a new update (that broke sign-in after a rebuild) */
-  const V = (me.src.match(/[?&]v=([0-9]+)/) || [])[1] || '', ver = src => V && !/^https?:/.test(src) ? src + (src.includes('?') ? '&' : '?') + 'v=' + V : src;
+  const V = (me.src.match(/[?&]v=([0-9]+)/) || [])[1] || '', ver = src => V && src.indexOf(base) === 0 ? src + (src.includes('?') ? '&' : '?') + 'v=' + V : src;
   const need = (me.dataset.need || '').split(',').map(s => s.trim()).filter(Boolean);
   const run = (me.dataset.run || '').split(',').map(s => s.trim()).filter(Boolean);
   const plain = /^(localhost|127\.0\.0\.1)$/.test(location.hostname) && !/[?&]locked=1/.test(location.search);
