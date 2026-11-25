@@ -242,7 +242,8 @@ const DB = (() => {
     /** run fn(state) while holding a lock on `key`; fn returns the writes, or null to cancel. Resolves true if saved. */
     guard(key, fn) { const u = fn(load()); return Promise.resolve(u ? update(u) : false); },
     /** clears the night; the replies (rsvp) are never touched */
-    reset() { load(); delete tree.state; try { localStorage.setItem(KEY, JSON.stringify(tree)); } catch (e) { } load(); if (bc) bc.postMessage(1); emit(); },
+    /* a night reset keeps what players set up before the night: accepted, pronouns, change requests (players/{id}/profile) */
+    reset() { load(); const keep = keepProfiles(((tree.state || {}).pub || {}).players); delete tree.state; if (keep) tree.state = { pub: { players: keep } }; try { localStorage.setItem(KEY, JSON.stringify(tree)); } catch (e) { } load(); if (bc) bc.postMessage(1); emit(); },
     reclaim() { load(); emit(); return Promise.resolve(); },
     who,
     net: () => ({ online: true, drops: 0, since: 0 }),
@@ -364,7 +365,13 @@ function FireDB() {
         finally { ref.remove().catch(() => {}); }
       });
     },
-    reset() { return ready.then(() => db.ref('state').remove()).catch(e => console.warn('[db] reset refused', e.code)); },
+    reset() {
+      return ready.then(async () => {
+        const keep = keepProfiles((await db.ref('state/pub/players').once('value')).val());
+        await db.ref('state').remove();
+        if (keep) await db.ref('state/pub/players').update(keep);
+      }).catch(e => console.warn('[db] reset refused', e.code));
+    },
     /** call after signing in or out, so the database knows who this tab is now */
     reclaim() { ready = safe(); return ready; },
     who: () => me,
@@ -503,28 +510,107 @@ const Names = {
   }
 };
 
-/* ---------- the print lock (Nov 25, Jacob) ----------
-   Printing or saving as PDF from print.html, posters.html, badges.html and books.html needs the
-   main host AND the print password. Co-hosts can still read the host books on screen.
-   The page carries body.print-locked until unlocked, and print CSS hides everything while it's
-   there, so even the browser's own Print menu gives a blank page. Only a hash is stored here. */
+/* ---------- the character invite (Nov 25) ----------
+   What a player sets up before the night lives at players/{id}/profile = { opened, accepted, pronouns,
+   change: { note, at }, dossier } (see you.html). A night reset keeps it. */
+function keepProfiles(players) {
+  if (!players) return null; const out = {};
+  Object.entries(players).forEach(([id, p]) => { if (p && p.profile) out[id] = { profile: p.profile }; });
+  return Object.keys(out).length ? out : null;
+}
+/** pronouns for a character: fixed by the story (Rowan, Victor), or chosen by the player when they accepted */
+const Pron = {
+  fixed: id => ((typeof STORY !== 'undefined' && STORY.pronouns) || {})[id] || null,
+  profile: (id, s) => ((((s || (typeof DB !== 'undefined' ? DB.get() : {})) || {}).players || {})[id] || {}).profile || null,
+  of(id, s) { return Pron.fixed(id) || (Pron.profile(id, s) || {}).pronouns || ''; },
+  /** a small tag to put after a name: " (she/her)" as HTML, or '' */
+  tag(id, s) { const p = Pron.of(id, s); return p ? ` <span class="pron">${esc(p)}</span>` : ''; }
+};
+
+/* ---------- the print lock (Nov 25, Jacob; reworked the same day) ----------
+   Printing or saving as PDF from print.html, posters.html, badges.html and books.html needs the main
+   host AND the print password, every time. Until it's typed, anything printed (the Print button,
+   Ctrl/Cmd+P, the browser's own Print menu) comes out as one "protected document" page, never the
+   real content. After each print the page locks again. Co-hosts can still read on screen.
+   Only a hash of the password is stored here. */
 const PrintLock = (() => {
-  const HASH = 'ebb93aa9c0603b6608b7bc87dda0c8746527d4ceab4e4a226073f3c879e6cfbd', KEY = 'vh:print-ok';
-  const ok = () => { try { return sessionStorage.getItem(KEY) === HASH; } catch (e) { return false; } };
+  const HASH = 'ebb93aa9c0603b6608b7bc87dda0c8746527d4ceab4e4a226073f3c879e6cfbd';
+  let open = false;
   const isMain = () => { const h = typeof Session !== 'undefined' && Session.lastHost ? Session.lastHost() : null; return !!(h && h.role === 'main'); };
-  const sync = () => document.body.classList.toggle('print-locked', !(ok() && isMain()));
+  const lock = () => document.body.classList.add('print-locked');
+  const unlock = () => document.body.classList.remove('print-locked');
   async function hash(v) { const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('vanishing-hour-print:' + normCode(v))); return [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, '0')).join(''); }
-  /** run go() (usually window.print) once the main host has typed the print password */
+  const ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>';
+  function close(el) { open = false; el.classList.add('out'); setTimeout(() => el.remove(), 200); }
+  /** ask for the password, then run go() (window.print) with the page unlocked */
   function ask(go) {
-    if (!isMain()) { Ask.note('Only the main host can print or save these pages. You can still read them here on screen.', 'Printing is locked'); return; }
-    if (ok()) { sync(); return go(); }
-    Ask.input('Enter the print password to print or save this page.', '', async v => {
-      if (await hash(v) === HASH) { try { sessionStorage.setItem(KEY, HASH); } catch (e) { } sync(); setTimeout(go, 50); }
-      else Ask.note("That isn't the print password.", 'Printing is locked');
-    }, { title: 'Print password', ok: 'Unlock', mode: 'password' });
+    if (open) return; open = true;
+    const main = isMain(), el = document.createElement('div');
+    el.className = 'pl'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-modal', 'true'); el.setAttribute('aria-labelledby', 'pl-t');
+    el.innerHTML = `<form class="pl-card" autocomplete="off">
+        <span class="pl-ic">${ICON}</span>
+        <h2 id="pl-t">${main ? 'Print password' : 'Printing is locked'}</h2>
+        <p>${main ? 'The printouts give away the whole game, so they need the print password each time.' : 'Only the main host can print or save these pages. You can still read everything here on screen.'}</p>
+        ${main ? `<label class="pl-f"><span>Password</span><span class="pl-in"><input type="password" id="pl-pw" autocapitalize="characters" spellcheck="false" aria-label="Print password"><button type="button" class="pl-eye" data-pl="eye" aria-label="Show the password">Show</button></span></label><div class="pl-err" role="alert"></div>` : ''}
+        <div class="pl-btns"><button type="button" class="pl-no" data-pl="cancel">${main ? 'Cancel' : 'OK'}</button>${main ? '<button type="submit" class="pl-yes">Unlock and print</button>' : ''}</div>
+        <small class="pl-c">${esc(typeof COPYRIGHT !== 'undefined' ? COPYRIGHT : '')}</small></form>`;
+    document.body.appendChild(el);
+    const pw = el.querySelector('#pl-pw'), card = el.querySelector('.pl-card');
+    setTimeout(() => (pw || el.querySelector('.pl-no')).focus(), 30);
+    el.addEventListener('click', e => {
+      const b = e.target.closest('[data-pl]'); if (e.target === el) return close(el); if (!b) return;
+      if (b.dataset.pl === 'cancel') return close(el);
+      if (b.dataset.pl === 'eye') { const show = pw.type === 'password'; pw.type = show ? 'text' : 'password'; b.textContent = show ? 'Hide' : 'Show'; b.setAttribute('aria-label', show ? 'Hide the password' : 'Show the password'); pw.focus(); }
+    });
+    el.addEventListener('keydown', e => { if (e.key === 'Escape') close(el); e.stopPropagation(); });
+    card.addEventListener('submit', async e => {
+      e.preventDefault(); if (!main) return close(el);
+      if (await hash(pw.value) !== HASH) { el.querySelector('.pl-err').textContent = "That isn't the print password."; card.classList.remove('shake'); void card.offsetWidth; card.classList.add('shake'); pw.select(); return; }
+      close(el); unlock();
+      setTimeout(() => { try { go(); } finally { setTimeout(lock, 500); } }, 260);
+    });
   }
-  function install() { if (!document.getElementById('print-lock-css')) { const st = document.createElement('style'); st.id = 'print-lock-css'; st.textContent = '@media print { body.print-locked * { display: none !important; } body.print-locked::after { content: "Printing is locked. Use the Print button and the print password."; display: block; padding: 2in 1in; font: 16pt Georgia, serif; text-align: center; } }'; document.head.appendChild(st); } sync(); }
-  return { ask, install, sync };
+  function install() {
+    if (!document.getElementById('print-lock-css')) {
+      const st = document.createElement('style'); st.id = 'print-lock-css';
+      st.textContent = `
+        @media print {
+          body.print-locked > * { display: none !important; }
+          body.print-locked { background: #fff !important; }
+          body.print-locked::before { content: "Protected document"; display: block; margin: 3in auto 0; text-align: center; font: 600 22pt Georgia, serif; color: #222; }
+          body.print-locked::after { content: "The Vanishing Hour. Printing needs the main host's print password.\\A ${(typeof COPYRIGHT !== 'undefined' ? COPYRIGHT : '').replace(/"/g, '')}"; white-space: pre-line; display: block; margin: 14pt auto 0; max-width: 5in; text-align: center; font: 11pt/1.6 Georgia, serif; color: #555; }
+        }
+        .pl { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: 16px; background: rgba(10,12,18,.62); backdrop-filter: blur(6px); animation: plIn .2s both; }
+        .pl.out { animation: plOut .2s both; }
+        @keyframes plIn { from { opacity: 0; } } @keyframes plOut { to { opacity: 0; } }
+        .pl-card { width: min(100%, 380px); padding: 24px 22px 18px; border-radius: 18px; background: #fff; color: #15171d; text-align: center; box-shadow: 0 30px 80px -20px rgba(0,0,0,.6); font: 15px/1.5 Inter, system-ui, sans-serif; animation: plPop .35s cubic-bezier(.2,.9,.3,1.2) both; }
+        @keyframes plPop { from { transform: translateY(12px) scale(.96); opacity: 0; } }
+        .pl-card.shake { animation: shake .45s; }
+        .pl-ic { display: inline-grid; place-items: center; width: 52px; height: 52px; border-radius: 50%; background: #15171d; margin-bottom: 10px; }
+        .pl-ic svg { width: 24px; height: 24px; fill: none; stroke: #e8c877; stroke-width: 2; }
+        .pl-card h2 { margin: 0 0 6px; font: 700 20px Inter, sans-serif; }
+        .pl-card p { margin: 0 0 14px; color: #555b68; font-size: 14px; }
+        .pl-f { display: block; text-align: left; } .pl-f > span:first-child { display: block; font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: #6b7080; margin-bottom: 6px; }
+        .pl-in { display: flex; border: 1.5px solid #d6d9e0; border-radius: 12px; overflow: hidden; }
+        .pl-in:focus-within { border-color: #15171d; }
+        .pl-in input { flex: 1; min-width: 0; border: 0; outline: 0; padding: 12px 14px; font: 600 17px 'IBM Plex Mono', ui-monospace, monospace; letter-spacing: .08em; background: #fff; color: #15171d; }
+        .pl-eye { border: 0; background: #f2f3f6; padding: 0 14px; font: 600 13px Inter, sans-serif; color: #15171d; cursor: pointer; }
+        .pl-err { min-height: 20px; margin-top: 6px; font-size: 13px; color: #b4232a; text-align: left; }
+        .pl-btns { display: flex; gap: 8px; margin-top: 8px; }
+        .pl-btns button { flex: 1; min-height: 46px; border-radius: 999px; font: 700 15px Inter, sans-serif; cursor: pointer; }
+        .pl-no { border: 1.5px solid #d6d9e0; background: #fff; color: #15171d; }
+        .pl-yes { border: 0; background: #15171d; color: #fff; }
+        .pl-c { display: block; margin-top: 14px; font-size: 11px; color: #9aa0ad; }
+        @media print { .pl { display: none !important; } }`;
+      document.head.appendChild(st);
+    }
+    lock();
+    /* Ctrl/Cmd+P asks for the password instead of printing */
+    document.addEventListener('keydown', e => { if ((e.ctrlKey || e.metaKey) && (e.key === 'p' || e.key === 'P')) { e.preventDefault(); ask(() => window.print()); } });
+    /* whatever happens, the page is locked again after printing */
+    addEventListener('afterprint', () => setTimeout(lock, 100));
+  }
+  return { ask, install, sync: lock };
 })();
 
 /* ---------- in-page confirmations (instead of the browser's "Are you sure?" popups) ----------

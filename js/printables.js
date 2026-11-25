@@ -204,7 +204,9 @@
     const parts = c ? c.name.split(' ') : [], first = parts.slice(0, -1).join(' '), last = parts.slice(-1)[0] || '';
     const serial = c ? String([...c.id].reduce((n, ch) => (n * 31 + ch.charCodeAt(0)) % 9000, 7) + 1000) : '';
     const fit = (s, base, w, k) => s ? `style="font-size:${Math.min(base, w / (Math.max(s.length, 4) * k)).toFixed(2)}cqw"` : '';
-    const by = P && P.name ? `<span class="c4-by">${esc(P.name)}</span>` : '';
+    /* the player's name and their character's pronouns (Nov 25) */
+    const pr = c && typeof Pron !== 'undefined' ? Pron.of(c.id) : '';
+    const by = (P && P.name) || pr ? `<span class="c4-by">${P && P.name ? esc(P.name) : ''}${P && P.name && pr ? ' · ' : ''}${pr ? esc(pr) : ''}</span>` : '';
 
     if (kind === 'fbi') return `<div class="c4 c4-fbi"><i class="f4-bg" aria-hidden="true"></i><span class="f4-wm" aria-hidden="true">${seal}</span>
       <header class="f4-h"><span class="f4-seal">${seal}</span><div><b>Federal Bureau of Investigation</b><small>Art Crime Team · Agent credential</small></div></header>

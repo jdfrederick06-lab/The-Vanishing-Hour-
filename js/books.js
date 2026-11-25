@@ -189,9 +189,9 @@
 
     /* ===== Part 6: your players ===== */
     html += partH(groups ? 'Your players' : 'The cast', 'Code words, and everything each player is trying to do');
-    html += add('cast', groups ? 'Your groups and code words' : 'Cast and code words', tbl(['Character', 'Group', 'Cover role', 'Code word', 'Played by'], cast.map(c => [`**${c.name}**${c.key ? ' <span class="bk-key">key</span>' : ''}`, groupName(c.group), c.role, '`' + c.code + '`', names[c.id] || ''])) +
+    html += add('cast', groups ? 'Your groups and code words' : 'Cast and code words', tbl(['Character', 'Group', 'Cover role', 'Code word', 'Played by'], cast.map(c => [`**${c.name}**${Pron.of(c.id) ? ' (' + Pron.of(c.id) + ')' : ''}${c.key ? ' <span class="bk-key">key</span>' : ''}`, groupName(c.group), c.role, '`' + c.code + '`', names[c.id] || ''])) +
       `<p class="bk-note">"Key" players drive the story. If one is a no-show, mark them in Host > People; their mini-games pass to a backup by themselves.</p>`);
-    html += add('guide', 'Player by player', cast.map(c => { const q = quick(c); return `<div class="bk-who g-${c.group}"><div class="bk-who-h"><b>${esc(c.name)}</b><span>${esc(groupName(c.group))} · ${esc(c.role)}${names[c.id] ? ' · ' + esc(names[c.id]) : ''}</span><span class="mono">${esc(c.code)}</span></div>
+    html += add('guide', 'Player by player', cast.map(c => { const q = quick(c); return `<div class="bk-who g-${c.group}"><div class="bk-who-h"><b>${esc(c.name)}${Pron.tag(c.id)}</b><span>${esc(groupName(c.group))} · ${esc(c.role)}${names[c.id] ? ' · ' + esc(names[c.id]) : ''}</span><span class="mono">${esc(c.code)}</span></div>
       <div class="bk-cols"><div>${q.goals.length ? `<h4>Goals</h4><ul>${q.goals.map(g => `<li>${g}</li>`).join('')}</ul>` : ''}${q.find.length ? `<h4>Finds</h4><ul>${q.find.map(g => `<li>${g}</li>`).join('')}</ul>` : ''}</div>
       <div>${q.moments.length ? `<h4>Moments</h4><ul class="bk-mom">${q.moments.map(m => `<li>${m}</li>`).join('')}</ul>` : ''}${q.extras.length ? `<h4>Has</h4><ul>${q.extras.map(x => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}</div></div></div>`; }).join(''));
 
@@ -243,7 +243,7 @@
   /* ---------- cheat cards ---------- */
   function card(c, names) {
     const { goals, find, moments, extras } = quick(c);
-    return `<div class="bk-card g-${c.group}"><header><div><small>${esc(groupName(c.group))} · for ${esc(c.name.split(' ')[0])} only</small><h3>${esc(c.name)}</h3><p>${esc(c.role)}</p></div>
+    return `<div class="bk-card g-${c.group}"><header><div><small>${esc(groupName(c.group))} · for ${esc(c.name.split(' ')[0])} only</small><h3>${esc(c.name)}${Pron.tag(c.id)}</h3><p>${esc(c.role)}</p></div>
         <div class="bk-code"><small>Your code word</small><b class="mono">${esc(c.code)}</b><small>${esc(site.replace(/^https?:\/\//, ''))}gala/</small>${names[c.id] ? `<small>${esc(names[c.id])}</small>` : ''}</div></header>
       <div class="bk-cols"><div>${goals.length ? `<h4>Your goals</h4><ul>${goals.map(g => `<li>${g}</li>`).join('')}</ul>` : ''}${find.length ? `<h4>Find</h4><ul>${find.map(g => `<li>${g}</li>`).join('')}</ul>` : ''}</div>
         <div>${moments.length ? `<h4>Your moments</h4><ul class="bk-mom">${moments.slice(0, 6).map(m => `<li>${m}</li>`).join('')}</ul>` : ''}${extras.length ? `<h4>You have</h4><ul>${extras.map(x => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}
@@ -258,7 +258,7 @@
   /* ---------- dossier printouts ---------- */
   function dossierPage(c, names) {
     const secs = Dossier.sections(Names.say(STORY.dossiers[c.id] || '', c)), intro = secs.shift(), world = G.door(c);
-    return `<article class="bk-dos w-${world}"><header class="bk-dh"><div class="bk-stamp">${esc((Dossier.STAMP || {})[world] || 'PRIVATE & CONFIDENTIAL')}</div><small>Dossier · for ${esc(c.name)} only${names[c.id] ? ' · ' + esc(names[c.id]) : ''}</small><h2>${esc(c.name)}</h2><p>${esc(c.role)} · ${esc(groupName(c.group))} · code word <span class="mono">${esc(c.code)}</span></p>${intro && intro.lines.join('').trim() ? intro.html : ''}</header>
+    return `<article class="bk-dos w-${world}"><header class="bk-dh"><div class="bk-stamp">${esc((Dossier.STAMP || {})[world] || 'PRIVATE & CONFIDENTIAL')}</div><small>Dossier · for ${esc(c.name)} only${names[c.id] ? ' · ' + esc(names[c.id]) : ''}</small><h2>${esc(c.name)}${Pron.tag(c.id)}</h2><p>${esc(c.role)} · ${esc(groupName(c.group))} · code word <span class="mono">${esc(c.code)}</span></p>${intro && intro.lines.join('').trim() ? intro.html : ''}</header>
         ${secs.filter(x => x.title).map(x => `<section class="bk-ds ${Dossier.KIND(x.title)}"><h3>${Dossier.inline(x.title)}</h3>${x.html}</section>`).join('')}
         <footer>Never show this file to anyone. Tell people what you choose, in your own words.</footer></article>`;
   }

@@ -406,3 +406,5 @@ body[data-world] .beb-skin .avatar { border-radius: 50%; }
 .bb-about small { display: block; font-size: 11px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--mute); margin-bottom: 4px; }
 .bb-fc { flex: none; text-align: right; font-size: 11px; color: var(--mute); line-height: 1.2; } .bb-fc b { display: block; font-size: 14px; color: var(--text); }
 .bb-name { display: inline-flex; align-items: center; }
+/* a character's pronouns next to their name (Nov 25) */
+.pron { display: inline-block; margin-left: 5px; font-size: .78em; font-weight: 500; color: var(--mute); letter-spacing: 0; text-transform: none; vertical-align: 1px; }

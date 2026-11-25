@@ -163,7 +163,7 @@ const Bebbit = (() => {
     return `<div class="bb"><button class="btn small ghost bb-back" data-bb="back">‹ Back</button>
       <div class="card bb-pro"><div class="bb-cover" style="${a.sys ? 'background:linear-gradient(135deg,#18122b,#3a2a6b)' : tint(a.name)}" aria-hidden="true"><i></i><i></i><i></i></div>
         <div class="bb-pro-top">${avatar(a, true)}${btn}</div>
-        <div class="bb-pn">${esc(a.sys ? a.role : a.name)}${tick(a.id)}</div>
+        <div class="bb-pn">${esc(a.sys ? a.role : a.name)}${tick(a.id)}${a.sys ? "" : Pron.tag(a.id, s)}</div>
         <div class="bb-handle">@${esc(pr.handle)}${a.role && !a.sys ? ` · ${esc(a.role)}` : ''}</div>
         ${pr.bio ? `<p class="bb-bio">${esc(pr.bio)}</p>` : ''}
         <div class="bb-meta2">${pr.priv ? '<span>🔒 Private account</span>' : ''}<span>Joined ${pr.joined}</span>${a.sys ? '' : '<span>At the Ashgrove Gala tonight</span>'}</div>

@@ -532,3 +532,8 @@ body[data-world="host"] .tbl th { background: #10121a; font: 600 10px/1 var(--fo
 .rv-plus td:first-child { padding-left: 34px !important; }
 .wd-id small b { display: inline; font: 700 12.5px/1 var(--mono); font-style: normal; color: var(--accent2); }
 .ht-copy { margin: 6px 0 0; font-size: 10.5px; color: rgba(255,255,255,.45); text-align: center; }
+/* the casting email under each character picker (Nov 25) */
+.rv-inv { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; align-items: center; }
+.rv-inv .chip { font-size: 10.5px; }
+.rv-inv-b { display: flex; gap: 6px; width: 100%; margin-top: 4px; }
+.rv-chg { width: 100%; font-size: 12px; font-style: italic; color: #ffb4ab; }

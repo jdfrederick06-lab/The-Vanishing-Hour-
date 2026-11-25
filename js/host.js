@@ -262,7 +262,7 @@
     return panel(`The cast · ${list.length}`, `<span class="mono">${on}</span> connected`, `<div class="tbl-wrap"><table class="tbl"><thead><tr><th></th><th>Name</th><th>Who they are</th><th>Group</th><th>Code word</th><th>NightBank</th><th>Last seen</th><th></th></tr></thead><tbody>
       ${list.map(c => { const p = s.players && s.players[c.id], ns = G.noshow(s, c.id), o = G.online(s, c.id, now); return `<tr class="${ns ? 'gone' : ''}" style="--g:${gcol(c.group)}">
         <td class="stripe"><span class="dot ${o ? 'on' : ''}" title="${o ? 'Connected' : 'Not connected'}"></span></td>
-        <td><div class="nm"><span class="ht-av sm">${esc(initials(c.name))}</span><b>${esc(c.name)}</b>${c.key ? ' <span class="chip key" title="The night needs this player">key</span>' : ''}</div></td>
+        <td><div class="nm"><span class="ht-av sm">${esc(initials(c.name))}</span><b>${esc(c.name)}</b>${Pron.tag(c.id, s)}${c.key ? ' <span class="chip key" title="The night needs this player">key</span>' : ''}</div></td>
         <td class="mute">${esc(c.role)}</td>
         <td><span class="chip grpchip">${esc(STORY.groups[c.group].name)}</span></td>
         <td class="mono code">${esc(c.code)}</td>
@@ -492,11 +492,69 @@
     const sizes = coming.map(r => r.size).concat(pluses.map(r => r.plus.size)), cnt = v => sizes.filter(x => x === v).length;
     const castN = coming.filter(r => r.cast).length + pluses.filter(r => r.plus.cast).length, heads = coming.length + pluses.length;
     const fb = (k, l) => `<button class="btn small ghost seg-btn" data-rvshow="${k}" aria-pressed="${rv.show === k}">${l}</button>`;
-    return panel('Replies', `<a class="btn small" href="index.html" target="_blank" rel="noopener">Open the invitation page</a> <button class="btn small" data-act="rvcsv">Download spreadsheet</button>`, `
+    return panel('Replies', `<a class="btn small" href="index.html" target="_blank" rel="noopener">Open the invitation page</a> <button class="btn small" data-act="rvcsv">Download spreadsheet</button> <button class="btn small" data-rvbulk="unaccepted">Remind everyone who hasn't accepted</button> <button class="btn small" data-rvbulk="unread">Remind everyone who hasn't read their file</button>`, `
       <div class="stats"><div class="stat"><small>Coming</small><b>${n('yes')}</b></div><div class="stat"><small>Maybe</small><b>${n('maybe')}</b></div><div class="stat"><small>Plus-ones</small><b>${pluses.length}</b></div><div class="stat"><small>Not coming</small><b>${n('no')}</b></div><div class="stat"><small>Cast so far</small><b>${castN}<em class="rv-of"> / ${heads}</em></b></div></div>
       <div class="mg-games rv-tally"><span><b>Part</b> ${Object.entries(RV.size).filter(([k]) => k !== 'cameo' || cnt(k)).map(([k, l]) => `${l} ${cnt(k)}`).join(' · ')}</span><span><b>Headcount</b> ${heads} (${coming.length} replies + ${pluses.length} plus-ones)</span></div>
       <div class="pp-head rv-head2"><div class="pp-search">${I('<circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4-4"/>')}<input class="field" id="rvq" placeholder="Search names, emails, notes" value="${esc(rv.q)}" autocomplete="off" aria-label="Search replies"></div>
         <div class="filters">${fb('all', 'All')}${fb('yes', 'Coming')}${fb('maybe', 'Maybe')}${fb('no', 'Not coming')}${fb('uncast', 'Not cast yet')}${fb('archived', 'Archived')}</div></div>`);
+  }
+  /* ---------- the casting email (Nov 25, Jacob) ----------
+     After casting someone, "Email invite" opens your own email (Dickinson) with everything written:
+     their character and their personal link (you.html?as=CODE), which opens to an animated reveal
+     where they choose pronouns and accept, or ask for something else. Reminders are written to fit
+     where they are. Sent times are kept on the RSVP (invite/sent, invite/reminders). */
+  const SITE = location.href.replace(/[^/]*([?#].*)?$/, '');
+  const youLink = ch => SITE + 'you.html?as=' + encodeURIComponent(ch.code);
+  const stage = (s, ch) => { const pf = Pron.profile(ch.id, s) || {}; return pf.accepted ? (pf.dossier ? 'ready' : 'accepted') : pf.change ? 'change' : pf.opened ? 'opened' : 'new'; };
+  function mail(s, who, ch, kind) {
+    const fn = who.first || 'there', pr = Pron.of(ch.id, s), I = CONFIG.INVITE || {}, sign = I.HOST || 'Your hosts';
+    const when = `When: ${I.DATE || ''}\n${I.TIME || ''}\nWhere: ${I.PLACE || ''}`;
+    if (kind === 'invite') return { subject: `Your character for ${CONFIG.TITLE}: ${ch.name}`, body:
+`Hi ${fn},
+
+You're in! At ${CONFIG.TITLE} you'll play ${ch.name}, ${ch.role}.
+
+Open your personal link to meet your character. You'll choose your character's pronouns, then accept the part (or ask for a different one):
+${youLink(ch)}
+
+Your code word is ${ch.code}. Keep it to yourself: it's your key to the game on the night.
+
+${when}
+
+Before the night, read your file. Your backstory, secrets, goals and who to find are all in it.
+
+See you there,
+${sign}` };
+    const st = stage(s, ch);
+    const line = st === 'new' ? `Your character is still sealed in its envelope. Open your personal link to meet ${ch.name}:`
+      : st === 'opened' ? `You've met ${ch.name}, but you haven't accepted yet. Choose your character's pronouns and accept here (or ask for a different part):`
+      : st === 'accepted' ? `Thanks for accepting ${ch.name}${pr ? ' (' + pr + ')' : ''}! You haven't opened your file yet. Your secrets and goals are waiting:`
+      : `Just a reminder: your file for ${ch.name} is ready whenever you want to read it again:`;
+    return { subject: `Reminder: ${CONFIG.TITLE} (${ch.name})`, body:
+`Hi ${fn},
+
+${line}
+${st === 'accepted' || st === 'ready' ? SITE + 'app.html?tab=me' : youLink(ch)}
+
+Your code word is ${ch.code}.
+
+${when}
+
+${sign}` };
+  }
+  function inviteBox(s, key, who, chId) {
+    const ch = chId && G.byId(chId); if (!ch) return '';
+    const inv = who.invite || {}, pf = Pron.profile(ch.id, s) || {}, st = stage(s, ch), d = t => new Date(t).toLocaleDateString([], { month: 'short', day: 'numeric' });
+    const chips = [
+      inv.sent ? `<span class="chip ok">Sent ${d(inv.sent)}${(inv.reminders || []).length ? ' · ' + inv.reminders.length + ' reminder' + (inv.reminders.length > 1 ? 's' : '') : ''}</span>` : '<span class="chip">Not sent</span>',
+      pf.opened ? '<span class="chip ok">Opened</span>' : '',
+      pf.accepted ? `<span class="chip ok">Accepted${Pron.of(ch.id, s) ? ' · ' + esc(Pron.of(ch.id, s)) : ''}</span>` : '',
+      pf.change && !pf.accepted ? `<span class="chip bad" title="${esc(pf.change.note || '')}">Wants a different part</span>` : '',
+      pf.dossier ? '<span class="chip ok">Read their file</span>' : ''
+    ].join('');
+    const noEmail = !who.email;
+    return `<div class="rv-inv">${chips}${pf.change && !pf.accepted ? `<div class="rv-chg">"${esc(pf.change.note || '')}"</div>` : ''}
+      <div class="rv-inv-b">${noEmail ? '<span class="mute">No email on file</span>' : `<button class="btn small ${inv.sent ? '' : 'primary'}" data-rvmail="${key}|${inv.sent ? 'remind' : 'invite'}">${inv.sent ? (st === 'ready' ? 'Email again' : 'Email reminder') : 'Email invite'}</button>`}<button class="btn small ghost" data-rvlink="${esc(youLink(ch))}">Copy link</button></div></div>`;
   }
   function rsvpList(s) {
     const all = rsvps(s), q = rv.q.trim().toLowerCase();
@@ -514,10 +572,10 @@
         <td>${RV.size[r.size] || '<span class="mute">—</span>'}${r.world ? `<small class="mute" style="display:block">old form: ${esc(RV.world[r.world] || r.world)}</small>` : ''}</td>
         <td class="mute">${r.email ? esc(r.email) : '—'}</td>
         <td class="rv-notes">${r.with ? `<div><b>With:</b> ${esc(r.with)}</div>` : ''}${r.notes ? `<div>${esc(r.notes)}</div>` : ''}${!r.with && !r.notes ? '<span class="mute">—</span>' : ''}</td>
-        <td><div class="rv-castcell">${r.reply === 'no' ? '<span class="mute">—</span>' : pick(r.id, r.cast, r.first)}</div></td>
+        <td><div class="rv-castcell">${r.reply === 'no' ? '<span class="mute">—</span>' : pick(r.id, r.cast, r.first) + inviteBox(s, r.id, r, r.cast)}</div></td>
         <td class="mute">${esc(new Date(r.updated || r.at).toLocaleDateString([], { month: 'short', day: 'numeric' }))}</td>
         <td><button class="btn small ghost" data-rvarch="${r.id}">${r.archived ? 'Restore' : 'Archive'}</button></td></tr>
-        ${r.plus && r.reply !== 'no' ? `<tr class="rv-plus ${r.archived ? 'gone' : ''}"><td><div class="rv-who"><span class="rv-ph none plus">+1</span><div><b>${esc(r.plus.first)} ${esc(r.plus.last)}</b><small>plus-one of ${esc(r.first)}${r.plus.pronouns ? ' · ' + esc(r.plus.pronouns) : ''}</small></div></div></td><td></td><td>${RV.size[r.plus.size] || '—'}</td><td class="mute">${r.plus.email ? esc(r.plus.email) : '—'}</td><td></td><td><div class="rv-castcell">${pick(r.id + ':plus', r.plus.cast, r.plus.first)}</div></td><td></td><td></td></tr>` : ''}`).join('') || `<tr><td colspan="8" class="empty">${all.length ? 'Nobody matches.' : 'No replies yet. Share the invitation page to collect them.'}</td></tr>`}
+        ${r.plus && r.reply !== 'no' ? `<tr class="rv-plus ${r.archived ? 'gone' : ''}"><td><div class="rv-who"><span class="rv-ph none plus">+1</span><div><b>${esc(r.plus.first)} ${esc(r.plus.last)}</b><small>plus-one of ${esc(r.first)}${r.plus.pronouns ? ' · ' + esc(r.plus.pronouns) : ''}</small></div></div></td><td></td><td>${RV.size[r.plus.size] || '—'}</td><td class="mute">${r.plus.email ? esc(r.plus.email) : '—'}</td><td></td><td><div class="rv-castcell">${pick(r.id + ':plus', r.plus.cast, r.plus.first) + inviteBox(s, r.id + ':plus', r.plus, r.plus.cast)}</div></td><td></td><td></td></tr>` : ''}`).join('') || `<tr><td colspan="8" class="empty">${all.length ? 'Nobody matches.' : 'No replies yet. Share the invitation page to collect them.'}</td></tr>`}
       </tbody></table></div>`);
   }
   /** Everything as a spreadsheet (archived replies included, marked). */
@@ -569,6 +627,38 @@
     if (a) { const c = G.byId(a.who); return panel('The arrest', `<button class="btn small ghost" data-vote="unarrest">Undo</button>`, `<div class="vh-mug">${Vote.face(c, 'xl')}<div><small>Arrested at ${esc(wallTime(a.at))}</small><b>${esc(c.name)}</b><small>by ${esc(a.by && G.byId(a.by) ? G.byId(a.by).name : 'the host')}</small></div></div>`); }
     return panel('The arrest', '', `<p class="deck-n">${boss ? esc(boss.name) + ' makes the arrest on their phone once voting closes.' : 'Nobody is set to make the arrest.'} You can also make it for them.</p><div class="vh-btns"><select class="field" id="vharr">${Vote.candidates(s).map(c => `<option value="${c.id}"${c.id === K.top ? ' selected' : ''}>${esc(c.name)}${c.id === K.top ? ' (the room\'s pick)' : ''}</option>`).join('')}</select><button class="btn small" data-vote="arrest">Arrest</button></div>`);
   }
+  /* ---------- the morning paper (Nov 25, Jacob) ----------
+     Written by the main host from the whole night (only the host has the truth), saved at news,
+     and shown by news.html. While news.closed is set, every player's site opens the paper instead. */
+  function composePaper(s) {
+    const R = STORY.reveal || {}, killer = G.byId(R.killer), A = Vote.arrest(s), arrested = A && G.byId(A.who);
+    const K = Vote.tally(s, 'killer'), T = Vote.tally(s, 'thief'), nm = id => (G.byId(id) || { name: id }).name;
+    const sale = s.nw && s.nw.sale, sold = sale && sale.sold;
+    const players = {}; Object.values(s.rsvp || {}).forEach(r => { if (!r || r.archived) return; if (r.cast) players[r.cast] = `${r.first || ''} ${r.last || ''}`.trim(); if (r.plus && r.plus.cast) players[r.plus.cast] = `${r.plus.first || ''} ${r.plus.last || ''}`.trim(); });
+    const right = arrested && killer && arrested.id === killer.id;
+    const lead = right ? { kicker: 'The Ashgrove murders', head: 'FBI agent arrested for Ashgrove gala killings', deck: `${killer.name}, Victor Ashgrove's secret son, was taken into custody by his own team before the night was out.` }
+      : arrested ? { kicker: 'The Ashgrove murders', head: `Wrong arrest at the Ashgrove gala`, deck: `${arrested.name} was led away in handcuffs. The killer, ${killer ? killer.name : 'still unnamed'}, Victor Ashgrove's secret son, walked out the front door.` }
+      : { kicker: 'The Ashgrove murders', head: 'Double murder at the Ashgrove gala; no arrest', deck: `Two dead, a painting gone, and the killer, ${killer ? killer.name : 'still unnamed'}, still free this morning.` };
+    const stories = [];
+    stories.push({ head: sold ? `The Vanishing Hour sold for ${NW.money(sold.amt)}` : 'The Vanishing Hour never left the building', body: sold ? `The art crew sold the stolen painting to ${NW.wname(sold.to)} through a private listing. ${T.top ? `Most of the room blamed ${nm(T.top)} for the theft.` : ''}` : `The art crew stole the painting but never found a buyer. ${T.top ? `Most of the room blamed ${nm(T.top)} for the theft.` : ''}` });
+    stories.push({ head: 'The Winter Star stays put', body: `Vivienne Roux reached for the diamond at 7:50 and was arrested on the spot. While every eye was on her, the crew went for the vault.` });
+    const cs = typeof Casino !== 'undefined' ? Casino.stats(s) : null;
+    if (cs && cs.rounds) stories.push({ head: cs.foundation >= 0 ? `Charity casino raises ${NW.money(cs.foundation)}` : `Charity casino loses ${NW.money(-cs.foundation)}`, body: `${cs.rounds} rounds were played and ${NW.money(cs.wagered)} was wagered.${cs.best && cs.best.net > 0 ? ` The biggest win: ${NW.money(cs.best.net)} for ${nm(cs.best.by)}.` : ''}` });
+    const L = NW.loans(s), coll = L.filter(l => l.status === 'collections'), favor = L.filter(l => l.status === 'favor');
+    if (L.length) stories.push({ head: 'Thorne Capital does a brisk trade', body: `${L.filter(l => l.status !== 'offer' && l.status !== 'declined' && l.status !== 'withdrawn').length} loans at up to ${(STORY.nightwire.lending || {}).rateMax || 800}% interest.${favor.length ? ` ${favor.length} paid off with a favor.` : ''}${coll.length ? ` Sent to collections: ${coll.map(l => nm(l.borrower)).join(', ')}.` : ''}` });
+    const dusty = Object.entries((STORY.vote || {}).people || {}).map(([id, w]) => G.byId(id) ? `${G.byId(id).name} voted ${w === 3 ? 'three' : w} times. Nobody noticed.` : '').filter(Boolean);
+    const votes = Object.keys(Vote.ballots(s)).length;
+    return {
+      at: Date.now(), closed: true, paper: 'The Harbor Ledger', edition: 'Morning edition · the day after the Ashgrove Gala',
+      lead: Object.assign(lead, { body: (R.chapters || []).filter(ch => ['killer', 'victor', 'charlie'].includes(ch.id)).map(ch => (ch.body || []).join(' ')) }),
+      stories, sources: dusty,
+      vote: { killer: K.bars ? K.bars : null, votes, topKiller: K.top ? nm(K.top) : null, topThief: T.top ? nm(T.top) : null },
+      truth: (R.chapters || []).map(ch => ({ kicker: ch.kicker || '', title: ch.title + (ch.big ? ' ' + ch.big : ''), body: ch.body || [] })),
+      results: Reveal.results(s).map(x => ({ who: x.who, win: !!x.win, why: x.why })),
+      awards: Reveal.awards(s).map(a => ({ title: a.title, who: a.who, why: a.why })),
+      cast: STORY.characters.filter(c => !G.noshow(s, c.id)).map(c => ({ name: c.name, role: c.role, player: players[c.id] || '', pronouns: Pron.of(c.id, s) || '' }))
+    };
+  }
   function revealRight(s) {
     const all = Reveal.slides(s), i = Reveal.step(s), cur = all[i];
     const view = cur ? Vote.slideHTML(Object.assign({}, cur, { say: null })) : `<div class="vh-idle"><b>${esc(CONFIG.TITLE)}</b>The reveal hasn't started. The big screen and every phone follow along as you step through it.</div>`;
@@ -578,7 +668,11 @@
     const groups = [['The vote', x => !x.chapter && !['results', 'awards', 'end'].includes(x.id)], ['The truth', x => !!x.chapter], ['The end', x => ['results', 'awards', 'end'].includes(x.id)]];
     const list = groups.map(([g, fn]) => `<div class="vh-grp">${g}</div><ol class="vh-steps">${all.map((x, k) => fn(x) ? `<li><button data-rv-step="${k}" class="${k === i ? 'on' : k < i ? 'done' : ''}"><span class="mono">${String(k + 1).padStart(2, '0')}</span>${esc(x.title)}${x.big ? ' ' + esc(x.big) : ''}</button></li>` : '').join('')}</ol>`).join('');
     const res = Reveal.results(s).map(x => `<div class="vh-r ${x.win ? 'win' : 'lose'}"><div class="vh-ri"><i aria-hidden="true">${x.win ? '✓' : '✕'}</i><div><b>${esc(x.who)} ${x.win ? 'won' : 'lost'}</b><small>${esc(x.why)}</small></div></div><div class="vh-seg">${[['auto', 'Auto'], ['win', 'Won'], ['lose', 'Lost']].map(([v, l]) => `<button data-rv-ov="${x.key}:${v}" aria-pressed="${v === 'auto' ? !x.overruled : x.overruled && (v === 'win') === x.win}">${l}</button>`).join('')}</div></div>`).join('');
-    return panel('The reveal', 'what the room sees right now', stage + ctl + say + list) + panel('Who won', 'worked out from the vote · overrule any side', res);
+    const np = s.news || null;
+    const paper = `<p class="mute" style="margin:0 0 10px">When the night is over, end it here. The host terminal writes the morning paper from everything that happened tonight, and every phone switches to it. The rest of the site closes.</p>
+      ${np && np.closed ? `<div class="mg-games"><span class="chip ok">Site closed · paper out since ${esc(wallTime(np.at))}</span></div><div class="acts"><a class="btn small primary" href="news.html" target="_blank" rel="noopener">Read the paper</a><button class="btn small" data-paper="refresh">Rewrite the paper</button><button class="btn small ghost" data-paper="reopen">Reopen the site</button></div>`
+        : `<div class="acts"><button class="btn primary" data-paper="close">End the night: print the paper and close the site</button></div>`}`;
+    return panel('The reveal', 'what the room sees right now', stage + ctl + say + list) + panel('Who won', 'worked out from the vote · overrule any side', res) + panel('The morning paper', 'the last thing anyone sees', paper);
   }  function voteAct(a) {
     const s = DB.fresh(), u = {}, msg = (to, title, text) => { u['feed/' + uid('v')] = { to, title, text, at: Date.now(), kind: 'msg' }; };
     if (a === 'open') { u['vote/state'] = 'open'; msg(['all'], 'Cast your vote', 'Voting is open. Who stole the painting? Who is the killer? Vote on your Now screen.'); Clock.log(u, 'host', 'Opened voting.'); DB.update(u); return toast('Voting is open', 'gold'); }
@@ -741,6 +835,13 @@
     }
     if ((t = q('[data-vote]'))) return voteAct(t.dataset.vote);
     if ((t = q('[data-rv-step]'))) { const i = Number(t.dataset.rvStep); Reveal.go(i < 0 ? null : i); return toast(i < 0 ? 'Reveal cleared' : 'Slide ' + (i + 1)); }
+    if ((t = q('[data-paper]'))) {
+      const a = t.dataset.paper, s = DB.get();
+      if (a === 'reopen') { DB.update({ 'news/closed': null }); return toast('The site is open again'); }
+      if (a === 'close' && !Ask.sure('End the night? Every phone switches to the morning paper and the rest of the site closes. You can reopen it.', () => hostClick(e), { title: 'The morning paper', ok: 'Print the paper' })) return;
+      const u = { news: composePaper(s) }; Clock.log(u, 'host', a === 'refresh' ? 'Rewrote the morning paper.' : 'Ended the night: the morning paper is out and the site is closed.');
+      DB.update(u); return toast(a === 'refresh' ? 'Paper rewritten' : 'The paper is out');
+    }
     if ((t = q('[data-rv-ov]'))) { const [k, v] = t.dataset.rvOv.split(':'); DB.update({ ['reveal/override/' + k]: v === 'auto' ? null : v === 'win' }); return toast('Result updated'); }
     if ((t = q('[data-filter]'))) { filter = t.dataset.filter; if (t.dataset.tab) { tab = t.dataset.tab; pulse('enter', 800); } $('#p0') && ($('#p0')._html = null); return render(); }
     if ((t = q('[data-tab]'))) return go(t.dataset.tab);
@@ -782,6 +883,26 @@
       DB.update(u); return toast(`${c.name} ${on ? 'thrown out' : 'let back in'}`);
     }
     if ((t = q('[data-rvshow]'))) { rv.show = t.dataset.rvshow; $('#p1')._html = null; return render(); }
+    if ((t = q('[data-rvmail]'))) {
+      const [key, kind] = t.dataset.rvmail.split('|'), [id, plus] = key.split(':'), s = DB.get(), r0 = (s.rsvp || {})[id]; if (!r0) return;
+      const who = plus ? r0.plus : r0, ch = G.byId(who.cast); if (!ch || !who.email) return;
+      const m = mail(s, who, ch, kind), base = 'rsvp/' + id + (plus ? '/plus' : '') + '/invite';
+      DB.update(kind === 'invite' ? { [base + '/sent']: Date.now() } : { [base + '/reminders']: (who.invite && who.invite.reminders || []).concat([Date.now()]) });
+      location.href = 'mailto:' + encodeURIComponent(who.email) + '?subject=' + encodeURIComponent(m.subject) + '&body=' + encodeURIComponent(m.body);
+      return toast(kind === 'invite' ? 'Invite opened in your email' : 'Reminder opened in your email');
+    }
+    if ((t = q('[data-rvlink]'))) { navigator.clipboard && navigator.clipboard.writeText(t.dataset.rvlink); return toast('Personal link copied'); }
+    if ((t = q('[data-rvbulk]'))) {
+      const s = DB.get(), want = t.dataset.rvbulk, people = [];
+      Object.entries(s.rsvp || {}).forEach(([id, r]) => { if (r.archived || r.reply === 'no') return; [[r, ''], [r.plus, ':plus']].forEach(([w, k]) => { if (!w || !w.cast || !w.email || !G.byId(w.cast)) return; const st = stage(s, G.byId(w.cast)); if (want === 'unaccepted' ? !['accepted', 'ready'].includes(st) : st === 'accepted') people.push([id + k, w]); }); });
+      if (!people.length) return toast(want === 'unaccepted' ? 'Everyone cast has accepted' : 'Everyone who accepted has read their file');
+      const u = {}; people.forEach(([key, w]) => { const [id, plus] = key.split(':'); u['rsvp/' + id + (plus ? '/plus' : '') + '/invite/reminders'] = (w.invite && w.invite.reminders || []).concat([Date.now()]); }); DB.update(u);
+      const I = CONFIG.INVITE || {}, body = want === 'unaccepted'
+        ? `Hi everyone,\n\nYour character for ${CONFIG.TITLE} is waiting for you. Open the personal link in your casting email to meet them, choose your character's pronouns, and accept (or ask for a different part).\n\nCan't find the email? Reply to this one and I'll resend it.\n\nWhen: ${I.DATE || ''}\nWhere: ${I.PLACE || ''}\n\n${I.HOST || ''}`
+        : `Hi everyone,\n\nThanks for accepting your characters! Before the night, open your file (the "My file" tab) and read it: your backstory, secrets, goals and who to find are all in there.\n\n${SITE}app.html?tab=me\n\nWhen: ${I.DATE || ''}\nWhere: ${I.PLACE || ''}\n\n${I.HOST || ''}`;
+      location.href = 'mailto:?bcc=' + encodeURIComponent(people.map(([, w]) => w.email).join(',')) + '&subject=' + encodeURIComponent(`${CONFIG.TITLE}: ${want === 'unaccepted' ? 'your character is waiting' : 'read your file before the night'}`) + '&body=' + encodeURIComponent(body);
+      return toast(`Reminder for ${people.length} opened in your email`);
+    }
     if ((t = q('[data-rvarch]'))) {
       const id = t.dataset.rvarch, r0 = DB.get().rsvp[id], on = !r0.archived, u = { ['rsvp/' + id + '/archived']: on ? Date.now() : null };
       Clock.log(u, 'host', `RSVP from ${r0.first} ${r0.last} ${on ? 'archived' : 'restored'}.`); DB.update(u); return toast(on ? 'Archived (not deleted)' : 'Restored');

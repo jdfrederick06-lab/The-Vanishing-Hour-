@@ -21,7 +21,7 @@
   document.body.dataset.world = WORLD;
   document.title = WORLD === 'nightwire' ? 'Omnizon' : W.name;
 
-  let tab = 'now', seenCount = Number(sessionStorage.getItem('vh:seen') || 0), openPerson = null;
+  let tab = (/^(now|world|bank|beb|people|me|tasks)$/.test(new URLSearchParams(location.search).get('tab') || '') ? new URLSearchParams(location.search).get('tab') : 'now'), seenCount = Number(sessionStorage.getItem('vh:seen') || 0), openPerson = null;
   const freshIds = new Set();
   /* Bebbit: the main tab for guests and staff; an extra tab for everyone else */
   const bebUI = Bebbit.newUI();
@@ -139,7 +139,7 @@
       return `<section class="ppl-g"><div class="sec-title">${names[g]} · ${list.length}</div><div class="card" style="padding-top:6px;padding-bottom:6px">` + list.map(c => `
         <div class="person" data-person="${c.id}" role="button" tabindex="0">
           <span class="avatar">${esc(initials(c.name))}</span>
-          <div style="min-width:0"><div class="nm">${esc(c.name)}${c.id === ME.id ? ' <span class="chip">you</span>' : ''}${s.fbi && s.fbi.detained && s.fbi.detained[c.id] ? ' <span class="chip" style="color:var(--danger);border-color:var(--danger)">detained</span>' : ''}</div><div class="rl">${esc(c.role)}</div>${openPerson === c.id ? `<div class="pf">${esc(Names.say(c.profile, ME))}</div>` : ''}</div>
+          <div style="min-width:0"><div class="nm">${esc(c.name)}${Pron.tag(c.id, s)}${c.id === ME.id ? ' <span class="chip">you</span>' : ''}${s.fbi && s.fbi.detained && s.fbi.detained[c.id] ? ' <span class="chip" style="color:var(--danger);border-color:var(--danger)">detained</span>' : ''}</div><div class="rl">${esc(c.role)}</div>${openPerson === c.id ? `<div class="pf">${esc(Names.say(c.profile, ME))}</div>` : ''}</div>
         </div>`).join('') + `</div></section>`;
     }).join('') + '</div>';
   }
@@ -151,7 +151,7 @@
     if (WORLD === 'fbi') return `<div class="idc idc-fbi"><div class="idc-holo" aria-hidden="true"></div>
       <div class="idc-top"><svg width="44" height="44" viewBox="0 0 44 44" aria-hidden="true"><circle cx="22" cy="22" r="20.5" fill="#0e2240" stroke="#d4b25c" stroke-width="1.4"/><circle cx="22" cy="22" r="15.5" fill="none" stroke="#d4b25c" stroke-width=".7" stroke-dasharray="1.5 2"/><path d="M22 10 L24.9 18.4 L33.8 18.4 L26.6 23.6 L29.4 32 L22 26.8 L14.6 32 L17.4 23.6 L10.2 18.4 L19.1 18.4 Z" fill="#d4b25c"/></svg><div><small>Federal Bureau</small><b>Credentials</b></div><span class="idc-chip" aria-hidden="true"></span></div>
       <div class="idc-body"><div class="idc-photo">${esc(initials(ME.name))}</div><div class="idc-f">
-        <small>Name</small><b>${esc(last.toUpperCase())}, ${esc(first)}</b>
+        <small>Name</small><b>${esc(last.toUpperCase())}, ${esc(first)}${Pron.tag(ME.id, s)}</b>
         <small>Title</small><span>${esc(ME.role)}</span>
         <small>Assignment</small><span>Art Crime Team · Case ${esc(STORY.fbi.caseNo)}</span></div></div>
       <div class="idc-foot"><span class="mono">ID ${esc(serial)}</span><span class="idc-sig">${esc(ME.name)}</span></div></div>`;
@@ -160,25 +160,27 @@
       const votes = mine.reduce((n, p) => n + Bebbit.nVotes(s, p.id), 0), coms = mine.reduce((n, p) => n + Bebbit.comments(s, p.id).length, 0);
       return `<div class="idc idc-beb"><div class="idc-cover" aria-hidden="true"><i></i><i></i><i></i></div>
         <span class="avatar idc-av" style="${Bebbit.tint(ME.name)}">${esc(initials(ME.name))}</span>
-        <b class="idc-name">${esc(ME.name)}</b><span class="idc-handle">u/${esc(first.toLowerCase())} · b/thegala</span>
+        <b class="idc-name">${esc(ME.name)}</b><span class="idc-handle">u/${esc(first.toLowerCase())} · b/thegala${Pron.of(ME.id, s) ? ' · ' + esc(Pron.of(ME.id, s)) : ''}</span>
         <p class="idc-bio">${esc(ME.role)}</p>
         <div class="idc-stats"><div><b>${mine.length}</b><small>posts</small></div><div><b>${votes}</b><small>upvotes</small></div><div><b>${coms}</b><small>comments</small></div></div></div>`;
     }
     /* NIGHTWIRE: an Omnizon account card */
     const w = NW.walletOf(ME);
     return `<div class="idc idc-oz"><div class="idc-oz-top">${NW.brand.mark(28)}${NW.brand.word}<span class="idc-oz-tier">Verified</span></div>
-      <div class="idc-oz-name">${esc(ME.alias || first.toLowerCase())}<small>${esc(ME.name)} · ${esc(ME.role)}</small></div>
+      <div class="idc-oz-name">${esc(ME.alias || first.toLowerCase())}<small>${esc(ME.name)}${Pron.of(ME.id, s) ? ' (' + esc(Pron.of(ME.id, s)) + ')' : ''} · ${esc(ME.role)}</small></div>
       <div class="idc-oz-grid"><span>Wallet</span><span>${w ? esc(NW.wname(w)) : 'None'}</span><span>Balance</span><span>${w ? NW.money(NW.balance(s, w)) : '$0'}</span><span>Account key</span><span>${esc(serial)}</span></div></div>`;
   }
 
+  let dossierSeen = false;
   function meView(s) {
+    if (!dossierSeen && !watched && STORY.dossiers && STORY.dossiers[ME.id]) { dossierSeen = true; const pf = Pron.profile(ME.id, s) || {}; if (!pf.dossier) DB.update({ ['players/' + ME.id + '/profile/dossier']: Date.now() }); }
     const d = STORY.dossiers[ME.id];
     return `<div class="dk-cols me"><div class="dk-b sticky">${idCard(s)}
       <div class="sec-title">What everyone knows about you</div>
       <div class="card">${esc(Names.say(ME.profile, ME))}</div></div><div class="dk-a">
       ${d && typeof Dossier !== 'undefined' ? Dossier.render(Names.say(d, ME), ME, WORLD) : `<div class="sec-title">Your dossier</div>
       <div class="card dossier">${'<div class="empty-rich"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h3"/></svg><div><b>Sealed until the night</b><span>Your full dossier (your backstory, secrets, goals and who to find) will appear here before the night.</span></div></div>'}</div>`}
-      <button class="btn" data-act="out">Sign out</button><p class="app-copy">${esc(COPYRIGHT)}</p></div></div>`;
+      <button class="btn ghost" data-tour>Replay the tour</button><button class="btn" data-act="out">Sign out</button><p class="app-copy">${esc(COPYRIGHT)}</p></div></div>`;
   }
 
   /* don't redraw while a finger is down, or the tap would be lost */
@@ -188,6 +190,8 @@
   function render(force) {
     if (holding) return;
     const s = DB.get(), alerts = myAlerts(s);
+    /* the night is over: the site closes and only the morning paper is left (Nov 25) */
+    if (s.news && s.news.closed && !watched) { location.replace(ROOT + 'news.html'); return; }
     if (tab === 'now') { seenCount = alerts.length; sessionStorage.setItem('vh:seen', seenCount); }
     const unseen = Math.max(0, alerts.length - seenCount);
     patch($('#head'), head());
