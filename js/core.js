@@ -109,6 +109,8 @@ const Route = (() => {
     { at: 'nw/loanreq', fn: it => orHost(uniq(['p/' + it.from].concat(wallet(((NWC().lending || {}).lender) || '')))) },
     { at: 'fbi/statements', fn: it => it.public && !it.withdrawn ? ['g/fbi', 'pub'] : ['g/fbi'] },
     { at: 'vote/ballots', fn: (it, key) => ['p/' + key] },
+    /* a note to the host: only the player who wrote it (and the hosts) */
+    { at: 'asks', fn: it => orHost(it.from ? ['p/' + it.from] : []) },
     /* a Bebbit post is public, but who REALLY posted it is only for that person and anyone who can trace posts */
     { at: 'beb/posts', fn: () => ['pub'], fields: { real: it => it.real && G.byId(it.real) ? uniq(['p/' + it.real].concat(tracers())) : [] } }
   ];
@@ -527,6 +529,38 @@ const Pron = {
   tag(id, s) { const p = Pron.of(id, s); return p ? ` <span class="pron">${esc(p)}</span>` : ''; }
 };
 
+
+/* ---------- a note to the host (Nov 25, Jacob) ----------
+   Any player can write to the hosts at any time: from their invitation, and all night from the app.
+   Saved at asks/{key} = { from, text, at, where }, which lives only in that player's private branch
+   (and the hosts see everything). The host terminal lists them under Messages. */
+const HostNote = {
+  send(from, text, where) {
+    text = String(text || '').trim().slice(0, 500); if (!from || !text) return false;
+    DB.update({ ['asks/' + uid('n')]: { from, text, at: Date.now(), where: where || 'app' } }); return true;
+  },
+  mine: (id, s) => Object.entries(((s || DB.get()) || {}).asks || {}).filter(([, n]) => n && n.from === id).map(([k, n]) => Object.assign({ key: k }, n)).sort((a, b) => b.at - a.at),
+  /** a small dialog with a text box; resolves true once sent */
+  open(from, where) {
+    return new Promise(done => {
+      const el = document.createElement('div'); el.className = 'ask hn'; el.setAttribute('role', 'presentation');
+      el.innerHTML = `<div class="ask-card" role="dialog" aria-modal="true" aria-labelledby="hnT">
+        <small class="ask-title" id="hnT">A note to the host</small>
+        <p class="ask-text">Questions, a change you need, something that isn't working, or a secret only the host should know. Only the hosts will read it.</p>
+        <textarea class="field hn-in" maxlength="500" rows="4" placeholder="Write your note"></textarea>
+        <div class="ask-btns"><button type="button" class="btn ghost hn-no">Cancel</button><button type="button" class="btn primary hn-yes">Send</button></div></div>`;
+      document.body.appendChild(el);
+      const inp = el.querySelector('.hn-in'), prev = document.activeElement;
+      const close = ok => { el.classList.add('out'); setTimeout(() => el.remove(), 180); try { prev && prev.focus && prev.focus({ preventScroll: true }); } catch (e) { } done(ok); };
+      el.addEventListener('click', e => {
+        if (e.target === el || e.target.closest('.hn-no')) close(false);
+        else if (e.target.closest('.hn-yes')) { if (HostNote.send(from, inp.value, where)) close(true); else inp.focus(); }
+      });
+      el.addEventListener('keydown', e => { if (e.key === 'Escape') { e.preventDefault(); close(false); } e.stopPropagation(); });
+      setTimeout(() => inp.focus(), 30);
+    });
+  }
+};
 /* ---------- the print lock (Nov 25, Jacob; reworked the same day) ----------
    Printing or saving as PDF from print.html, posters.html, badges.html and books.html needs the main
    host AND the print password, every time. Until it's typed, anything printed (the Print button,

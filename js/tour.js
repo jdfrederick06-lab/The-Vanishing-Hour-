@@ -40,6 +40,13 @@ const Tour = (() => {
       Object.assign(hole.style, { display: 'block', left: (r.left - pad) + 'px', top: (r.top - pad) + 'px', width: (r.width + pad * 2) + 'px', height: (r.height + pad * 2) + 'px' });
       const below = r.top < innerHeight / 2, tw = Math.min(320, innerWidth - 24);
       tip.style.width = tw + 'px';
+      /* a side menu (desktop): sit beside the item so the rest of the menu stays visible */
+      if (r.left < 320 && r.right + tw + 28 < innerWidth && r.height < 120) {
+        const th = tip.offsetHeight || 190;
+        Object.assign(tip.style, { left: (r.right + 18) + 'px', top: Math.max(12, Math.min(innerHeight - th - 12, r.top + r.height / 2 - th / 2)) + 'px', bottom: '' });
+        tip.classList.remove('up'); tip.classList.add('side'); return;
+      }
+      tip.classList.remove('side');
       tip.style.left = Math.max(12, Math.min(innerWidth - tw - 12, r.left + r.width / 2 - tw / 2)) + 'px';
       tip.style.top = below ? (r.bottom + 14) + 'px' : ''; tip.style.bottom = below ? '' : (innerHeight - r.top + 14) + 'px';
       tip.classList.toggle('up', !below);

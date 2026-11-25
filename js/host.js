@@ -87,6 +87,7 @@
       people: `<em>${on}</em>`,
       bebbit: Bebbit.list(s).length ? `<em>${Bebbit.list(s).filter(p => !p.deleted).length}</em>` : '',
       fbi: s.fbi ? `<em>${FBI.leftN(s)}</em>` : '',
+      messages: (() => { const n = Object.values(s.asks || {}).filter(x => x && !x.done && G.touches([x.from], scope())).length; return n ? `<em class="warn">${n}</em>` : ''; })(),
       health: (() => { const n = healthIssues(s, now); return n ? `<em class="warn">${n}</em>` : ''; })()
     };
     return `<div class="ht-brand">${mark}<div><b>Host terminal</b><small>${esc(ME.label)}</small></div></div>
@@ -363,6 +364,17 @@
         <div class="row"><button class="btn primary" type="submit">Send <kbd>Ctrl Enter</kbd></button><span class="err" id="me" role="alert"></span></div>
       </form>`);
   }
+  /* notes players send the host (HostNote): from their invitation, or from the app all night */
+  function hostNotes(s) {
+    const all = Object.entries(s.asks || {}).map(([k, n]) => Object.assign({ key: k }, n)).filter(n => n && n.from && G.touches([n.from], scope())).sort((a, b) => (!!a.done - !!b.done) || b.at - a.at);
+    const open = all.filter(n => !n.done).length;
+    if (!all.length) return panel('Notes from players', 'none yet', '<p class="mute" style="margin:0">Players can write to you from their invitation and, all night, from their phone (Now > Note to the host). Notes land here.</p>');
+    return panel(`Notes from players · ${open} new`, 'only the hosts see these', `<div class="hn-list">${all.slice(0, 60).map(n => {
+      const c = G.byId(n.from), g = (Pron.profile(n.from, s) || {}).guest;
+      return `<div class="hn-item${n.done ? ' done' : ''}"><div class="hn-top"><b>${esc(c ? c.name : n.from)}</b>${g ? `<span class="mute"> · ${esc(g)}</span>` : ''}<span class="hn-when mono">${esc(n.where === 'invite' ? 'invitation' : 'phone')} · ${esc(new Date(n.at).toLocaleDateString([], { month: 'short', day: 'numeric' }))} ${esc(wallTime(n.at))}</span></div>
+        <p>${esc(n.text)}</p><div class="acts"><button class="btn small" data-msg="${esc(n.from)}">Reply</button><button class="btn small ghost" data-asknote="${esc(n.key)}">${n.done ? 'Mark as new' : 'Mark as handled'}</button></div></div>`;
+    }).join('')}</div>`);
+  }
   function sent(s) {
     const rows = Object.values(s.feed || {}).filter(f => G.touches(f.to, scope())).sort((a, b) => b.at - a.at).slice(0, 40);
     return panel(`Sent to phones · ${rows.length}`, '', `<div class="log mono">${rows.map(f => `<div class="ln t-msg"><span class="t">${esc(wallTime(f.at))}</span><span class="g">${esc(G.toLabel(f.to))}</span><span class="x"><b>${esc(f.title)}</b> ${esc(f.text)}</span></div>`).join('') || '<div class="empty">Nothing sent yet.</div>'}</div>`);
@@ -545,13 +557,16 @@ ${sign}` };
   function inviteBox(s, key, who, chId) {
     const ch = chId && G.byId(chId); if (!ch) return '';
     const inv = who.invite || {}, pf = Pron.profile(ch.id, s) || {}, st = stage(s, ch), d = t => new Date(t).toLocaleDateString([], { month: 'short', day: 'numeric' });
-    const chips = [
-      inv.sent ? `<span class="chip ok">Sent ${d(inv.sent)}${(inv.reminders || []).length ? ' · ' + inv.reminders.length + ' reminder' + (inv.reminders.length > 1 ? 's' : '') : ''}</span>` : '<span class="chip">Not sent</span>',
-      pf.opened ? '<span class="chip ok">Opened</span>' : '',
-      pf.accepted ? `<span class="chip ok">Accepted${Pron.of(ch.id, s) ? ' · ' + esc(Pron.of(ch.id, s)) : ''}</span>` : '',
-      pf.change && !pf.accepted ? `<span class="chip bad" title="${esc(pf.change.note || '')}">Wants a different part</span>` : '',
-      pf.dossier ? '<span class="chip ok">Read their file</span>' : ''
-    ].join('');
+    /* a four-step tracker: emailed > opened the link > accepted > read their file */
+    const rem = (inv.reminders || []).length, pr = Pron.of(ch.id, s);
+    const steps = [
+      ['Emailed', inv.sent, inv.sent ? d(inv.sent) + (rem ? ` · ${rem} reminder${rem > 1 ? 's' : ''}` : '') : 'not yet'],
+      ['Opened', pf.opened, pf.opened ? d(pf.opened) : ''],
+      ['Accepted', pf.accepted, pf.accepted ? (pr || d(pf.accepted)) : ''],
+      ['Read file', pf.dossier, pf.dossier ? d(pf.dossier) : '']
+    ];
+    const chips = `<ol class="rv-steps" aria-label="Invite progress">${steps.map(([l, on, sub]) => `<li class="${on ? 'on' : ''}"><i aria-hidden="true">${on ? '✓' : ''}</i><span>${l}${sub ? `<small>${esc(sub)}</small>` : ''}</span></li>`).join('')}</ol>`
+      + (pf.declined ? '<span class="chip bad">Declined from the invitation</span>' : pf.change && !pf.accepted ? '<span class="chip bad">Asked for a different part</span>' : '');
     const noEmail = !who.email;
     return `<div class="rv-inv">${chips}${pf.change && !pf.accepted ? `<div class="rv-chg">"${esc(pf.change.note || '')}"</div>` : ''}
       <div class="rv-inv-b">${noEmail ? '<span class="mute">No email on file</span>' : `<button class="btn small ${inv.sent ? '' : 'primary'}" data-rvmail="${key}|${inv.sent ? 'remind' : 'invite'}">${inv.sent ? (st === 'ready' ? 'Email again' : 'Email reminder') : 'Email invite'}</button>`}<button class="btn small ghost" data-rvlink="${esc(youLink(ch))}">Copy link</button></div></div>`;
@@ -636,12 +651,13 @@ ${sign}` };
     const sale = s.nw && s.nw.sale, sold = sale && sale.sold;
     const players = {}; Object.values(s.rsvp || {}).forEach(r => { if (!r || r.archived) return; if (r.cast) players[r.cast] = `${r.first || ''} ${r.last || ''}`.trim(); if (r.plus && r.plus.cast) players[r.plus.cast] = `${r.plus.first || ''} ${r.plus.last || ''}`.trim(); });
     const right = arrested && killer && arrested.id === killer.id;
-    const lead = right ? { kicker: 'The Ashgrove murders', head: 'FBI agent arrested for Ashgrove gala killings', deck: `${killer.name}, Victor Ashgrove's secret son, was taken into custody by his own team before the night was out.` }
-      : arrested ? { kicker: 'The Ashgrove murders', head: `Wrong arrest at the Ashgrove gala`, deck: `${arrested.name} was led away in handcuffs. The killer, ${killer ? killer.name : 'still unnamed'}, Victor Ashgrove's secret son, walked out the front door.` }
-      : { kicker: 'The Ashgrove murders', head: 'Double murder at the Ashgrove gala; no arrest', deck: `Two dead, a painting gone, and the killer, ${killer ? killer.name : 'still unnamed'}, still free this morning.` };
+    /* the front page is written in the locked story (STORY.reveal.paper), so this public file gives nothing away */
+    const PP = R.paper || {}, fill = t => String(t || '').split('{killer}').join(killer ? killer.name : 'the killer').split('{arrested}').join(arrested ? arrested.name : 'someone');
+    const pk = (right ? PP.right : arrested ? PP.wrong : PP.none) || { head: 'Double murder at the Ashgrove gala', deck: 'Two dead and a painting gone.' };
+    const lead = { kicker: 'The Ashgrove murders', head: fill(pk.head), deck: fill(pk.deck), body: (PP.common || []).concat(pk.body || []).map(fill) };
     const stories = [];
     stories.push({ head: sold ? `The Vanishing Hour sold for ${NW.money(sold.amt)}` : 'The Vanishing Hour never left the building', body: sold ? `The art crew sold the stolen painting to ${NW.wname(sold.to)} through a private listing. ${T.top ? `Most of the room blamed ${nm(T.top)} for the theft.` : ''}` : `The art crew stole the painting but never found a buyer. ${T.top ? `Most of the room blamed ${nm(T.top)} for the theft.` : ''}` });
-    stories.push({ head: 'The Winter Star stays put', body: `Vivienne Roux reached for the diamond at 7:50 and was arrested on the spot. While every eye was on her, the crew went for the vault.` });
+    if (PP.diamond) stories.push({ head: PP.diamond.head, body: fill(PP.diamond.body) });
     const cs = typeof Casino !== 'undefined' ? Casino.stats(s) : null;
     if (cs && cs.rounds) stories.push({ head: cs.foundation >= 0 ? `Charity casino raises ${NW.money(cs.foundation)}` : `Charity casino loses ${NW.money(-cs.foundation)}`, body: `${cs.rounds} rounds were played and ${NW.money(cs.wagered)} was wagered.${cs.best && cs.best.net > 0 ? ` The biggest win: ${NW.money(cs.best.net)} for ${nm(cs.best.by)}.` : ''}` });
     const L = NW.loans(s), coll = L.filter(l => l.status === 'collections'), favor = L.filter(l => l.status === 'favor');
@@ -649,8 +665,8 @@ ${sign}` };
     const dusty = Object.entries((STORY.vote || {}).people || {}).map(([id, w]) => G.byId(id) ? `${G.byId(id).name} voted ${w === 3 ? 'three' : w} times. Nobody noticed.` : '').filter(Boolean);
     const votes = Object.keys(Vote.ballots(s)).length;
     return {
-      at: Date.now(), closed: true, paper: 'The Harbor Ledger', edition: 'Morning edition · the day after the Ashgrove Gala',
-      lead: Object.assign(lead, { body: (R.chapters || []).filter(ch => ['killer', 'victor', 'charlie'].includes(ch.id)).map(ch => (ch.body || []).join(' ')) }),
+      at: Date.now(), closed: true, paper: 'The Harbor Ledger', edition: 'The day after the Ashgrove Gala',
+      lead,
       stories, sources: dusty,
       vote: { killer: K.bars ? K.bars : null, votes, topKiller: K.top ? nm(K.top) : null, topThief: T.top ? nm(T.top) : null },
       truth: (R.chapters || []).map(ch => ({ kicker: ch.kicker || '', title: ch.title + (ch.big ? ' ' + ch.big : ''), body: ch.body || [] })),
@@ -749,7 +765,7 @@ ${sign}` };
     if (tab === 'tonight') { patch($('#t0'), track(s, r)); patch($('#t1'), deck(s, r) + cuesCard(s, r) + evidence(s)); patch($('#t2'), needs(s, r, now)); patch($('#t4'), groupCards(s, now) + systems(s, now) + activity(s)); }
     else if (tab === 'people') { if (!keep('p0')) patch($('#p0'), peopleHead(s, now)); patch($('#p1'), people(s, now)); }
     else if (tab === 'watch') { patch($('#p1'), watchGrid(s, now)); patch($('#p2'), streamPanel(s)); }
-    else if (tab === 'messages') { if (!keep('p1')) patch($('#p1'), composer()); patch($('#p2'), sent(s)); }
+    else if (tab === 'messages') { if (!keep('p1')) patch($('#p1'), composer()); patch($('#p2'), hostNotes(s) + sent(s)); }
     else if (tab === 'fbi') { patch($('#p1'), fbiLeft(s)); patch($('#p2'), fbiRight(s)); }
     else if (tab === 'nightwire') { patch($('#p1'), nwLeft(s)); patch($('#p2'), nwRight(s)); }
     else if (tab === 'bebbit') { if (!keep('p1')) patch($('#p1'), bebCompose()); patch($('#p3'), bebStats(s)); patch($('#p2'), bebList(s)); }
@@ -887,7 +903,7 @@ ${sign}` };
       const [key, kind] = t.dataset.rvmail.split('|'), [id, plus] = key.split(':'), s = DB.get(), r0 = (s.rsvp || {})[id]; if (!r0) return;
       const who = plus ? r0.plus : r0, ch = G.byId(who.cast); if (!ch || !who.email) return;
       const m = mail(s, who, ch, kind), base = 'rsvp/' + id + (plus ? '/plus' : '') + '/invite';
-      DB.update(kind === 'invite' ? { [base + '/sent']: Date.now() } : { [base + '/reminders']: (who.invite && who.invite.reminders || []).concat([Date.now()]) });
+      DB.update(Object.assign(kind === 'invite' ? { [base + '/sent']: Date.now() } : { [base + '/reminders']: (who.invite && who.invite.reminders || []).concat([Date.now()]) }, { ['players/' + ch.id + '/profile/guest']: String(who.first || '').trim().slice(0, 40) || null }));
       location.href = 'mailto:' + encodeURIComponent(who.email) + '?subject=' + encodeURIComponent(m.subject) + '&body=' + encodeURIComponent(m.body);
       return toast(kind === 'invite' ? 'Invite opened in your email' : 'Reminder opened in your email');
     }
@@ -921,6 +937,7 @@ ${sign}` };
       DB.update(u); return toast(p.deleted ? 'Post restored' : 'Post removed');
     }
     if ((t = q('[data-act="bunphoto"]'))) { hb.photo = null; $('#p1')._html = null; return render(); }
+    if ((t = q('[data-asknote]'))) { const k = t.dataset.asknote, n = (DB.get().asks || {})[k]; if (n) DB.update({ ['asks/' + k + '/done']: n.done ? null : Date.now() }); return; }
     if ((t = q('[data-msg]'))) { tab = 'messages'; render(); $('#mto').value = t.dataset.msg; $('#mtx').focus(); return; }
     if ((t = q('[data-act]'))) act(t.dataset.act);
   }
@@ -964,6 +981,8 @@ ${sign}` };
     if (t.matches('[data-rvcast]')) {
       /* cast a guest who replied as a character (the code word goes on their printed invitation) */
       const [id, plus] = t.dataset.rvcast.split(':'), ch = t.value || null, r0 = (DB.get().rsvp || {})[id], who = plus ? r0.plus : r0, u = { ['rsvp/' + id + (plus ? '/plus' : '') + '/cast']: ch };
+      /* the invitation greets the guest by name before it reveals the character */
+      if (ch) u['players/' + ch + '/profile/guest'] = String(who.first || '').trim().slice(0, 40) || null;
       Clock.log(u, 'host', ch ? `Cast ${who.first} ${who.last} as ${G.byId(ch).name}.` : `Uncast ${who.first} ${who.last}.`);
       DB.update(u); return toast(ch ? `Cast as ${G.byId(ch).name}` : 'Casting cleared');
     }
@@ -1005,6 +1024,9 @@ ${sign}` };
   });
 
   if (ME) shell(); else login();
+  /* a pop-up when a player sends a note (not for notes already there when the terminal opened) */
+  let seenNotes = null;
+  DB.on(s => { const ks = Object.keys((s && s.asks) || {}); if (seenNotes) ks.filter(k => !seenNotes.has(k)).forEach(k => { const n = s.asks[k], c = n && G.byId(n.from); if (c && G.touches([n.from], scope())) toast('Note from ' + c.name + ': ' + String(n.text).slice(0, 80), 'gold'); }); seenNotes = new Set(ks); });
   DB.on(render);
   /* only the main host's terminal runs the clock, so two host screens never send a cue twice */
   setInterval(() => { if (ME) { if (ME.role === 'main') { Clock.tick(); if (typeof Vote !== 'undefined' && Vote.publish) Vote.publish(DB.get()); } render(); } }, 500);

@@ -21,11 +21,12 @@
     });
   }
   function paper(n) {
-    const now = new Date(n.at || Date.now());
+    /* dated the morning after: a paper closed in the evening carries the next day's date */
+    const now = new Date(n.at || Date.now()); if (now.getHours() >= 12) now.setDate(now.getDate() + 1);
     const cols = (n.stories || []).map(st => `<article class="np-story"><h3>${esc(st.head)}</h3>${P(st.body)}</article>`).join('');
     root.innerHTML = `<main class="np">
       <header class="np-head">
-        <div class="np-ear left">Late edition<br><b>Price: one secret</b></div>
+        <div class="np-ear left">Morning edition<br><b>Price: one secret</b></div>
         <h1 class="np-mast">${esc(n.paper || 'The Harbor Ledger')}</h1>
         <div class="np-ear right">Harlow County<br><b>Since 1901</b></div>
         <div class="np-dateline"><span>${esc(now.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }))}</span><span>${esc(n.edition || '')}</span><span>${esc(CONFIG.TITLE)}</span></div>

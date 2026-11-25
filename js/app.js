@@ -104,7 +104,7 @@
     /* the evidence room: every printed clue someone has scanned, for everyone to read */
     const ev = Object.entries(s.ev || {}).map(([code, x]) => Object.assign({ code }, x, (STORY.evidence || []).find(e => e.code === code))).filter(x => x.title).sort((a, b) => b.at - a.at);
     const room = ev.length ? `<div class="sec-title">The evidence room · ${ev.length}</div><div class="evr">${ev.map(x => `<a href="${ROOT}scan.html?e=${encodeURIComponent(x.code)}&v=1"><span>ITEM ${x.item}</span>${esc(x.title)}<small>${esc(wallTime(x.at))}</small></a>`).join('')}</div>` : '';
-    return `${hasVote ? Vote.block(s, ME) : ''}<div class="dk-cols"><div class="dk-a"><div class="sec-title">For you</div>${list}${room}</div><div class="dk-b"><div class="dk-only"><div class="sec-title" style="margin-bottom:12px">You</div>${idCard(s)}</div>${official}</div></div>`;
+    return `${hasVote ? Vote.block(s, ME) : ''}<div class="dk-cols"><div class="dk-a"><div class="sec-title">For you</div>${list}<button type="button" class="hn-row" data-hostnote><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H9.5L5 19.5V16H4z"/><path d="M8 9.5h8M8 12.5h5"/></svg><span><b>Note to the host</b><small>A question, a problem, or a secret only the host should know</small></span><i aria-hidden="true">›</i></button>${room}</div><div class="dk-b"><div class="dk-only"><div class="sec-title" style="margin-bottom:12px">You</div>${idCard(s)}</div>${official}</div></div>`;
   }
 
   /* The Now page in two parts (Nov 25). While the clock runs, only the hero's timer, ring and
@@ -180,7 +180,7 @@
       <div class="card">${esc(Names.say(ME.profile, ME))}</div></div><div class="dk-a">
       ${d && typeof Dossier !== 'undefined' ? Dossier.render(Names.say(d, ME), ME, WORLD) : `<div class="sec-title">Your dossier</div>
       <div class="card dossier">${'<div class="empty-rich"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h3"/></svg><div><b>Sealed until the night</b><span>Your full dossier (your backstory, secrets, goals and who to find) will appear here before the night.</span></div></div>'}</div>`}
-      <button class="btn ghost" data-tour>Replay the tour</button><button class="btn" data-act="out">Sign out</button><p class="app-copy">${esc(COPYRIGHT)}</p></div></div>`;
+      <button class="btn" data-hostnote>Note to the host</button><button class="btn ghost" data-tour>Replay the tour</button><button class="btn" data-act="out">Sign out</button><p class="app-copy">${esc(COPYRIGHT)}</p></div></div>`;
   }
 
   /* don't redraw while a finger is down, or the tap would be lost */
@@ -242,6 +242,7 @@
   addEventListener('resize', () => render());
 
   document.addEventListener('click', e => {
+    if (e.target.closest('[data-hostnote]')) { if (watched) return; HostNote.open(ME.id, 'app').then(ok => { if (ok) toast('Sent to the host', 'Only the hosts can read it.'); }); return; }
     const t = e.target.closest('[data-tab]'); if (t) { const changed = tab !== t.dataset.tab; tab = t.dataset.tab; window.scrollTo(0, 0); render(true); if (changed) enter(); return; }
     if (tab === 'me' && typeof Dossier !== 'undefined' && Dossier.onClick(e)) return;
     if (tab === 'now' && hasVote && Vote.onClick(e, ME, () => render(true))) return;
