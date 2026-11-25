@@ -1,8 +1,8 @@
 /* =====================================================================
    THE VANISHING HOUR — the printed books (books.html): host books, cheat cards, dossiers.
-   On screen: white letter-size sheets on a dark desk. In print: letter, 0.55in margins.
+   On screen: white letter-size sheets on a plain gray desk (Nov 25: no colored backgrounds). In print: letter, 0.55in margins.
    ===================================================================== */
-:root { --ink: #1b1712; --mute: #6b6156; --line: #d9d0c2; --gold: #9a7a3c; --paper: #fffdf8; --desk: #2a2622; --red: #9b2c2c; }
+:root { --ink: #1b1712; --mute: #5f5a52; --line: #dcdcdc; --gold: #8a6a2c; --paper: #ffffff; --desk: #e9e9e9; --red: #9b2c2c; }
 * { box-sizing: border-box; }
 html, body { margin: 0; background: var(--desk); color: var(--ink); }
 body { font: 10.5pt/1.45 'Source Serif 4', Georgia, serif; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
@@ -136,3 +136,25 @@ a { color: inherit; }
 .bk-who ul { margin: 0; padding-left: 16px; }
 .bk-book .bk-dos { width: auto; margin: 0; padding: 0; box-shadow: none; }
 .bk-book .bk-dos + .bk-dos { margin-top: 0; }
+/* the copyright line on every printed page (Nov 25) */
+@page { @bottom-center { content: "© 2026 Jacob Frederick. All rights reserved."; font: 7pt Inter, system-ui, sans-serif; color: #888; } }
+
+/* ---------- Nov 25: plain white pages, friendlier on a phone ---------- */
+.bk-hints { background: none !important; border-left: 3px solid var(--gold); border-radius: 0; padding: 4px 0 4px 10px; }
+.bk-tip { margin: 12px 0 0; padding: 10px 12px; border: 1px solid var(--line); border-radius: 6px; font: 10pt/1.45 Inter, system-ui, sans-serif; }
+.bk-steps-list { padding-left: 22px; } .bk-steps-list li { margin: 4px 0; }
+.bk-gloss { display: grid; grid-template-columns: minmax(110px, 26%) 1fr; gap: 6px 14px; margin: 0; }
+.bk-gloss dt { font-weight: 700; } .bk-gloss dd { margin: 0; }
+.bk-bar [data-now] { background: #fff; color: #15130f; border-color: #fff; }
+.bk-bar [data-jump] { max-width: 200px; }
+@media screen and (max-width: 700px) {
+  html, body { background: #fff; }
+  .bk-book, .bk-dos { box-shadow: none; padding: 18px 16px; font-size: 11.5pt; }
+  .bk-bar { gap: 6px; padding: 8px 10px; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; } .bk-bar::-webkit-scrollbar { display: none; } .bk-bar b { display: none; } .bk-bar > * { flex: none; } .bk-bar .go { margin-left: 0; }
+  .bk-bar [data-k] { font-size: 12px; padding: 6px 8px; }
+  .bk-t { display: block; overflow-x: auto; }
+  .bk-cover { min-height: auto; padding: 24px 0; }
+  .bk-part { min-height: auto; padding-top: 30px; }
+  .bk-gloss { grid-template-columns: 1fr; } .bk-gloss dd { margin-bottom: 6px; }
+}
+@media print { .bk-tip { display: none; } }

@@ -281,6 +281,7 @@
     let t;
     if ((t = e.target.closest('[data-pick]'))) { const k = t.dataset.pick; if (chosen.has(k)) chosen.delete(k); else chosen.add(k); return sync(); }
     if ((t = e.target.closest('[data-pk]'))) { const v = t.dataset.pk; chosen = new Set(v === 'none' ? [] : POSTERS.map(p => p.id + ':' + v)); return sync(); }
-    if (e.target.closest('[data-act="print"]')) { if (PAGE === 'posters' && !$$('.pp-item.on').length) return; window.print(); }
+    if (e.target.closest('[data-act="print"]')) { if (PAGE === 'posters' && !$$('.pp-item.on').length) return; PrintLock.ask(() => window.print()); }
   });  draw();
+  PrintLock.install();
 })();

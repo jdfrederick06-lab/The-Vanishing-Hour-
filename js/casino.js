@@ -41,12 +41,12 @@ const Casino = (() => {
   const SFX = { on: () => false, set() { }, chip() { }, card() { }, spin() { }, dice() { }, win() { }, lose() { } };
   const buzz = p => { try { if (navigator.vibrate && navigator.userActivation && navigator.userActivation.hasBeenActive) navigator.vibrate(p); } catch (e) { } };
 
-  /* ---------- roulette (American: 0 and 00; 37 stands for 00) ---------- */
-  const AM = [0, 28, 9, 26, 30, 11, 7, 20, 32, 17, 5, 22, 34, 15, 3, 24, 36, 13, 1, 37, 27, 10, 25, 29, 12, 8, 19, 31, 18, 6, 21, 33, 16, 4, 23, 35, 14, 2];
+  /* ---------- roulette (triple zero, Nov 25: 0, 00 and 000; 37 stands for 00, 38 for 000) ---------- */
+  const AM = [0, 28, 9, 26, 30, 11, 7, 20, 32, 17, 5, 22, 34, 15, 3, 24, 36, 13, 1, 37, 38, 27, 10, 25, 29, 12, 8, 19, 31, 18, 6, 21, 33, 16, 4, 23, 35, 14, 2];
   const SEG = 360 / AM.length;
   const REDS = new Set([1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36]);
-  const col = n => n === 0 || n === 37 ? 'green' : REDS.has(n) ? 'red' : 'black';
-  const lab = n => n === 37 ? '00' : String(n);
+  const col = n => n === 0 || n === 37 || n === 38 ? 'green' : REDS.has(n) ? 'red' : 'black';
+  const lab = n => n === 37 ? '00' : n === 38 ? '000' : String(n);
   /* every bet's payout ("to 1") and whether it wins */
   const RB = {
     red: [1, n => col(n) === 'red', 'Red'], black: [1, n => col(n) === 'black', 'Black'],
@@ -180,15 +180,19 @@ const Casino = (() => {
     });
   }
   const REFUSED = 'Bet refused: the account didn\'t have enough left when it was placed (someone else on it spent first).';
-  /** End a round: pay the player, and pass what the house kept to the foundation (less Harper's fee). */
+  /** the event fee on what the house kept: companyCut (older settings: harperCut was the whole fee) */
+  const feeOf = (c, kept) => Math.round(kept * (c.companyCut != null ? c.companyCut : (c.harperCut || 0)));
+  /** End a round: pay the player, and pass what the house kept to the foundation (less the event fee). */
   function settle(id, payout, result, memo) {
     const s = DB.fresh(), r = (N(s).rounds || {})[id]; if (!r || r.status !== 'open') return null;
     const c = CFG(), at = Date.now(), u = {}, kept = r.stake - payout;
     if (payout > 0) u['nw/tx/' + uid('t')] = { from: 'casino', to: r.w, amt: payout, memo: memo || 'Casino payout', by: r.by, at, cs: true };
     if (kept > 0) {
-      const cut = Math.round(kept * (c.harperCut || 0)), ws = NW.wallets();
+      /* Nov 25: the event fee (companyCut, 10%) goes to Harper's company and leaves the game; Harper herself
+         gets only her commission (harperCut, 0.75% of the take). The foundation gets the rest. */
+      const cut = feeOf(c, kept), mine = Math.round(kept * (c.harperCut || 0) * 100) / 100, ws = NW.wallets();
       if (c.beneficiary && ws[c.beneficiary]) u['nw/tx/' + uid('t')] = { from: 'casino', to: c.beneficiary, amt: kept - cut, memo: 'Charity casino proceeds', by: 'casino', at, house: true };
-      if (cut && c.feeTo && ws[c.feeTo]) u['nw/tx/' + uid('t')] = { from: 'casino', to: c.feeTo, amt: cut, memo: 'Casino event fee', by: 'casino', at, house: true };
+      if (mine > 0 && c.feeTo && ws[c.feeTo]) u['nw/tx/' + uid('t')] = { from: 'casino', to: c.feeTo, amt: mine, memo: 'Casino commission', by: 'casino', at, house: true };
     }
     const net = payout - r.stake;
     Object.assign(u, { ['nw/rounds/' + id + '/status']: 'done', ['nw/rounds/' + id + '/payout']: payout, ['nw/rounds/' + id + '/net']: net, ['nw/rounds/' + id + '/result']: result || null, ['nw/rounds/' + id + '/doneAt']: at });
@@ -226,7 +230,7 @@ const Casino = (() => {
   };
   function rulesCard(game) {
     const R = {
-      roulette: ['American roulette: 38 pockets, 1 to 36 plus 0 and 00.', 'Straight number pays 35 to 1. Dozens and columns pay 2 to 1. Red, black, odd, even, 1–18 and 19–36 pay even money.', '0 and 00 beat every outside bet.', 'House edge: 5.26% on every bet.'],
+      roulette: ['Triple-zero roulette: 39 pockets, 1 to 36 plus 0, 00 and 000.', 'Straight number pays 35 to 1. Dozens and columns pay 2 to 1. Red, black, odd, even, 1–18 and 19–36 pay even money.', '0, 00 and 000 beat every outside bet.', 'House edge: 7.69% on every bet.'],
       blackjack: ['Six decks. Get closer to 21 than the dealer without going over.', 'Blackjack pays 6 to 5. Other wins pay even money. Ties push.', 'Dealer hits soft 17. Double down on your first two cards. No splits, no insurance.', 'House edge: about 2 to 3%.'],
       dice: ['Two dice. Bet on the felt, then roll.', 'Under 7 or Over 7 pays even money. Lucky 7 pays 4 to 1. Doubles pays 4 to 1. Snake eyes or boxcars (2 or 12) pays 15 to 1.', 'House edge: 16.7% on most bets, 11.1% on 2 or 12.']
     }[game];
@@ -235,9 +239,10 @@ const Casino = (() => {
   function ticker(s) {
     const c = CFG(), big = rounds(s).filter(r => r.status === 'done' && r.net >= (c.bigWin || 250000)).slice(0, 6);
     /* worked out from the (public) table results, so every phone can show it */
-    const raised = rounds(s).filter(r => r.status === 'done').reduce((n, r) => { const kept = (r.stake || 0) - (r.payout || 0); return n + (kept > 0 ? kept - Math.round(kept * (c.harperCut || 0)) : 0); }, 0);
+    /* Nov 25 (Jacob): players' winnings count against the foundation, so the total goes negative when the room is beating the house */
+    const raised = rounds(s).filter(r => r.status === 'done').reduce((n, r) => { const kept = (r.stake || 0) - (r.payout || 0); return n + (kept > 0 ? kept - feeOf(c, kept) : kept); }, 0);
     const items = big.map(r => `<span><b>${esc((G.byId(r.by) || { name: '?' }).name.split(' ')[0])}</b> won ${short(r.net)} at ${r.game === 'dice' ? 'Lucky dice' : r.game}</span>`);
-    return `<div class="cs-ticker"><span class="cs-live"><i></i>Live</span><div class="cs-tick"><div class="cs-tick-in">${items.length ? items.concat(items).join('') : '<span>The tables are waiting for their first big winner.</span>'}</div></div><span class="cs-raised"><small>Raised for the foundation</small><b>${money(raised)}</b></span></div>`;
+    return `<div class="cs-ticker"><span class="cs-live"><i></i>Live</span><div class="cs-tick"><div class="cs-tick-in">${items.length ? items.concat(items).join('') : '<span>The tables are waiting for their first big winner.</span>'}</div></div><span class="cs-raised${raised < 0 ? ' neg' : ''}"><small>${raised < 0 ? 'The foundation is down' : 'Raised for the foundation'}</small><b>${money(raised)}</b></span></div>`;
   }
   function history(s) {
     const list = rounds(s).filter(r => r.game === 'roulette' && r.status === 'done' && r.result).slice(0, 14);
@@ -254,7 +259,7 @@ const Casino = (() => {
   function rouletteTable(c, dis) {
     const bets = c.bets.roulette, r = c.res && c.res.game === 'roulette' && !c.busy ? c.res : null, wins = new Set(r ? r.wins : []);
     const cell = (spot, row, colStart, colSpan, rowSpan, label, cls, aria) => `<button type="button" class="rb-c ${cls || ''}${wins.has(spot) ? ' win' : ''}${r && spot === 'n' + r.n ? ' hit' : ''}" data-cs-spot="${spot}" style="grid-row:${row}/span ${rowSpan};grid-column:${colStart}/span ${colSpan}" ${dis ? 'disabled' : ''} aria-label="${aria || label}${bets[spot] ? ', ' + money(bets[spot]) + ' bet' : ''}"><span class="rb-l">${label}</span>${bets[spot] ? chipEl(bets[spot], 'on') : ''}</button>`;
-    let h = cell('n0', 1, 3, 3, 1, '0', 'g') + cell('n37', 1, 6, 3, 1, '00', 'g');
+    let h = cell('n0', 1, 3, 2, 1, '0', 'g') + cell('n37', 1, 5, 2, 1, '00', 'g') + cell('n38', 1, 7, 2, 1, '000', 'g');
     [['low', '1–18'], ['even', 'EVEN'], ['red', '<i class="dia r"></i>', 'Red'], ['black', '<i class="dia b"></i>', 'Black'], ['odd', 'ODD'], ['high', '19–36']].forEach(([k, l, a], i) => { h += cell(k, 2 + i * 2, 1, 1, 2, l, 'out v', a); });
     [['d1', '1st 12'], ['d2', '2nd 12'], ['d3', '3rd 12']].forEach(([k, l], i) => { h += cell(k, 2 + i * 4, 2, 1, 4, l, 'out v'); });
     for (let k = 0; k < 12; k++) for (let j = 0; j < 3; j++) { const n = 3 * k + j + 1; h += cell('n' + n, 2 + k, 3 + j * 2, 2, 1, n, col(n)); }
@@ -332,7 +337,7 @@ const Casino = (() => {
           </div>
         </div>
       </div>
-      <p class="cs-fine">The odds always favor the house. Every dollar it wins tonight goes to the Saint-Clair Foundation, less a ${Math.round((cfg.harperCut || 0) * 100)}% event fee to Harper Quill. Rounds from ${money(cfg.minBet || 1)} to ${money(cfg.maxBet || 0)}.</p>
+      <p class="cs-fine">The odds always favor the house. Every dollar it wins tonight goes to the Saint-Clair Foundation, less a ${Math.round((cfg.companyCut != null ? cfg.companyCut : (cfg.harperCut || 0)) * 100)}% event fee to the events company. Rounds from ${money(cfg.minBet || 1)} to ${money(cfg.maxBet || 0)}.</p>
     </div>`;
   }
 
@@ -522,7 +527,8 @@ const Casino = (() => {
       rounds: rs.length, open: rounds(s).filter(r => r.status === 'open').length,
       houseNet: -rs.reduce((n, r) => n + (r.net || 0), 0),
       wagered: rs.reduce((n, r) => n + r.stake, 0),
-      foundation: tx.filter(t => t.to === c.beneficiary).reduce((n, t) => n + t.amt, 0),
+      /* the foundation's result: what the house kept (less Harper's fee), minus what the house paid out to winners */
+      foundation: rs.reduce((n, r) => { const kept = (r.stake || 0) - (r.payout || 0); return n + (kept > 0 ? kept - feeOf(c, kept) : kept); }, 0),
       fee: tx.filter(t => t.to === c.feeTo).reduce((n, t) => n + t.amt, 0),
       games: ['roulette', 'blackjack', 'dice'].map(g => ({ g, n: by(g).length, house: -by(g).reduce((n, r) => n + (r.net || 0), 0) })),
       best: rs.slice().sort((a, b) => (b.net || 0) - (a.net || 0))[0] || null

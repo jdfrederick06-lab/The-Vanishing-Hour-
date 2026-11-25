@@ -73,3 +73,8 @@
   .hero.ending .hero-ring, .hero.ending .val, .count-up, .count-down, .toast.toast-rich, .toast.toast-rich.out, .card.alert.new, .bb-votes button:active { animation: none !important; }
   .oz-wcard::after, .nb-card::after, .toast.toast-money::after { display: none; }
 }
+
+/* the Now page is drawn in two parts (hero + the rest); they sit in the page's own column (Nov 25) */
+#nowHero, #nowRest { display: contents; }
+.app-main.enter #nowHero > *, .app-main.enter #nowRest > * { animation: rise .5s cubic-bezier(.2,.8,.2,1) both; }
+.app-main.enter #nowRest > *:nth-child(1) { animation-delay: .05s; } .app-main.enter #nowRest > *:nth-child(n+2) { animation-delay: .1s; }

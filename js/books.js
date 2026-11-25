@@ -92,10 +92,15 @@
     let html = '';
 
     /* ===== Part 1: your night ===== */
-    html += partH('Your night', 'Who you are tonight, and how to use this book');
+    html += partH('Your night', 'Start here. Read this part first.');
+    const SH = GD.startHere || {};
+    if (SH.all) html += add('start', 'Start here', (SH.all || []).concat(SH[k] || []).map(p => `<p>${md(p)}</p>`).join('') +
+      ((SH.steps || {})[k] ? `<h3>Your night in ${SH.steps[k].length} steps</h3><ol class="bk-steps-list">${SH.steps[k].map(x => `<li>${md(x)}</li>`).join('')}</ol>` : '') +
+      `<div class="bk-tip"><b>Reading this on your phone?</b> Use the <b>Go to</b> menu at the top to jump anywhere. On the night, <b>Right now</b> takes you straight to the part of the night that's happening.</div>`);
     html += add('job', 'Your job tonight', ((GD.jobs || {})[k] || []).map(p => `<p>${md(p)}</p>`).join('') +
       (groups ? `<p>You look after <b>${esc(groups.map(groupName).join(', '))}</b>: ${cast.length} players.</p>` : '') +
       `<p class="bk-note">How to use this book: read Parts 1 to 3 the week before. Keep Part 4 open on the night; it runs in clock order. Part 5 has every answer. The dossiers for your players are at the back.</p>`);
+    if (GD.glossary) html += add('glossary', 'Words you\'ll hear tonight', `<dl class="bk-gloss">${GD.glossary.map(([t, d]) => `<dt>${esc(t)}</dt><dd>${md(d)}</dd>`).join('')}</dl>`);
     html += add('contacts', 'Contacts', `<table class="bk-t bk-fill">${(GD.contacts || []).map(([a, b]) => `<tr><td><b>${esc(a)}</b></td><td>${esc(b)}</td><td class="bk-line"></td></tr>`).join('')}</table>`);
     html += add('codes', 'Codes and links',
       `<table class="bk-t"><tr><th>What</th><th>Where</th><th>Code word</th></tr>
@@ -114,8 +119,8 @@
     if (GD.wins) html += add('wins', 'Who wins', tbl(['Group', 'They win if'], GD.wins.map(r => ['**' + r[0] + '**', r[1]])));
 
     /* ===== Part 3: getting ready ===== */
-    html += partH('Getting ready', 'Weeks before, the day before, and the room');
-    html += add('countdown', 'Countdown', (GD.countdown || []).map(s => { const items = s.items.filter(([r]) => mine(r)); return items.length ? `<h3>${esc(s.when)}</h3><ul class="bk-check">${items.map(([r, t]) => `<li>${box}${md(t)}${k === 'main' && r !== 'main' ? ` <span class="bk-who-tag">${esc(ROLE[r] || r)}</span>` : ''}</li>`).join('')}</ul>` : ''; }).join(''));
+    html += partH('Getting ready', 'From three weeks out to the hour before the doors open');
+    html += add('countdown', 'Getting ready, week by week', (GD.countdown || []).map(s => { const items = s.items.filter(([r]) => mine(r)); return items.length ? `<h3>${esc(s.when)}</h3><ul class="bk-check">${items.map(([r, t]) => `<li>${box}${md(t)}${k === 'main' && r !== 'main' ? ` <span class="bk-who-tag">${esc(ROLE[r] || r)}</span>` : ''}</li>`).join('')}</ul>` : ''; }).join(''));
     const shop = (GD.shopping || []).filter(([, , r]) => mine(r));
     if (shop.length) html += add('shopping', 'Shopping and supplies', tbl(['', 'Item', 'How many'].concat(k === 'main' ? ['Who brings it'] : []), shop.map(([t, n, r]) => [box, t, n].concat(k === 'main' ? [ROLE[r] || r] : [])), 'bk-shop') +
       `<p class="bk-note">Printed pieces (evidence, props, badges, posters, cheat cards, dossiers) come from the print pages; see the countdown.</p>`);
@@ -134,16 +139,16 @@
       `<p class="bk-note">Phones get every cue by themselves on the clock. The host terminal shows Now, Next and a countdown; every host can pause it.</p>`);
 
     /* ===== Part 4: the night, step by step ===== */
-    html += partH('The night, step by step', 'Keep this part open. It runs in clock order.');
-    toc.push(['show', 'Run of show']);
-    html += `<section class="bk-sec" id="show"><h2>Run of show</h2>` + STORY.phases.map((p, i) => {
+    html += partH('The night, step by step', 'Keep this part open on the night. It runs in clock order: just follow it down.');
+    toc.push(['show', 'The night, minute by minute']);
+    html += `<section class="bk-sec" id="show"><h2>The night, minute by minute</h2><p class="bk-lead">Each box below is one part of the night. Read the box when that part starts: what's happening, what to say, your checklist, and what to do if people get stuck.</p>` + STORY.phases.map((p, i) => {
       const G2 = (GD.phases || {})[p.id] || {}, from = start(i), to = from + p.min;
       const cues = (p.cues || []).filter(c => (c.to && touches(c.to)) || (!c.to && k === 'main'));
       const gs = games.filter(g => g.opens && ((g.opens.phase === p.id) || (g.opens.min != null && g.opens.min >= from && g.opens.min < to)));
       const mm = mems.filter(m => { const t = gameMin(m[0]); return t == null ? p.id === 'act2' : t >= from && t < to; });
       const steps = k === 'main' ? [['You', G2.main], ['FBI handler', G2.fbi], ['Crew handler', G2.crew]] : [['You', G2[k]]];
       const hints = Object.entries(G2.hints || {}).filter(([a]) => k === 'main' || (k === 'fbi' ? a === 'fbi' : a === 'crew' || a === 'guest' && false));
-      return `<div class="bk-phase"><div class="bk-ph"><span class="bk-time">${clockAt(from)}</span><b>${esc(p.name)}</b><span class="bk-len">${p.min} min · until ${clockAt(to)}</span></div>
+      return `<div class="bk-phase" id="ph-${p.id}"><div class="bk-ph"><span class="bk-time">${clockAt(from)}</span><b>${esc(p.name)}</b><span class="bk-len">${p.min} min · until ${clockAt(to)}</span></div>
         ${p.note ? `<p>${md(p.note)}</p>` : ''}${p.say ? `<p class="bk-say">Say: "${md(p.say)}"</p>` : ''}
         ${steps.filter(([, a]) => a && a.length).map(([who, a]) => `<div class="bk-steps"><h4>${esc(who)}</h4>${ul(a, true)}</div>`).join('')}
         ${cues.length ? `<h4>On the phones</h4><table class="bk-t bk-cues">${cues.map(c => `<tr><td class="bk-time">${clockAt(from + c.at)}</td><td>${c.to ? '<b>' + esc(Names.say(G.toLabel(c.to))) + '</b>: ' + md(c.title ? c.title + '. ' : '') + md(c.text || '') : '<b>Bebbit</b> (planted): ' + md((c.post || {}).text || '')}${c.host ? `<div class="bk-note">${md(c.host)}</div>` : ''}</td></tr>`).join('')}</table>` : ''}
@@ -154,10 +159,10 @@
     }).join('') + `</section>`;
 
     /* ===== Part 5: solutions ===== */
-    html += partH('Every answer', 'Clues, red herrings, locks, games and records');
+    html += partH('Every answer', 'Look things up here when players ask, or when you need to check a solution');
     if (GD.clues) html += add('clues', 'The 15 clues', tbl(['#', 'Clue', 'Form', 'Who has it / how it\'s found', 'From', 'What it proves', 'Backup'], GD.clues, 'bk-small-t'));
     if (GD.herrings) html += add('herrings', 'The red herrings', tbl(['#', 'Red herring', 'Points at', 'The innocent truth', 'How players clear it'], GD.herrings, 'bk-small-t'));
-    if (GD.decoys) html += add('decoys', 'Decoys built into the story', tbl(['Decoy', 'Points at', 'Why it\'s innocent'], GD.decoys, 'bk-small-t'));
+    if (GD.decoys) html += add('decoys', 'Wrong trails built into the story', tbl(['Decoy', 'Points at', 'Why it\'s innocent'], GD.decoys, 'bk-small-t'));
     if (GD.locks) html += add('locks', 'The locked props', tbl(['Lock', 'What it holds', 'How it opens'].concat(k === 'main' ? ['Set by'] : []), GD.locks.map(r => r.slice(0, 3).concat(k === 'main' ? [ROLE[r[3]] || r[3]] : []))));
     if (games.length) html += add('games', 'Mini-games and answers', games.map(g => `<div class="bk-game"><b>${esc(g.name)}</b> · ${esc(Names.say(G.toLabel(g.who)))}${g.backup ? ' (backup: ' + esc(Names.say(G.toLabel(g.backup))) + ')' : ''} · opens ${esc(opensAt(g.opens || {}))}${g.clue ? ' · clue ' + esc(g.clue) : ''}<p>${md(Names.say(g.blurb || ''))}</p><p class="bk-ans">Answer: ${md(ANSWERS[g.id] || 'see Host > Games')}</p></div>`).join('') +
       `<p class="bk-note">Host > Games can open a game early, close it, mark it solved, add 30 seconds or send a hint.</p>`);
@@ -175,7 +180,7 @@
         `<ul><li>The crew needs to sell the painting for about ${money(N.goal)} to one of: ${esc((N.buyers || []).map(nm).join(', '))}. Sale money is held until ${esc((STORY.phases.find(p => p.id === N.escrowUntil) || {}).name || 'later')}.</li>
         <li>Each player's bank goes by a different name: Bebbit Banking (guests and staff), the Federal Credit Union (FBI), Omnizon Wallet (crew). It's one bank underneath.</li>
         <li>The rich can "free up" more money once a night; it arrives after a wait on the game clock.</li>
-        <li>Casino: the house always wins in the end; its take goes to ${esc(nm((N.casino || {}).beneficiary) || 'the foundation')}, ${Math.round(((N.casino || {}).harperCut || 0) * 100)}% to ${esc(nm((N.casino || {}).feeTo) || 'Harper')}. The FBI can't play.</li>
+        <li>Casino: the house always wins in the end; its take goes to ${esc(nm((N.casino || {}).beneficiary) || 'the foundation')}, less a ${Math.round(((N.casino || {}).companyCut || 0) * 100)}% event fee to ${esc(nm((N.casino || {}).feeTo) || 'Harper')}'s events company. ${esc(nm((N.casino || {}).feeTo) || 'Harper')} only gets a ${(((N.casino || {}).harperCut || 0) * 100).toFixed(2).replace(/0$/, '')}% commission, so the casino never fixes her $180,000 problem. Winners count against the foundation, so its total can go negative. Table limit ${money((N.casino || {}).maxBet || 0)} a round; the roulette wheel has three zeros. The FBI can't play.</li>
         <li>Cameron lends ${money((N.lending || {}).min)} to ${money((N.lending || {}).max)}; an overdue loan lets Cameron freeze the borrower by court order and name them publicly.</li>
         <li>Host terminal > Omnizon: + or - money for anyone, freeze or unfreeze, make freed-up money arrive now.</li></ul>
         <h3>On Omnizon tonight</h3>` + tbl(['File', 'Seller', 'Price', 'Who can buy', 'Appears'], (N.market || []).map(it => [it.title, it.seller, money(it.price), it.for.map(groupName).join(', '), it.from ? clockAt(start(STORY.phases.findIndex(p => p.id === it.from))) : 'from the start'])));
@@ -266,15 +271,26 @@
     const people = ['cards', 'dossiers'].includes(kind);
     const bar = `<div class="bk-bar"><b>Books</b>${allowedKinds.map(([k, t]) => `<button data-k="${k}" aria-pressed="${kind === k}">${esc(t)}</button>`).join('')}
       ${people ? `<select data-only><option value="all">Everyone (${STORY.characters.filter(c => !H || H.includes(c.group)).length})</option>${groupsList.map(g => `<option value="${g}" ${only === g ? 'selected' : ''}>${esc(groupName(g))}</option>`).join('')}<optgroup label="One person">${STORY.characters.filter(c => !H || H.includes(c.group)).sort((a, b) => a.name.localeCompare(b.name)).map(c => `<option value="${c.id}" ${only === c.id ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</optgroup></select>` : ''}
+      ${!people ? `<select data-jump aria-label="Go to a section"><option value="">Go to…</option></select><button data-now title="Jump to the part of the night that's happening">Right now</button>` : ''}
       <a href="host.html">Host terminal</a><button class="go" data-print>Print or save as PDF</button></div>`;
     const body = kind === 'cards' ? cards() : kind === 'dossiers' ? dossiers() : hostBook(kind);
     $('#root').innerHTML = bar + `<div class="bk-doc k-${kind}">${body}</div>`;
     document.title = (KINDS.find(x => x[0] === kind) || [0, 'Books'])[1] + ' · The Vanishing Hour';
+    /* the Go to menu lists every part and section of the book */
+    const j = $('[data-jump]'); if (j) j.innerHTML = '<option value="">Go to…</option>' + $$('.bk-toc li a').map(a => `<option value="${a.getAttribute('href').slice(1)}">${a.parentElement.classList.contains('big') ? '' : '   '}${esc(a.textContent)}</option>`).join('');
+  }
+  /* Right now: the part of the night the clock is in */
+  function jumpNow() {
+    const r = Clock.read(DB.get() || {}), id = r.state === 'before' ? 'start' : r.state === 'over' ? 'reveal' : 'ph-' + (r.phase || {}).id;
+    const el = document.getElementById(id) || document.getElementById('show'); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
   document.addEventListener('click', e => {
     const k = e.target.closest('[data-k]'); if (k) { kind = k.dataset.k; only = 'all'; history.replaceState(null, '', '?k=' + kind); draw(); window.scrollTo(0, 0); return; }
-    if (e.target.closest('[data-print]')) window.print();
+    if (e.target.closest('[data-print]')) PrintLock.ask(() => window.print());
+    if (e.target.closest('[data-now]')) jumpNow();
   });
+  document.addEventListener('change', e => { const jp = e.target.closest('[data-jump]'); if (jp && jp.value) { const el = document.getElementById(jp.value); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); jp.value = ''; return; } });
   document.addEventListener('change', e => { const s = e.target.closest('[data-only]'); if (s) { only = s.value; history.replaceState(null, '', '?k=' + kind + (only !== 'all' ? '&only=' + only : '')); draw(); } });
+  PrintLock.install();
   DB.loaded().then(draw);
 })();

@@ -41,7 +41,7 @@
           <div style="--d:1.1s"><span>status</span>awaiting host code<i class="ht-caret"></i></div>
         </div>
         <div><label class="lbl" for="hc">Host code</label><input class="field mono" id="hc" autocapitalize="characters" autocorrect="off" spellcheck="false" placeholder="XXXXXX-00"></div>
-        <button class="btn primary" type="submit">Open the terminal <kbd>Enter</kbd></button><div class="err" id="he" role="alert"></div></form></div>`;
+        <button class="btn primary" type="submit">Open the terminal <kbd>Enter</kbd></button><div class="err" id="he" role="alert"></div><p class="ht-copy">${esc(COPYRIGHT)}</p></form></div>`;
     setTimeout(() => { const f = $('#hc'); if (f) f.focus(); }, 300);
     $('#hl').addEventListener('submit', e => {
       e.preventDefault();
@@ -91,7 +91,7 @@
     };
     return `<div class="ht-brand">${mark}<div><b>Host terminal</b><small>${esc(ME.label)}</small></div></div>
       <nav class="ht-nav" aria-label="Sections">${tabList().map((t, k) => `<button data-tab="${t[0]}" aria-current="${tab === t[0]}">${ICON[t[0]]}<span>${t[1]}</span>${badge[t[0]] || ''}<kbd>${k + 1}</kbd></button>`).join('')}</nav>
-      <div class="ht-rail-foot">
+      <div class="ht-rail-foot"><p class="ht-copy">${esc(COPYRIGHT)}</p>
         <button class="ht-keyhint" data-act="privacy"><kbd>P</kbd> Hide screen</button>
         <button class="ht-keyhint" data-act="keys"><kbd>?</kbd> Keyboard shortcuts</button>
         <div class="ht-me"><span class="ht-av">${esc(initials(ME.label))}</span><div><b>${esc(ME.label)}</b><small>${scope() ? 'Sees: ' + scope().map(g => esc(STORY.groups[g].name)).join(', ') : 'Sees everything'}</small></div></div>
@@ -435,7 +435,7 @@
     const all = NW.wallets(), row = w => {
       const p = NW.pendingState(s, w), fz = NW.frozen(s, w), cfg = NW.fuCfg(w), f = NW.fuOf(s, w);
       /* money tied up: not freed yet · clearing (with "arrive now") · cleared */
-      const fu = !cfg ? '' : !f ? ` · ${NW.money(cfg.amt)} tied up` : NW.fuReady(s, f) ? ` · freed ${NW.money(f.amt)}` : ` · freeing ${NW.money(f.amt)}, arrives ${hmm(f.ready)}`;
+      const fu = !cfg ? '' : !f ? ` · ${NW.money(cfg.amt)} tied up` : NW.fuReady(s, f) ? ` · freed ${NW.money(f.amt)}` : ` · ${NW.money(NW.fuCleared(s, f))} of ${NW.money(f.amt)} freed so far, all by ${hmm(f.ready)}`;
       return `<div class="sys ${fz ? 'frozen' : ''}"><div style="flex:1;min-width:0"><b>${esc(NW.wname(w))}${fz ? ` <span class="chip bad">frozen · ${esc(fz.by)}</span>` : ''}</b><small>${all[w].personal ? 'Personal account' : esc([].concat(all[w].members).map(m => m.startsWith('g:') ? STORY.groups[m.slice(2)].name : G.byId(m).name).join(', '))}${p ? ` · ${p.void ? 'client payment VOID' : NW.money(p.amount) + ' due on delivery'}` : ''}${fu}</small></div><span class="mono money">${NW.money(NW.balance(s, w))}</span>${f && !NW.fuReady(s, f) ? `<button class="btn small" data-nwfast="${w}" title="Make the freed-up money arrive now">Arrive now</button>` : ''}<button class="btn small ghost" data-nwfreeze="${w}">${fz ? 'Unfreeze' : 'Freeze'}</button><button class="btn small ghost" data-nwgrant="${w}">± money</button></div>`;
     };
     /* a co-host sees only their own groups' accounts */

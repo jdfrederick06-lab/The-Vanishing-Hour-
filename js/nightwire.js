@@ -47,11 +47,16 @@ const NW = (() => {
   const fuCfg = w => (C().freeUp || {})[w] || null;
   const fuOf = (s, w) => (N(s).freeup || {})[w] || null;
   const fuReady = (s, f) => !!f && (!!f.now || nightNow(s) >= f.ready);
+  /* Nov 25 (Jacob): freed-up money arrives in five equal transfers as the wait runs, not all at the end */
+  const FU_STEPS = 5;
+  const fuStep = (s, f) => !f ? 0 : fuReady(s, f) ? FU_STEPS : Math.max(0, Math.min(FU_STEPS, Math.floor((nightNow(s) - f.start) / Math.max(1, f.ready - f.start) * FU_STEPS)));
+  const fuCleared = (s, f) => !f ? 0 : cents(f.amt * fuStep(s, f) / FU_STEPS);
+  const fuNextAt = (s, f) => f ? f.start + (f.ready - f.start) * (fuStep(s, f) + 1) / FU_STEPS : 0;
   /* Privacy (Nov 23): a phone only downloads the payments of its own account. Its members (and the
      hosts) work the balance out from that history; everyone else sees the balance the account last
      published at nw/bal/{w} (needed when the crew takes a buyer's bid, or a borrower takes a loan). */
   function sees(w) { const me = DB.who ? DB.who() : null; if (!me || me.host) return true; return Route.wallet(w).some(b => b === 'p/' + me.id || b === 'g/' + me.group); }
-  function computed(s, w) { const st = (W()[w] || {}).start || 0, f = fuOf(s, w); return cents(txs(s).reduce((b, t) => b + (t.to === w && !held(s, t) ? t.amt : 0) - (t.from === w ? t.amt : 0), st + (fuReady(s, f) ? f.amt : 0))); }
+  function computed(s, w) { const st = (W()[w] || {}).start || 0, f = fuOf(s, w); return cents(txs(s).reduce((b, t) => b + (t.to === w && !held(s, t) ? t.amt : 0) - (t.from === w ? t.amt : 0), st + fuCleared(s, f))); }
   function balance(s, w) {
     if (sees(w)) return computed(s, w);
     const p = (N(s).bal || {})[w]; return p ? p.amt : ((W()[w] || {}).start || 0);
@@ -228,6 +233,29 @@ const NW = (() => {
   }
   const findItem = (s, me, id) => { const it = (C().market || []).find(x => x.id === id); return it && it.for.includes(me.group) && available(s, it) ? it : null; };
 
+  /* ----- an owned file, opened like the real thing (Nov 25) ----------
+     story.js gives each market item a `doc` = { type, org, title, ref, rows, table, paras, hops,
+     mails, checks, score, stamp, foot }. Every type shares one paper sheet; the type changes
+     the look (blueprint, bank statement, trace report, email headers, ledger, memo, ID check,
+     certificate, lab report). The footer licenses the copy to the buyer's account. */
+  function docView(it, w) {
+    const d = it.doc, T = d.type || 'memo';
+    const kv = (d.rows || []).length ? `<dl class="od-kv">${d.rows.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('')}</dl>` : '';
+    const tb = d.table ? `<table class="od-t"><thead><tr>${d.table.head.map(h => `<th>${esc(h)}</th>`).join('')}</tr></thead><tbody>${d.table.rows.map(r => `<tr>${r.map((c, i) => `<td${T === 'statement' && i === r.length - 1 ? ` class="${/^−|^-/.test(c) ? 'neg' : 'pos'}"` : ''}>${esc(c)}</td>`).join('')}</tr>`).join('')}</tbody></table>` : '';
+    const ps = (d.paras || []).map(p => `<p class="od-p">${esc(p)}</p>`).join('');
+    let special = '';
+    if (T === 'blueprint') special = `<svg class="od-plan" viewBox="0 0 320 150" aria-hidden="true"><rect x="6" y="6" width="308" height="138" fill="none" stroke="currentColor" stroke-width="2"/><path d="M6 60h120M126 6v138M126 96h188M230 96v48" fill="none" stroke="currentColor" stroke-width="1.6"/><rect x="240" y="104" width="62" height="34" fill="none" stroke="#f26a1b" stroke-width="2.4"/><circle cx="271" cy="121" r="8" fill="none" stroke="#f26a1b" stroke-width="2"/><path d="M30 60v84M40 60v84M50 60v84M60 60v84M70 60v84" stroke="currentColor" stroke-width=".8" opacity=".7"/><text x="16" y="34">EAST HALL</text><text x="16" y="120">STAIRS</text><text x="140" y="50">GALLERY STORAGE</text><text x="246" y="99">VAULT</text><text x="140" y="126">CORRIDOR</text></svg>`;
+    if (T === 'trace') special = `<ol class="od-hops">${(d.hops || []).map((h, i, a) => `<li class="${i === a.length - 1 ? 'end' : ''}"><i></i><span>${esc(h)}</span></li>`).join('')}</ol>`;
+    if (T === 'email') special = (d.mails || []).map(m => `<div class="od-mail"><div class="od-mail-h"><b>${esc(m.subject)}</b><small>${esc(m.when)}</small></div><dl class="od-kv"><dt>Sent from</dt><dd>${esc(m.from)}</dd><dt>Route</dt><dd>${esc(m.path)}</dd></dl><p class="od-p">${esc(m.note)}</p></div>`).join('');
+    if (T === 'kyc') special = `<ul class="od-checks">${(d.checks || []).map(([k, ok, v]) => `<li class="${ok ? 'ok' : 'bad'}"><b>${ok ? '✓' : '✕'}</b><span>${esc(k)}</span><em>${esc(v)}</em></li>`).join('')}</ul>`;
+    if (T === 'lab') special = `<div class="od-score"><small>Probability of paternity</small><b>${esc(d.score || '')}</b></div><div class="od-bars" aria-hidden="true">${Array.from({ length: 12 }, (_, i) => `<span><i style="height:${30 + (i * 53 % 60)}%"></i><i style="height:${30 + (i * 53 % 60) - (i % 4 === 0 ? 8 : 0)}%"></i></span>`).join('')}</div>`;
+    return `<article class="od od-${T}">
+      <header class="od-h"><div><small>${esc(d.org || '')}</small><b>${esc(d.title || it.title)}</b></div>${d.ref ? `<span class="od-ref">${esc(d.ref)}</span>` : ''}</header>
+      ${special}${kv}${tb}${ps}
+      ${d.stamp ? `<span class="od-stamp">${esc(d.stamp)}</span>` : ''}
+      <footer class="od-f"><span>${esc(d.foot || '')}</span><span>Licensed to ${esc(wname(w))} · Omnizon digital file · do not redistribute</span></footer></article>`;
+  }
+
   /* ----- the product page (an owned file opens here) ----- */
   function itemView(s, me, ui, w) {
     const it = findItem(s, me, ui.item); if (!it) { ui.view = 'home'; return shopView(s, me, ui, w); }
@@ -242,7 +270,7 @@ const NW = (() => {
     if (placing) right = `<div class="oz-track" role="status"><b>Placing your order…</b><div class="oz-track-bar"><i></i></div><div class="oz-track-steps"><span>Paid</span><span>In escrow</span><span>Delivering</span></div></div>`;
     else if (mine) right = `${ui.bought === it.id ? `<div class="oz-done oz-pop">${IC.done}<div><b>Order placed</b><span>Paid from ${esc(wname(w))}. Your file is below.</span></div></div>` : ''}
         <div class="oz-file"><div class="oz-file-h">${IC.check}Delivered to your library<span>${esc(wallTime(got.at))}${got.by && got.by !== me.id ? ' · bought by ' + esc(first(got.by)) : ''}</span></div>
-        <div class="oz-file-b${ui.fresh === it.id ? ' fresh' : ''}">${esc(it.body)}</div></div>`;
+        ${it.doc ? `<div class="oz-doc-wrap${ui.fresh === it.id ? ' fresh' : ''}">${docView(it, w)}</div>` : `<div class="oz-file-b${ui.fresh === it.id ? ' fresh' : ''}">${esc(it.body)}</div>`}</div>`;
     else right = `<div class="oz-pg">
         ${price(it.price, true)}
         <div class="oz-lines"><span><b>Instant digital delivery</b> to your Omnizon library</span>${gone ? '<span class="oz-low">Sold. Another buyer got this file first.</span>' : '<span class="oz-low">Only 1 left. Sells once.</span>'}</div>
@@ -319,7 +347,7 @@ const NW = (() => {
     return `<section class="oz-sec"><span class="oz-sec-h">Activity <span class="oz-badge">${plain.length + (play.length ? 1 : 0)}</span></span>${rows || '<div class="oz-empty">No activity yet. Orders and transfers show up here.</div>'}</section>`;
   }
   function walletView(s, me, ui, w) {
-    return `<div class="oz-cols"><div>${walletCard(s, w)}${loansBox(s, me, w, ui)}${unfreezeTool(s, me, ui)}</div><div>${sendForm(s, me, ui, w)}${activity(s, w)}</div></div>`;
+    return `<div class="oz-cols"><div>${walletCard(s, w)}${loansBox(s, me, w, ui)}${loanAd(s, me, ui, w, true)}${unfreezeTool(s, me, ui)}</div><div>${sendForm(s, me, ui, w)}${activity(s, w)}</div></div>`;
   }
 
   /* ----- Sell: Seller Central (the crew's private sale of the painting) ----- */
@@ -370,6 +398,29 @@ const NW = (() => {
     const none = $('[data-oz-none]'); if (none) { none.hidden = n > 0; const b = none.querySelector('b'); if (b) b.textContent = 'No results' + (k ? ' for "' + q.trim() + '"' : ''); }
   }
 
+  /* ---------- Thorne Capital: Cameron's loans, advertised (Nov 25) ----------
+     Every bank app (not Cameron's own) shows an ad with an "Ask for a loan" form.
+     nw/loanreq/{id} = { from, w, amt, note, at, status: open|offered|declined } goes to the
+     asker and to Cameron only (see Route in core.js). Cameron answers from his lending desk. */
+  const reqs = s => Object.entries(N(s).loanreq || {}).map(([id, r]) => Object.assign({ id }, r)).sort((a, b) => b.at - a.at);
+  function loanAd(s, me, ui, w, oz) {
+    const L = LC(); if (!L.lender || isLender(me) || !G.byId(L.lender)) return '';
+    const lw = walletOf(G.byId(L.lender)); if (!lw || w === lw) return '';
+    const open = loans(s).find(l => l.to === w && l.lender === lw && (l.status === 'offer' || l.status === 'active'));
+    const mine = reqs(s).find(r => r.from === me.id && r.status === 'open');
+    const quick = [5000, 25000, 50000, 100000].filter(v => v >= L.min && v <= L.max);
+    const body = open ? `<p class="tc-p">You have ${open.status === 'offer' ? 'an offer' : 'a loan'} from Thorne Capital. See it above.</p>`
+      : mine ? `<p class="tc-p">✓ You asked for <b>${money(mine.amt)}</b>${mine.note ? ` ("${esc(mine.note)}")` : ''}. Cameron Thorne will send an offer if he likes it.</p>`
+      : `<form class="tc-form" data-nw-form="loanreq"><div class="tc-quick">${quick.map(v => `<button type="button" class="tc-pill${ui.lreq === String(v) ? ' on' : ''}" data-nw-lreq="${v}">${'$' + (v / 1000) + 'K'}</button>`).join('')}</div>
+          <input class="field" data-nw="lreqamt" inputmode="decimal" placeholder="Or type an amount (${money(L.min)} to ${money(L.max)})" value="${esc(ui.lreq || '')}" aria-label="Loan amount to ask for" autocomplete="off">
+          <input class="field" data-nw="lreqnote" maxlength="60" placeholder="What's it for? (optional)" value="${esc(ui.lreqNote || '')}" aria-label="What it's for">
+          <button class="tc-go" type="submit">Ask for a loan</button>${errBox(ui, 'loanreq')}</form>`;
+    return `<section class="tc-ad${oz ? ' tc-oz' : ''}" aria-label="Advertisement"><span class="tc-sp">Sponsored</span>
+      <div class="tc-top"><span class="tc-mark">TC</span><div><b>Thorne Capital</b><small>Private lending · tonight only</small></div></div>
+      <p class="tc-head">Short on cash? Get <b>${money(L.min)} to ${money(L.max)}</b> in minutes.</p>
+      <p class="tc-fine">No paperwork. No questions. Rates set by the lender. Repay on time.</p>${body}</section>`;
+  }
+
   /* ---------- NightBank ----------
      Everyone outside NIGHTWIRE gets it as its own tab. It looks like a real private bank:
      Account (card, send money, loans, money tied up, activity), Casino (casino.js), and
@@ -417,11 +468,11 @@ const NW = (() => {
       <p class="nb-p">Most of your fortune is in property, stock and companies. You can sell some of it tonight, but the money takes <b>${waitLabel(cfg.wait)}</b> of game time to clear.${cfg.why ? ' ' + esc(cfg.why) : ''} One request per night, so choose your moment.</p>
       <button type="button" class="btn nb-go alt" data-nw-freeup>Free up ${money(cfg.amt)}</button>${errBox(ui, 'freeup')}</div>`;
     if (fuReady(s, f)) return `<div class="nb-panel nb-fu done"><div class="nb-h">Investments <span class="nb-tag ok">Cleared</span></div><p class="nb-p">✓ ${money(f.amt)} cleared at ${hmm(f.now ? f.start : f.ready)} and is in your balance.</p></div>`;
-    const pct = Math.min(100, Math.max(0, (now - f.start) / Math.max(1, f.ready - f.start) * 100));
+    const step = fuStep(s, f), got = fuCleared(s, f), pct = step / FU_STEPS * 100;
     return `<div class="nb-panel nb-fu"><div class="nb-h">Freeing up money <span class="nb-tag hot">Clearing</span></div>
-      <div class="nb-fu-amt">${money(f.amt)}</div>
-      <div class="nb-bar"><i style="width:${pct.toFixed(0)}%"></i></div>
-      <div class="nb-row nb-sub"><span>Clears at ${hmm(f.ready)} on the game clock</span><span>${minsLeft(f.ready - now)} min left</span></div></div>`;
+      <div class="nb-fu-amt">${money(got)} <small>of ${money(f.amt)} in your balance</small></div>
+      <div class="nb-bar nb-steps">${Array.from({ length: FU_STEPS }, (_, i) => `<i class="${i < step ? 'on' : ''}"></i>`).join('')}</div>
+      <div class="nb-row nb-sub"><span>Next ${money(f.amt / FU_STEPS)} at ${hmm(fuNextAt(s, f))}</span><span>all of it by ${hmm(f.ready)} · ${minsLeft(f.ready - now)} min left</span></div></div>`;
   }
   /* loans the borrower sees (offers to accept, loans to repay) */
   function loanPanel(s, me, w, ui) {
@@ -435,7 +486,7 @@ const NW = (() => {
   }
   function acctView(s, me, ui, w) {
     const b = balance(s, w), sale = N(s).sale, myBids = Object.values(N(s).bids || {}).filter(x => x.from === w).sort((a, c) => c.at - a.at);
-    const all = txs(s).filter(t => t.from === w || t.to === w), f = fuOf(s, w), freed = fuReady(s, f) ? f.amt : 0;
+    const all = txs(s).filter(t => t.from === w || t.to === w), f = fuOf(s, w), freed = fuCleared(s, f);
     /* casino play and house proceeds collapse into one line each, so the activity stays readable */
     const plain = all.filter(t => !isCasinoTx(t)), play = all.filter(t => isCasinoTx(t) && !t.house), house = all.filter(t => t.house);
     const playNet = play.reduce((n, t) => n + (t.to === w ? t.amt : -t.amt), 0), houseIn = house.reduce((n, t) => n + t.amt, 0);
@@ -455,7 +506,7 @@ const NW = (() => {
     const rows = [
       play.length ? row('Charity casino', `${play.filter(t => t.from === w).length} bets`, lastAt(play), Math.abs(playNet), playNet < 0, 'cs') : '',
       house.length ? row('Charity casino proceeds', `${house.length} payments`, lastAt(house), houseIn, false, 'cs') : '',
-      freed ? row('Your investments', 'Freed up', 'cleared ' + hmm(f.now ? f.start : f.ready), freed, false) : '',
+      freed ? row('Your investments', fuReady(s, f) ? 'Freed up' : `Freed up so far (${fuStep(s, f)} of ${FU_STEPS} transfers)`, fuReady(s, f) ? 'cleared ' + hmm(f.now ? f.start : f.ready) : 'clearing', freed, false) : '',
       ...plain.map(t => { const out = t.from === w, who = out ? (t.toName || wname(t.to)) : wname(t.from); return row(who, t.memo, wallTime(t.at), t.amt, out); })
     ].join('') || '<div class="nb-empty">No activity yet. Money you send or receive tonight shows up here.</div>';
     const count = plain.length + (play.length ? 1 : 0) + (house.length ? 1 : 0) + (freed ? 1 : 0);
@@ -466,7 +517,7 @@ const NW = (() => {
           <div class="nb-bal"><small>Available balance</small><b data-count="${b}" data-count-k="nb">${money(b)}</b></div>
           <div class="nb-row"><span class="nb-num">•••• •••• •••• ${last4(w)}</span><span class="nb-tier">${tier(b)}</span></div></div>
         <div class="nb-stats"><div><small>Money in tonight</small><b class="pos">+${money(inSum)}</b></div><div><small>Money out tonight</small><b class="neg">−${money(outSum)}</b></div></div>
-        ${loanPanel(s, me, w, ui)}${offer}${freeUpPanel(s, me, w, ui)}
+        ${loanPanel(s, me, w, ui)}${offer}${freeUpPanel(s, me, w, ui)}${loanAd(s, me, ui, w)}
       </div><div class="nb-b">
         <form class="nb-panel" data-nw-form="send"><div class="nb-h">Send money</div>
           <label class="nb-l">To<select class="field" data-nw="to" aria-label="Send to">${payeeOptions(me, w, ui)}</select></label>
@@ -500,12 +551,13 @@ const NW = (() => {
           <label class="nb-l">To<select class="field" data-nw="lto" aria-label="Lend to"><option value="">Choose someone…</option>${payees(me, w).map(c => `<option value="${c.id}" ${x.to === c.id ? 'selected' : ''} ${busy.has(c.id) ? 'disabled' : ''}>${esc(c.name)}${busy.has(c.id) ? ' (has an open loan)' : ''}</option>`).join('')}</select></label>
           <label class="nb-l">Amount<div class="nb-amt"><span>$</span><input class="field" data-nw="lamt" inputmode="decimal" placeholder="${L.min.toLocaleString('en-US')} to ${L.max.toLocaleString('en-US')}" value="${esc(x.amt)}" aria-label="Loan amount" autocomplete="off"></div></label>
           <div class="cs-quick">${[5000, 25000, 50000, 100000].filter(v => v >= L.min && v <= L.max).map(v => `<button type="button" class="nb-pill" data-nw-lq="${v}">${v >= 1e6 ? '$' + v / 1e6 + 'M' : '$' + v / 1e3 + 'K'}</button>`).join('')}</div>
-          <label class="nb-l">Interest <b class="nb-rate" data-nw-rateout>${x.rate}%</b><input type="range" class="nb-range" data-nw="lrate" min="${L.rateMin}" max="${L.rateMax}" step="5" value="${x.rate}" aria-label="Interest rate"></label>
+          <label class="nb-l">Interest <b class="nb-rate" data-nw-rateout>${x.rate}%</b><input type="range" class="nb-range" data-nw="lrate" min="${L.rateMin}" max="${L.rateMax}" step="10" value="${x.rate}" aria-label="Interest rate"></label>
           <label class="nb-l">Due<select class="field" data-nw="lterm" aria-label="Due in">${(L.terms || [30]).map(t => `<option value="${t}" ${Number(x.term) === t ? 'selected' : ''}>${t} minutes after they accept</option>`).join('')}</select></label>
           <div class="nb-sum">They'd repay <b data-nw-owe>${owe ? money(owe) : '—'}</b></div>
           <button class="btn primary nb-go" type="submit">Send loan offer</button>
           ${errBox(ui, 'lend')}</form>
       </div><div class="nb-b">
+        ${(() => { const rq = reqs(s).filter(r => r.status === 'open'); return `<div class="nb-panel nb-reqs"><div class="nb-h">Asking for a loan <span class="nb-count">${rq.length}</span></div>${rq.map(r => `<div class="nb-li"><div><b>${esc((G.byId(r.from) || {}).name || r.from)} wants ${money(r.amt)}</b><small>${r.note ? '"' + esc(r.note) + '" · ' : ''}${esc(wallTime(r.at))} · they have ${money(balance(s, r.w))}</small></div><div class="nb-li-a"><button type="button" class="btn small primary" data-nw-reqoffer="${r.id}">Make an offer</button><button type="button" class="btn small ghost" data-nw-reqno="${r.id}">Turn down</button></div></div>`).join('') || '<div class="nb-empty">Nobody has asked yet. Your ad runs in every bank app tonight.</div>'}</div>`; })()}
         <div class="nb-panel"><div class="nb-h">Your loans <span class="nb-count">${mine.length}</span></div>
           ${sorted.map(l => `<div class="nb-li ${isLate(s, l) ? 'late' : ''}"><div><b>${esc(bname(l))} · ${money(l.amt)} at ${l.rate}%</b><small>repays ${money(l.owed)}${l.status === 'active' ? ' · ' + esc(dueLabel(s, l)) : l.status === 'offer' ? ' · waiting for them to accept' : ''}</small></div><div class="nb-li-a">${chip(l)}${acts(l)}</div></div>`).join('') || '<div class="nb-empty">No loans yet. Find someone short of money.</div>'}
           ${errBox(ui, 'loan')}</div>
@@ -525,10 +577,15 @@ const NW = (() => {
   /** Run by the host page with the clock: freed-up money arriving, loans going overdue. */
   function tick(s, u) {
     Object.entries(N(s).freeup || {}).forEach(([w, f]) => {
-      if (f.told || !fuReady(s, f)) return;
-      u['nw/freeup/' + w + '/told'] = true;
-      alertWallet(u, w, 'NightBank', `${money(f.amt)} from your investments has cleared. It's in your balance now.`);
-      Clock.log(u, 'nightwire', `${wname(w)}: ${money(f.amt)} freed up and cleared.`);
+      /* one notice per transfer as it lands (toldStep counts them); the last one says it's all in */
+      const step = fuStep(s, f), told = f.told ? FU_STEPS : (f.toldStep || 0);
+      if (step <= told) return;
+      u['nw/freeup/' + w + '/toldStep'] = step;
+      if (step >= FU_STEPS) {
+        u['nw/freeup/' + w + '/told'] = true;
+        alertWallet(u, w, 'NightBank', `The last ${money(f.amt / FU_STEPS)} from your investments has cleared. All ${money(f.amt)} is in your balance now.`);
+        Clock.log(u, 'nightwire', `${wname(w)}: all ${money(f.amt)} freed up and cleared.`);
+      } else alertWallet(u, w, 'NightBank', `${money(f.amt * (step - told) / FU_STEPS)} from your investments has cleared (${step} of ${FU_STEPS}). The next part arrives at ${hmm(fuNextAt(s, f))}.`);
     });
     loans(s).forEach(l => {
       if (l.lateTold || !isLate(s, l)) return;
@@ -558,6 +615,16 @@ const NW = (() => {
     if ((el = q('[data-nb-sub]'))) { ui.bsub = el.dataset.nbSub; ui.err = ''; window.scrollTo(0, 0); return done(); }
     if (typeof Casino !== 'undefined' && (ui.bsub === 'casino' || ui.sub === 'casino') && Casino.onClick(e, ctx)) return true;
     if ((el = q('[data-nw-lq]'))) { ui.lend.amt = Number(el.dataset.nwLq).toLocaleString('en-US'); return done(); }
+    if ((el = q('[data-nw-lreq]'))) { ui.lreq = el.dataset.nwLreq; return done(); }
+    if ((el = q('[data-nw-reqoffer]'))) {
+      const r = (N(DB.fresh()).loanreq || {})[el.dataset.nwReqoffer]; if (!r || !isLender(me)) return true;
+      ui.lend.to = r.from; ui.lend.amt = Number(r.amt).toLocaleString('en-US'); ui.bsub = 'lend'; window.scrollTo(0, 0); return done();
+    }
+    if ((el = q('[data-nw-reqno]'))) {
+      const s = DB.fresh(), id = el.dataset.nwReqno, r = (N(s).loanreq || {})[id]; if (!r || !isLender(me)) return true;
+      const u = { ['nw/loanreq/' + id + '/status']: 'declined' }; const bw = walletOf(G.byId(r.from)); if (bw) alertWallet(u, bw, 'Thorne Capital', 'Thorne Capital has turned down your loan request.');
+      DB.update(u); return done();
+    }
     if (q('[data-nw-freeup]')) {
       const s = DB.fresh(), w = walletOf(me), cfg = fuCfg(w);
       if (!cfg || fuOf(s, w)) return true;
@@ -678,6 +745,8 @@ const NW = (() => {
     if (typeof Casino !== 'undefined' && (ui.bsub === 'casino' || ui.sub === 'casino') && Casino.onInput(e, ctx)) return true;
     if (!k) return false;
     if (k === 'q') { ui.q = el.value; filterShop(ui.q); return true; }
+    if (k === 'lreqamt') { ui.lreq = el.value; return true; }
+    if (k === 'lreqnote') { ui.lreqNote = el.value; return true; }
     if (k === 'amt' || k === 'memo' || k === 'handle') ui.send[k] = el.value; else if (k === 'bid') ui.bid = el.value; else if (k === 'ask') ui.ask = el.value; else if (k === 'chat') ui.chat = el.value;
     else if (k === 'lamt' || k === 'lrate') {
       if (k === 'lamt') ui.lend.amt = el.value; else ui.lend.rate = Number(el.value);
@@ -743,6 +812,18 @@ const NW = (() => {
       Clock.log(u, 'nightwire', `${me.name} bid ${money(amt)} on the painting.`);
       DB.update(u); ui.bid = ''; return ok();
     }
+    if (kind === 'loanreq') {
+      const L = LC(), amt = amount(ui.lreq), lender = G.byId(L.lender);
+      if (!lender || isLender(me)) return true;
+      if (amt < L.min || amt > L.max) return fail(`Thorne Capital lends ${money(L.min)} to ${money(L.max)}.`);
+      if (isOut(s, me.id)) return fail(blockedWhy(s, me, w));
+      if (reqs(s).some(r => r.from === me.id && r.status === 'open')) return fail('You already have a request waiting.');
+      const note = (ui.lreqNote || '').trim();
+      const u = { ['nw/loanreq/' + uid('q')]: { from: me.id, w, amt, note: note || null, at: Date.now(), status: 'open' } };
+      alertWallet(u, walletOf(lender), 'Loan request', `${me.name} is asking Thorne Capital for ${money(amt)}${note ? ': "' + note + '"' : ''}. Answer from your lending desk.`);
+      Clock.log(u, 'nightwire', `${me.name} asked Thorne Capital for a ${money(amt)} loan.`);
+      DB.update(u); ui.lreq = ''; ui.lreqNote = ''; return ok();
+    }
     if (kind === 'lend') {
       const L = LC(), x = ui.lend, amt = amount(x.amt), c = G.byId(x.to);
       if (!isLender(me)) return true;
@@ -758,6 +839,8 @@ const NW = (() => {
       const u = { ['nw/loans/' + uid('L')]: { lender: w, borrower: c.id, to, amt, rate: x.rate, owed, term, at: Date.now(), by: me.id, status: 'offer' } };
       alertWallet(u, to, 'Loan offer', `${wname(w)} offers you ${money(amt)} at ${x.rate}% interest (repay ${money(owed)}). Check your NightBank to accept or decline.`);
       Clock.log(u, 'nightwire', `${me.name} offered ${c.name} a loan: ${money(amt)} at ${x.rate}%, repay ${money(owed)} within ${term} min.`);
+      /* answering a request closes it */
+      reqs(s).filter(r => r.from === c.id && r.status === 'open').forEach(r => { u['nw/loanreq/' + r.id + '/status'] = 'offered'; });
       DB.update(u); ui.lend = { to: '', amt: '', rate: x.rate, term }; return ok();
     }
     if (kind === 'unfreeze') {
@@ -777,6 +860,6 @@ const NW = (() => {
   }
 
   return { newUI, render, renderBank, onClick, onInput, onChange, onSubmit, walletOf, wname, balance, spend, publish, sees, txs, money, amount, pendingState, wallets: W, membersOf,
-    tick, arriveNow, freeze, unfreeze, frozen, isOut, blockedWhy, fuCfg, fuOf, fuReady, loans, isLate, nightNow, bname, FROZE, phaseIdx, cfg: C,
+    tick, arriveNow, freeze, unfreeze, frozen, isOut, blockedWhy, fuCfg, fuOf, fuReady, fuCleared, fuStep, loans, isLate, nightNow, bname, FROZE, phaseIdx, cfg: C,
     brand: { mark: MARK, word: WORD } };
 })();

@@ -9,6 +9,8 @@ const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const uid = p => p + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+/** the copyright line on every page and printout (Jacob, Nov 25) */
+const COPYRIGHT = '© 2026 Jacob Frederick. All rights reserved.';
 const normCode = s => String(s || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
 const initials = n => String(n).replace(/^Dr\.\s+/, '').split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase();
 const wallTime = ts => new Date(ts).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
@@ -103,6 +105,8 @@ const Route = (() => {
     { at: 'nw/bids', fn: it => uniq(['g/crew'].concat(wallet(it.from))) },
     { at: 'nw/sale', self: true, fn: it => uniq(['g/crew'].concat(...[].concat(it.pitched || []).map(wallet))) },
     { at: 'nw/freeup', fn: (it, key) => orHost(wallet(key)) },
+    /* a loan request (Nov 25): only the person asking and the lender see it */
+    { at: 'nw/loanreq', fn: it => orHost(uniq(['p/' + it.from].concat(wallet(((NWC().lending || {}).lender) || '')))) },
     { at: 'fbi/statements', fn: it => it.public && !it.withdrawn ? ['g/fbi', 'pub'] : ['g/fbi'] },
     { at: 'vote/ballots', fn: (it, key) => ['p/' + key] },
     /* a Bebbit post is public, but who REALLY posted it is only for that person and anyone who can trace posts */
@@ -499,6 +503,30 @@ const Names = {
   }
 };
 
+/* ---------- the print lock (Nov 25, Jacob) ----------
+   Printing or saving as PDF from print.html, posters.html, badges.html and books.html needs the
+   main host AND the print password. Co-hosts can still read the host books on screen.
+   The page carries body.print-locked until unlocked, and print CSS hides everything while it's
+   there, so even the browser's own Print menu gives a blank page. Only a hash is stored here. */
+const PrintLock = (() => {
+  const HASH = 'ebb93aa9c0603b6608b7bc87dda0c8746527d4ceab4e4a226073f3c879e6cfbd', KEY = 'vh:print-ok';
+  const ok = () => { try { return sessionStorage.getItem(KEY) === HASH; } catch (e) { return false; } };
+  const isMain = () => { const h = typeof Session !== 'undefined' && Session.lastHost ? Session.lastHost() : null; return !!(h && h.role === 'main'); };
+  const sync = () => document.body.classList.toggle('print-locked', !(ok() && isMain()));
+  async function hash(v) { const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('vanishing-hour-print:' + normCode(v))); return [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, '0')).join(''); }
+  /** run go() (usually window.print) once the main host has typed the print password */
+  function ask(go) {
+    if (!isMain()) { Ask.note('Only the main host can print or save these pages. You can still read them here on screen.', 'Printing is locked'); return; }
+    if (ok()) { sync(); return go(); }
+    Ask.input('Enter the print password to print or save this page.', '', async v => {
+      if (await hash(v) === HASH) { try { sessionStorage.setItem(KEY, HASH); } catch (e) { } sync(); setTimeout(go, 50); }
+      else Ask.note("That isn't the print password.", 'Printing is locked');
+    }, { title: 'Print password', ok: 'Unlock', mode: 'password' });
+  }
+  function install() { if (!document.getElementById('print-lock-css')) { const st = document.createElement('style'); st.id = 'print-lock-css'; st.textContent = '@media print { body.print-locked * { display: none !important; } body.print-locked::after { content: "Printing is locked. Use the Print button and the print password."; display: block; padding: 2in 1in; font: 16pt Georgia, serif; text-align: center; } }'; document.head.appendChild(st); } sync(); }
+  return { ask, install, sync };
+})();
+
 /* ---------- in-page confirmations (instead of the browser's "Are you sure?" popups) ----------
    Ask.sure(text, again, opts) is used inside ordinary click/submit handlers:
      if (!Ask.sure('Send $500?', () => onClick(e, ctx))) return true;
@@ -522,8 +550,8 @@ const Ask = (() => {
     el.innerHTML = `<div class="ask-card${opts.danger ? ' danger' : ''}" role="alertdialog" aria-modal="true" aria-labelledby="${id}">
       ${opts.title ? `<small class="ask-title">${esc(opts.title)}</small>` : ''}
       <p class="ask-text" id="${id}">${esc(text)}</p>
-      ${field ? `<input class="field ask-in" value="${esc(field.value || '')}" inputmode="${field.mode || 'text'}" aria-label="${esc(text)}" autocomplete="off">` : ''}
-      <div class="ask-btns"><button type="button" class="btn ghost ask-no">${esc(opts.cancel || 'Cancel')}</button><button type="button" class="btn primary ask-yes${opts.danger ? ' danger' : ''}">${esc(opts.ok || 'Yes')}</button></div></div>`;
+      ${field ? `<input class="field ask-in" type="${field.mode === 'password' ? 'password' : 'text'}" value="${esc(field.value || '')}" inputmode="${field.mode === 'password' ? 'text' : (field.mode || 'text')}" aria-label="${esc(text)}" autocomplete="off">` : ''}
+      <div class="ask-btns">${opts.noCancel ? '' : `<button type="button" class="btn ghost ask-no">${esc(opts.cancel || 'Cancel')}</button>`}<button type="button" class="btn primary ask-yes${opts.danger ? ' danger' : ''}">${esc(opts.ok || 'Yes')}</button></div></div>`;
     document.body.appendChild(el);
     open = { el, done, prev: document.activeElement };
     const inp = el.querySelector('.ask-in'), yes = el.querySelector('.ask-yes');
@@ -544,6 +572,8 @@ const Ask = (() => {
       return false;
     },
     input(text, value, cb, opts) { show(text, opts || {}, { value, mode: (opts && opts.mode) || 'text' }, v => { if (v != null) cb(v); }); },
+    /** a message with one OK button */
+    note(text, title) { show(text, { title, ok: 'OK', noCancel: true }, null, () => {}); },
     isOpen: () => !!open
   };
 })();

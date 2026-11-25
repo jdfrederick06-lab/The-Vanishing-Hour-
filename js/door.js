@@ -108,11 +108,11 @@
         </main>
         <div class="oz-door-trust"><span>${tick}Encrypted checkout</span><span>${tick}Escrow on every order</span><span>${tick}No order history</span></div>
       </div>
-      <footer class="oz-door-foot">Conditions of Use · Privacy Notice · Help<br>© Omnizon, a Nightwire company</footer></div>`;
+      <footer class="oz-door-foot">Conditions of Use · Privacy Notice · Help<br>© Omnizon, a Nightwire company<br>${esc(COPYRIGHT)}</footer></div>`;
   }
 
   document.title = { gala: CONFIG.EVENT, fbi: 'FBI Headquarters', bebbit: 'bebbit', nightwire: 'Omnizon: Sign in' }[door];
-  $('#root').innerHTML = ({ gala, fbi, bebbit, nightwire }[door] || gala)();
+  $('#root').innerHTML = ({ gala, fbi, bebbit, nightwire }[door] || gala)() + (door === 'nightwire' ? '' : `<p class="door-copy">${esc(COPYRIGHT)}</p>`);
 
   /* ---------- typed terminal lines ---------- */
   function type(lines, el, speed, done) {

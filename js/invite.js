@@ -286,7 +286,7 @@
       ${sections()}
       <section class="door"><span class="kick">Already have your code word?</span><br><a class="big" href="${DOOR}">Enter the gala <span aria-hidden="true">→</span></a><p>Type your code word at the door and your phone becomes your character's.</p></section>
       <section class="faqs" id="faq"><div class="gal-in"><h2>Common questions</h2><div class="faq">${FAQ.map(([q, a]) => `<details><summary>${esc(q)}</summary><p>${esc(a)}</p></details>`).join('')}</div></div></section>
-      <footer>${esc(CONFIG.TITLE)} · ${esc(CONFIG.SEASON)}<br>Hosted by ${esc(I.HOST || '')}</footer>
+      <footer>${esc(CONFIG.TITLE)} · ${esc(CONFIG.SEASON)}<br>Hosted by ${esc(I.HOST || '')}<br><small class="iv-copy">${esc(COPYRIGHT)}</small></footer>
     </main>
     <a class="clock" id="clock" href="#top" aria-label="Back to the top"><svg viewBox="0 0 44 44"><circle class="ring" cx="22" cy="22" r="20"/><line class="hh" x1="22" y1="22" x2="22" y2="12"/><line class="mh" x1="22" y1="22" x2="22" y2="6"/></svg><span class="t" id="clockt">7:00 PM</span></a>
     <div class="vig" aria-hidden="true"></div><div class="grain" aria-hidden="true"></div>`;

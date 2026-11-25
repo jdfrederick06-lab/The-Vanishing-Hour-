@@ -428,3 +428,6 @@ body.ev { margin: 0; background: #16161a; color: #e9e4d8; font-family: 'Inter', 
   .ed-page { width: 8.5in; height: 11in; aspect-ratio: auto; box-shadow: none; }
   .ed-page, .ed-page * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }
+/* the copyright line on every printed page (Nov 25) */
+@page { @bottom-center { content: "© 2026 Jacob Frederick. All rights reserved."; font: 7pt Inter, system-ui, sans-serif; color: #888; } }
+@media print { .ev-item { position: relative; } .ev-item::after { content: "© 2026 Jacob Frederick. All rights reserved."; position: absolute; left: 0; right: 0; bottom: .06in; text-align: center; font: 6pt Inter, system-ui, sans-serif; color: #aaa; } }

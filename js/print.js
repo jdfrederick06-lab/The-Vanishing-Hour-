@@ -32,6 +32,7 @@
       ${groups.filter(g => pick[g[0]]).map(([k, t, note, list]) => `<section class="ev-sec"><h2>${esc(t)} · ${esc(note)}</h2><div class="ev-grid">${list.map(p => `<div class="ev-item">${EvDoc.sheet(p, { qr: k === 'props' ? null : qr(p.code), noTag: k === 'props' })}<small class="who">${p.item ? 'Item ' + p.item + ' · ' : ''}${esc(p.title)} · ${esc(p.holder)}${p.clue ? ' · clue ' + esc(p.clue) : ''}</small></div>`).join('')}</div></section>`).join('')}`;
   }
   document.addEventListener('change', e => { const g = e.target.dataset.g; if (g) { pick[g] = e.target.checked; draw(); } });
-  document.addEventListener('click', e => { if (e.target.closest('[data-act="print"]')) window.print(); });
+  document.addEventListener('click', e => { if (e.target.closest('[data-act="print"]')) PrintLock.ask(() => window.print()); });
+  PrintLock.install();
   draw();
 })();

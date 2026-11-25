@@ -607,4 +607,6 @@ body.pp.pp-bare { background: transparent; } .pp-bare .pp-page { box-shadow: non
   body[data-page="posters"] .pp-item:not(.on), body[data-page="posters"] .pp-row:not(.has-on), .pp-ver, .pp-row > header { display: none !important; }
   .pp-row { max-width: none; padding: 0; } .pp-pair { display: block; padding: 0; }
   .pp-item.on .pp-page { box-shadow: none; opacity: 1; }
-}
+}/* the copyright line on every printed page (Nov 25) */
+@page { @bottom-center { content: "© 2026 Jacob Frederick. All rights reserved."; font: 7pt Inter, system-ui, sans-serif; color: #888; } }
+@media print { .pp-item, .pp-sheet { position: relative; } .pp-item::after, .pp-sheet::after { content: "© 2026 Jacob Frederick. All rights reserved."; position: absolute; left: 0; right: 0; bottom: .08in; text-align: center; font: 6.5pt Inter, system-ui, sans-serif; color: #999; } }

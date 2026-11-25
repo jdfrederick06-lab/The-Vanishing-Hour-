@@ -84,8 +84,8 @@
       <div class="hero-bg" aria-hidden="true"></div>
       <div class="hero-top"><span class="hero-tag">${esc(HERO.tag)}</span><span class="hero-live${live && r.state !== 'paused' ? ' on' : ''}"><i></i>${esc(status)}</span></div>
       <div class="hero-main">
-        <div class="hero-ring"><svg viewBox="0 0 64 64" aria-hidden="true"><circle class="trk" cx="32" cy="32" r="27"/><circle class="val" cx="32" cy="32" r="27" stroke-dasharray="${C.toFixed(1)}" stroke-dashoffset="${(C * (1 - frac)).toFixed(1)}"/></svg><div class="hero-c">${center}</div></div>
-        <div class="hero-txt"><div class="kicker">${esc(kicker)}</div><div class="phase-name">${esc(name)}</div><p>${esc(sub)}</p></div>
+        <div class="hero-ring"><svg viewBox="0 0 64 64" aria-hidden="true"><circle class="trk" cx="32" cy="32" r="27"/><circle class="val" data-dyn="ring" cx="32" cy="32" r="27" stroke-dasharray="${C.toFixed(1)}" stroke-dashoffset="${(C * (1 - frac)).toFixed(1)}"/></svg><div class="hero-c">${center.replace('<b class="mono">', '<b class="mono" data-dyn="time">')}</div></div>
+        <div class="hero-txt"><div class="kicker" data-dyn="kicker">${esc(kicker)}</div><div class="phase-name">${esc(name)}</div><p>${esc(sub)}</p></div>
       </div>
       <div class="hero-steps" aria-hidden="true">${steps}</div>
     </div>`;
@@ -104,7 +104,25 @@
     /* the evidence room: every printed clue someone has scanned, for everyone to read */
     const ev = Object.entries(s.ev || {}).map(([code, x]) => Object.assign({ code }, x, (STORY.evidence || []).find(e => e.code === code))).filter(x => x.title).sort((a, b) => b.at - a.at);
     const room = ev.length ? `<div class="sec-title">The evidence room · ${ev.length}</div><div class="evr">${ev.map(x => `<a href="${ROOT}scan.html?e=${encodeURIComponent(x.code)}&v=1"><span>ITEM ${x.item}</span>${esc(x.title)}<small>${esc(wallTime(x.at))}</small></a>`).join('')}</div>` : '';
-    return `${hero(r)}${hasVote ? Vote.block(s, ME) : ''}<div class="dk-cols"><div class="dk-a"><div class="sec-title">For you</div>${list}${room}</div><div class="dk-b"><div class="dk-only"><div class="sec-title" style="margin-bottom:12px">You</div>${idCard(s)}</div>${official}</div></div>`;
+    return `${hasVote ? Vote.block(s, ME) : ''}<div class="dk-cols"><div class="dk-a"><div class="sec-title">For you</div>${list}${room}</div><div class="dk-b"><div class="dk-only"><div class="sec-title" style="margin-bottom:12px">You</div>${idCard(s)}</div>${official}</div></div>`;
+  }
+
+  /* The Now page in two parts (Nov 25). While the clock runs, only the hero's timer, ring and
+     kicker change every second: those three are updated in place, so nothing else on the page is
+     rebuilt (which made the ID card and the hero's looping effects flash and restart). */
+  function drawNow(s) {
+    const m = $('#main');
+    if (!m.querySelector(':scope > #nowHero')) { m._html = null; m.innerHTML = '<div id="nowHero"></div><div id="nowRest"></div>'; }
+    const hs = $('#nowHero'), h = hero(Clock.read(s));
+    const key = h.replace(/stroke-dashoffset="[^"]*"/, '').replace(/(data-dyn="(?:time|kicker)">)[^<]*/g, '$1');
+    if (hs._key !== key) { hs._key = key; hs.innerHTML = h; }
+    else {
+      const tmp = document.createElement('div'); tmp.innerHTML = h;
+      ['time', 'kicker'].forEach(k => { const a = hs.querySelector(`[data-dyn="${k}"]`), b = tmp.querySelector(`[data-dyn="${k}"]`); if (a && b && a.textContent !== b.textContent) a.textContent = b.textContent; });
+      const a = hs.querySelector('[data-dyn="ring"]'), b = tmp.querySelector('[data-dyn="ring"]');
+      if (a && b) a.setAttribute('stroke-dashoffset', b.getAttribute('stroke-dashoffset'));
+    }
+    patch($('#nowRest'), nowView(s));
   }
 
   function worldView() {
@@ -160,7 +178,7 @@
       <div class="card">${esc(Names.say(ME.profile, ME))}</div></div><div class="dk-a">
       ${d && typeof Dossier !== 'undefined' ? Dossier.render(Names.say(d, ME), ME, WORLD) : `<div class="sec-title">Your dossier</div>
       <div class="card dossier">${'<div class="empty-rich"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h3"/></svg><div><b>Sealed until the night</b><span>Your full dossier (your backstory, secrets, goals and who to find) will appear here before the night.</span></div></div>'}</div>`}
-      <button class="btn" data-act="out">Sign out</button></div></div>`;
+      <button class="btn" data-act="out">Sign out</button><p class="app-copy">${esc(COPYRIGHT)}</p></div></div>`;
   }
 
   /* don't redraw while a finger is down, or the tap would be lost */
@@ -177,7 +195,7 @@
     const a = document.activeElement, typing = a && $('#main').contains(a) && a.matches('input, textarea, select');
     if (force || !typing) {
       const bv = () => Bebbit.render(s, ME, bebUI);
-      patch($('#main'), tab === 'now' ? nowView(s) : tab === 'world' ? (WORLD === 'bebbit' ? bv() : WORLD === 'fbi' ? FBI.render(s, ME, fbiUI) : WORLD === 'nightwire' ? Names.say(NW.render(s, ME, nwUI), ME) : worldView()) : tab === 'bank' ? Names.say(NW.renderBank(s, ME, nwUI), ME) : tab === 'beb' ? `<div class="beb-skin">${bv()}</div>` : tab === 'people' ? peopleView(s) : tab === 'tasks' && hasGames ? Games.render(s, ME) : meView(s));
+      if (tab === 'now') drawNow(s); else patch($('#main'), tab === 'world' ? (WORLD === 'bebbit' ? bv() : WORLD === 'fbi' ? FBI.render(s, ME, fbiUI) : WORLD === 'nightwire' ? Names.say(NW.render(s, ME, nwUI), ME) : worldView()) : tab === 'bank' ? Names.say(NW.renderBank(s, ME, nwUI), ME) : tab === 'beb' ? `<div class="beb-skin">${bv()}</div>` : tab === 'people' ? peopleView(s) : tab === 'tasks' && hasGames ? Games.render(s, ME) : meView(s));
       /* the casino's wheel and dice, and the mini-games, are kept alive between redraws (a spin or a drag never restarts) */
       countUp();
       if (hasGames) Games.mount(tab === 'tasks');

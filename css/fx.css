@@ -454,7 +454,9 @@ body[data-world="host"] .card { background: linear-gradient(180deg, rgba(28,33,4
 .empty-rich span { font-size: 13px; opacity: .75; line-height: 1.4; }
 
 /* =================== "MY FILE" ID CARDS =================== */
-.idc { position: relative; overflow: hidden; margin-bottom: 6px; animation: idIn .8s cubic-bezier(.2,.8,.2,1) both; isolation: isolate; }
+.idc { position: relative; overflow: hidden; margin-bottom: 6px; isolation: isolate; }
+/* the ID card slides in only when its tab opens: the Now page redraws every second while the clock runs, so an always-on animation made it flash (Nov 25) */
+.app-main.enter .idc { animation: idIn .8s cubic-bezier(.2,.8,.2,1) both; }
 @keyframes idIn { from { opacity: 0; transform: perspective(900px) rotateX(16deg) translateY(18px) scale(.98); } }
 /* FBI credentials */
 .idc-fbi { border-radius: 16px; padding: 16px 18px 14px; color: #e9eef7; background: radial-gradient(circle at 100% 0%, rgba(212,178,92,.18), transparent 50%), repeating-linear-gradient(45deg, rgba(255,255,255,.018) 0 2px, transparent 2px 6px), linear-gradient(150deg, #16335f, #0a1a33 58%, #0d2142); box-shadow: 0 24px 50px rgba(8,22,48,.4), inset 0 0 0 1px rgba(212,178,92,.35), inset 0 0 0 5px rgba(10,26,51,.6), inset 0 0 0 6px rgba(212,178,92,.18); }
@@ -1223,3 +1225,35 @@ body[data-world="gala"] .ask-btns .btn.primary { background: #1d1912; color: #f2
 .bb-votes .bb-act[aria-pressed="true"] { background: linear-gradient(135deg, #7a5cff, #5b3fd6); color: #fff; }
 .bb-votes .bb-down[aria-pressed="true"] { background: linear-gradient(135deg, #5d6b8a, #3b4663); box-shadow: none; }
 .bb-score { min-width: 18px; text-align: center; font-size: 13px; }
+.cs-raised.neg b { color: #ff8a8f; }
+.ch.v5 { --c: #0f7b55; --e: #e3c27a; } .ch.v5 span { color: #fff; }
+/* freed-up money arrives in five transfers (Nov 25) */
+.nb-bar.nb-steps { display: flex; gap: 4px; background: none; }
+.nb-bar.nb-steps i { flex: 1; width: auto !important; border-radius: 3px; background: #e3e6ef; transition: background .6s; }
+.nb-bar.nb-steps i.on { background: linear-gradient(90deg, #6a5cff, #36d1c4); }
+.nb-bar.nb-steps i:not(.on)::after { display: none; }
+.nb-fu-amt small { font-size: .45em; font-weight: 600; opacity: .7; margin-left: 4px; }
+/* Thorne Capital ad: Cameron's loans, advertised in every bank app (Nov 25) */
+.tc-ad { position: relative; border-radius: 18px; padding: 16px 16px 14px; background: linear-gradient(150deg, #101a14, #0b120e 60%, #1b2a1f); color: #e9f2ea; box-shadow: 0 14px 30px -18px rgba(0,0,0,.6); display: flex; flex-direction: column; gap: 8px; overflow: hidden; }
+.tc-ad::before { content: ''; position: absolute; right: -40px; top: -40px; width: 150px; height: 150px; border-radius: 50%; background: radial-gradient(circle, rgba(201,168,92,.35), transparent 70%); }
+.tc-sp { position: absolute; top: 10px; right: 12px; font-size: 9.5px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: rgba(233,242,234,.55); }
+.tc-top { display: flex; align-items: center; gap: 10px; }
+.tc-mark { width: 34px; height: 34px; border-radius: 9px; display: flex; align-items: center; justify-content: center; font: 700 13px Georgia, serif; letter-spacing: .04em; color: #0b120e; background: linear-gradient(135deg, #f1dc9c, #c9a85c); }
+.tc-top b { display: block; font-size: 15px; } .tc-top small { font-size: 11.5px; color: rgba(233,242,234,.65); }
+.tc-head { margin: 2px 0 0; font-size: 16px; line-height: 1.3; } .tc-head b { color: #f1dc9c; }
+.tc-fine { margin: 0; font-size: 11.5px; color: rgba(233,242,234,.6); }
+.tc-p { margin: 4px 0 0; font-size: 13px; line-height: 1.4; color: #cfe3d2; }
+.tc-form { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
+.tc-quick { display: flex; gap: 6px; flex-wrap: wrap; }
+.tc-pill { border: 1px solid rgba(241,220,156,.35); background: transparent; color: #f1dc9c; border-radius: 999px; padding: 6px 12px; font-size: 13px; font-weight: 700; }
+.tc-pill.on, .tc-pill:hover { background: #f1dc9c; color: #0b120e; }
+.tc-ad .field { background: rgba(255,255,255,.08) !important; border-color: rgba(255,255,255,.16) !important; color: #fff !important; min-height: 42px; font-size: 15px; }
+.tc-ad .field::placeholder { color: rgba(233,242,234,.5); }
+.tc-go { min-height: 44px; border: 0; border-radius: 999px; background: linear-gradient(135deg, #f1dc9c, #c9a85c); color: #0b120e; font-weight: 800; font-size: 14.5px; }
+.tc-ad .err { color: #ffb4b0; }
+.tc-oz { border-radius: 14px; }
+/* the copyright line (Nov 25) */
+.door-copy { position: fixed; left: 0; right: 0; bottom: 6px; z-index: 5; margin: 0; text-align: center; font: 500 10.5px/1.4 Inter, system-ui, sans-serif; color: rgba(255,255,255,.55); text-shadow: 0 1px 2px rgba(0,0,0,.5); pointer-events: none; }
+body[data-world="bebbit"] .door-copy, body[data-world="fbi"] .door-copy { color: rgba(0,0,0,.45); text-shadow: none; }
+.app-copy { margin: 14px 0 0; text-align: center; font-size: 11px; color: var(--mute); }
+.iv-copy { opacity: .75; }
