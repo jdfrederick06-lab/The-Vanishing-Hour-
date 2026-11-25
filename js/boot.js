@@ -28,7 +28,12 @@
   const te = new TextEncoder(), td = new TextDecoder();
   const L = () => window.VH_LOCKED || {};
   let keysLoaded = null;
-  const keys = () => keysLoaded || (keysLoaded = load(base + 'settings/locked/keys.js'));
+  const keys = () => keysLoaded || (keysLoaded = load(base + 'settings/locked/keys.js?t=' + Date.now()));
+  /* Nov 25: every lock build has a new salt, so the salt names the build. Locked files are fetched with
+     it (a new build never mixes with old cached files), and a remembered code is only reused if it
+     came from the same build. This is what broke sign-in right after a rebuild. */
+  const build = () => ((L().keys || {}).salt || '').replace(/[^A-Za-z0-9]/g, '').slice(0, 10);
+  const lockedUrl = f => base + 'settings/locked/' + f + '.js?b=' + build();
 
   async function derive(code) {
     const K = L().keys, raw = await crypto.subtle.importKey('raw', te.encode(norm(code)), 'PBKDF2', false, ['deriveBits']);
@@ -42,10 +47,11 @@
       A good code is remembered for this tab, so the next page load doesn't redo the slow part. */
   async function entry(code) {
     const c = norm(code); if (!c) return null;
-    try { const cached = sessionStorage.getItem('vh:k:' + c); if (cached) return JSON.parse(cached); } catch (e) { }
     await keys(); const K = L().keys; if (!K) return null;
+    try { const cached = JSON.parse(sessionStorage.getItem('vh:k:' + c) || 'null'); if (cached && cached._b === build()) return cached; } catch (e) { }
     const { key, id } = await derive(c), box = K.entries[id]; if (!box) return null;
     const e = JSON.parse(await open(key, box));
+    e._b = build();
     try { sessionStorage.setItem('vh:k:' + c, JSON.stringify(e)); } catch (x) { }
     return e;
   }
@@ -75,10 +81,18 @@
     /* host "Open as" and scanned links can carry a code word: app.html?as=CODE */
     const as = new URLSearchParams(location.search).get('as');
     if (as) { const r = await entry(as).catch(() => null); if (r) remember(r.kind, as); }
-    const e = current() ? await entry(current()).catch(() => null) : null;
+    let e = current() ? await entry(current()).catch(() => null) : null;
     if (!e) { await load(base + 'settings/public.js'); return; }
-    await load(base + 'settings/locked/' + e.bundle + '.js');
-    inject(await open(await aes(e.key), L()[e.bundle]));
+    await load(lockedUrl(e.bundle));
+    let text;
+    try { text = await open(await aes(e.key), L()[e.bundle]); }
+    catch (x) {
+      /* a stale remembered code: forget it, unlock again from the newest keys */
+      try { Object.keys(sessionStorage).filter(k => k.startsWith('vh:k:')).forEach(k => sessionStorage.removeItem(k)); } catch (y) { }
+      const fresh = await entry(current()); if (!fresh) throw x;
+      e = fresh; await load(lockedUrl(e.bundle) + '&r=1'); text = await open(await aes(e.key), L()[e.bundle]);
+    }
+    inject(text);
     /* what only this person gets: their own code word, their NFC line */
     if (e.kind === 'player') {
       const c = STORY.characters.find(x => x.id === e.id); if (c) c.code = e.code;
@@ -88,7 +102,7 @@
       const f = e.kind === 'host' ? 'd-host' : 'd-' + e.id, k = await aes(e.dk);
       STORY.dossiers = STORY.dossiers || {};
       try {
-        await load(base + 'settings/locked/' + f + '.js');
+        await load(lockedUrl(f));
         if (e.kind === 'host') Object.assign(STORY.dossiers, JSON.parse(await open(k, L()[f])));
         else STORY.dossiers[e.id] = await open(k, L()[f]);
       } catch (x) { console.warn('[boot] no dossier', f); }
