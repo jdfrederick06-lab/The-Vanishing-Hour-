@@ -15,6 +15,8 @@
   else if (as) { Session.signIn(as); history.replaceState(null, '', location.pathname); }
 
   const ME = Session.player();
+  /* this device belongs to a host (a host has signed in on it): previews here leave no trace on the player */
+  const peek = !watched && Session.hostDevice();
   if (!ME) { location.replace(ROOT + 'gala/'); return; }
 
   const WORLD = G.door(ME), W = STORY.worlds[WORLD];
@@ -173,7 +175,7 @@
 
   let dossierSeen = false;
   function meView(s) {
-    if (!dossierSeen && !watched && STORY.dossiers && STORY.dossiers[ME.id]) { dossierSeen = true; const pf = Pron.profile(ME.id, s) || {}; if (!pf.dossier) DB.update({ ['players/' + ME.id + '/profile/dossier']: Date.now() }); }
+    if (!dossierSeen && !watched && !peek && STORY.dossiers && STORY.dossiers[ME.id]) { dossierSeen = true; const pf = Pron.profile(ME.id, s) || {}; if (!pf.dossier) DB.update({ ['players/' + ME.id + '/profile/dossier']: Date.now() }); }
     const d = STORY.dossiers[ME.id];
     return `<div class="dk-cols me"><div class="dk-b sticky">${idCard(s)}
       <div class="sec-title">What everyone knows about you</div>
@@ -306,8 +308,9 @@
   const device = (() => { const a = navigator.userAgent; const os = /iPhone|iPad/.test(a) ? 'iPhone' : /Android/.test(a) ? 'Android' : /Mac/.test(a) ? 'Mac' : /Windows/.test(a) ? 'Windows' : 'other';
     const br = /CriOS|Chrome\//.test(a) && !/Edg/.test(a) ? 'Chrome' : /Edg/.test(a) ? 'Edge' : /Firefox|FxiOS/.test(a) ? 'Firefox' : /Safari/.test(a) ? 'Safari' : ''; return os + (br ? ' · ' + br : ''); })();
   const beat = () => { const n = DB.net ? DB.net() : {}; DB.update({ ['players/' + ME.id + '/seen']: Date.now(), ['players/' + ME.id + '/world']: WORLD, ['players/' + ME.id + '/net']: { drops: n.drops || 0, dev: device } }); };
-  if (!watched) {
-    if (!(DB.get().players && DB.get().players[ME.id])) { const u = {}; Clock.log(u, 'join', ME.name + ' signed in.'); DB.update(u); }
+  /* a host previewing a player (Open as them) doesn't count as that player signing in or being online */
+  if (!watched && !peek) {
+    if (!G.signedIn(DB.get(), ME.id)) { const u = {}; Clock.log(u, 'join', ME.name + ' signed in.'); DB.update(u); }
     beat(); setInterval(beat, 20000);
     /* keep this account's published balance current, so others (a seller, a lender) can check it */
     if (typeof NW !== 'undefined' && NW.publish) setInterval(() => { try { NW.publish(DB.get(), ME); } catch (e) { } }, 2000);

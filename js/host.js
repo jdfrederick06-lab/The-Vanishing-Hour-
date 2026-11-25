@@ -140,7 +140,7 @@
   function deck(s, r) {
     const C = 2 * Math.PI * 76, ring = (frac, big, small, cls) => `<div class="ht-ring ${cls || ''}"><svg viewBox="0 0 176 176" aria-hidden="true"><circle class="trk" cx="88" cy="88" r="76"/><circle class="tick" cx="88" cy="88" r="84"/>${frac !== null ? `<circle class="val" cx="88" cy="88" r="76" stroke-dasharray="${C.toFixed(1)}" stroke-dashoffset="${(C * (1 - frac)).toFixed(1)}"/>` : ''}</svg><div><b class="mono">${big}</b><small>${small}</small></div></div>`;
     if (!isLive(r)) {
-      const signed = cast().filter(c => s.players && s.players[c.id]).length;
+      const signed = cast().filter(c => G.signedIn(s, c.id)).length;
       return `<section class="card deck ${r.state}"><div class="deck-l">
         <div class="deck-meta mono">${r.state === 'over' ? 'Finished' : 'Pre-show'} · ${STORY.phases.length} phases · ${hmm(Clock.startOf(s, STORY.phases.length))} planned</div>
         <h2 class="deck-t">${r.state === 'over' ? 'The night is over' : 'Ready when you are'}</h2>
@@ -219,7 +219,7 @@
       if (r.remainGameMs < 60000 && r.state === 'live') out.push({ html: `<b>Less than a minute left in this phase</b><p>${Clock.auto(s) ? 'The next phase starts by itself.' : 'Auto-advance is off. Press N to move on.'} Need longer? Press + for five more minutes.</p>` });
     }
     if (gone.length) out.push({ calm: true, html: `<b>${gone.length} marked no-show</b><p>${gone.map(c => esc(c.name)).join(', ')}. They're hidden from Who's Who.</p>` });
-    if (r.state === 'before') { const n = cast().filter(c => s.players && s.players[c.id]).length; out.push({ calm: true, html: `<b>${n} of ${cast().length} signed in</b><p>Players sign in at their door with their code word. Everyone's code is in People.</p>` }); }
+    if (r.state === 'before') { const n = cast().filter(c => G.signedIn(s, c.id)).length; out.push({ calm: true, html: `<b>${n} of ${cast().length} signed in</b><p>Players sign in at their door with their code word. Everyone's code is in People.</p>` }); }
     return out;
   }
   function needs(s, r, now) {
@@ -261,7 +261,7 @@
     const list = cast().filter(c => (filter === 'all' || c.group === filter) && (!q || [c.name, c.role, c.code, c.alias || ''].join(' ').toLowerCase().includes(q)));
     const on = list.filter(c => G.online(s, c.id, now)).length;
     return panel(`The cast · ${list.length}`, `<span class="mono">${on}</span> connected`, `<div class="tbl-wrap"><table class="tbl"><thead><tr><th></th><th>Name</th><th>Who they are</th><th>Group</th><th>Code word</th><th>NightBank</th><th>Last seen</th><th></th></tr></thead><tbody>
-      ${list.map(c => { const p = s.players && s.players[c.id], ns = G.noshow(s, c.id), o = G.online(s, c.id, now); return `<tr class="${ns ? 'gone' : ''}" style="--g:${gcol(c.group)}">
+      ${list.map(c => { const p = G.signedIn(s, c.id), ns = G.noshow(s, c.id), o = G.online(s, c.id, now); return `<tr class="${ns ? 'gone' : ''}" style="--g:${gcol(c.group)}">
         <td class="stripe"><span class="dot ${o ? 'on' : ''}" title="${o ? 'Connected' : 'Not connected'}"></span></td>
         <td><div class="nm"><span class="ht-av sm">${esc(initials(c.name))}</span><b>${esc(c.name)}</b>${Pron.tag(c.id, s)}${c.key ? ' <span class="chip key" title="The night needs this player">key</span>' : ''}</div></td>
         <td class="mute">${esc(c.role)}</td>
@@ -324,7 +324,7 @@
   /* the drawer: one player, their phone, their timeline, and the levers */
   function drawerHead(s, now) {
     const c = G.byId(W.id); if (!c) return '';
-    const o = G.online(s, c.id, now), p = s.players && s.players[c.id], w = NW.walletOf(c), fz = w && NW.frozen(s, w), main = ME.role === 'main';
+    const o = G.online(s, c.id, now), p = G.signedIn(s, c.id), w = NW.walletOf(c), fz = w && NW.frozen(s, w), main = ME.role === 'main';
     return `<div class="wd-h" style="--g:${gcol(c.group)}"><span class="wt-av big">${esc(initials(c.name))}<i class="${o ? 'on' : ''}"></i></span>
       <div class="wd-id"><b>${esc(c.name)}</b><small>${esc(c.role)} · <span class="grpc">${esc(STORY.groups[c.group].name)}</span> · <span class="mono code">${esc(c.code)}</span></small>
         <small>${o ? '<span class="live-t">On their phone now</span>' : p ? 'Last seen ' + esc(ago(p.seen, now)) : 'Never signed in'}${w ? ` · NightBank <b class="mono">${NW.money(NW.balance(s, w))}</b>${fz ? ' <span class="chip bad">frozen</span>' : ''}` : ''}</small></div>
@@ -746,7 +746,7 @@ ${sign}` };
     const s = DB.get(), now = Date.now(), r = Clock.read(s, now);
     if (lastPhase !== null && lastPhase !== r.i) { setTimeout(() => pulse('flash', 1700), 0); if (r.phase) toast('Now: ' + r.phase.name, 'gold'); }
     lastPhase = r.i;
-    patch($('#rail'), rail(s, r, now));
+    { const nv = $('.ht-nav'), sl = nv ? nv.scrollLeft : 0; if (patch($('#rail'), rail(s, r, now)) && sl) { const n2 = $('.ht-nav'); if (n2) n2.scrollLeft = sl; } }
     patch($('#top'), top(s, r, now));
     const w = $('#wrap');
     if (w.dataset.view !== tab) {
@@ -780,7 +780,7 @@ ${sign}` };
   function phoneRows(s, now) {
     const rank = { offline: 0, flaky: 1, 'never signed in': 2, online: 3, 'no-show': 4 };
     return cast().map(c => {
-      const p = (s.players || {})[c.id], drops = (p && p.net && p.net.drops) || 0;
+      const p = G.signedIn(s, c.id), drops = (p && p.net && p.net.drops) || 0;
       const state = G.noshow(s, c.id) ? 'no-show' : !p ? 'never signed in' : G.online(s, c.id, now) ? (drops >= 3 ? 'flaky' : 'online') : 'offline';
       return { c, p, drops, state };
     }).sort((a, b) => rank[a.state] - rank[b.state] || a.c.name.localeCompare(b.c.name));

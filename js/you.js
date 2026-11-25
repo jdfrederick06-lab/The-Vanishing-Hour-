@@ -209,7 +209,7 @@
   function drawPan() { const pn = $('#pan'), w = $('#wall'); if (pn && w && w.classList.contains('portrait')) pn.innerHTML = reply() + notes(); }
   function unveil() {
     const w = $('#wall'); if (busy || !w || !w.classList.contains('veiled')) return;
-    busy = true; if (!prof().opened) save({ opened: Date.now() });
+    busy = true; if (!prof().opened && !Session.hostDevice()) save({ opened: Date.now() });
     /* the cord falls, the two velvet panels sweep apart and gather at the sides, light and sparks */
     w.classList.add('opening'); setTimeout(sparks, calm ? 0 : 700);
     setTimeout(() => { set('invite'); const d = $('#drape'); d.tabIndex = -1; d.setAttribute('aria-hidden', 'true'); $('.iv-copy').insertAdjacentHTML('afterbegin', '<button type="button" class="iv-link" data-a="replay">Replay the unveiling</button><br>'); busy = false; }, calm ? 0 : 2600);

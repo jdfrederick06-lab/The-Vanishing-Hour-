@@ -14,7 +14,7 @@ const COPYRIGHT = '© 2026 Jacob Frederick. All rights reserved.';
 const normCode = s => String(s || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
 const initials = n => String(n).replace(/^Dr\.\s+/, '').split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase();
 const wallTime = ts => new Date(ts).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-const mmss = ms => { const s = Math.max(0, Math.round(ms / 1000)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
+const mmss = ms => { if (!isFinite(ms)) return '--:--'; const s = Math.max(0, Math.round(ms / 1000)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
 const hmm = min => { min = Math.max(0, Math.floor(min)); return Math.floor(min / 60) + ':' + String(min % 60).padStart(2, '0'); };
 const ROOT = window.ROOT || '';
 /** Replace an element's HTML only when it actually changed (keeps typing and scrolling stable). */
@@ -48,6 +48,8 @@ const G = {
     }).join(', ');
   },
   online(s, id, now = Date.now()) { const p = s.players && s.players[id]; return !!p && now - p.seen < 45000; },
+  /** the player's record only if they have actually signed in on a phone (an invitation alone saves a profile, Nov 25) */
+  signedIn(s, id) { const p = s.players && s.players[id]; return p && p.seen ? p : null; },
   noshow: (s, id) => !!(s.cast && s.cast[id] && s.cast[id].noshow)
 };
 
@@ -400,6 +402,8 @@ const Session = {
   },
   /** Who scanned this (a new tab): this tab's sign-in, or the last one on this phone. */
   lastPlayer() { let c = sessionStorage.getItem('vh:code'); if (!c) try { c = localStorage.getItem('vh:last'); } catch (e) { } return c ? G.byCode(c) : null; },
+  /** has a host signed in on this device? (works even where the host list isn't loaded, e.g. a player's view) */
+  hostDevice() { try { return !!(sessionStorage.getItem('vh:host') || localStorage.getItem('vh:lasthost')); } catch (e) { return false; } },
   lastHost() { let c = sessionStorage.getItem('vh:host'); if (!c) try { c = localStorage.getItem('vh:lasthost'); } catch (e) { } return c ? G.hostByCode(c) : null; },
   signOut() { sessionStorage.removeItem('vh:code'); sessionStorage.removeItem('vh:host'); try { localStorage.removeItem('vh:last'); localStorage.removeItem('vh:lasthost'); } catch (e) { } if (DB.reclaim) DB.reclaim(); }
 };

@@ -367,12 +367,13 @@ body[data-world="host"] .h-wrap.flash .deck { animation: deckFlash 1.6s ease-out
   .ht { grid-template-columns: 1fr; }
   .ht-rail { position: fixed; top: auto; bottom: 0; left: 0; right: 0; height: auto; flex-direction: row; padding: 6px 6px calc(6px + env(safe-area-inset-bottom)); border-right: 0; border-top: 1px solid var(--line); }
   .ht-brand, .ht-rail-foot { display: none; }
-  .ht-nav { flex-direction: row; flex: 1; justify-content: space-around; }
-  .ht-nav button { flex-direction: column; height: auto; gap: 3px; padding: 6px 4px; font-size: 10.5px; flex: 1; align-items: center; }
+  .ht-nav { flex-direction: row; flex: 1; min-width: 0; justify-content: flex-start; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+  .ht-nav::-webkit-scrollbar { display: none; }
+  .ht-nav button { flex-direction: column; height: auto; gap: 3px; padding: 6px 4px; font-size: 10.5px; flex: 1 0 62px; align-items: center; }
   .ht-nav button span { flex: none; }
   .ht-nav button kbd { display: none; }
   .ht-nav em { position: absolute; top: 2px; right: 50%; transform: translateX(20px); padding: 2px 4px; font-size: 9px; }
-  .ht-nav button[aria-current="true"]::before { left: 25%; right: 25%; top: -6px; bottom: auto; width: auto; height: 2px; border-radius: 0 0 2px 2px; }
+  .ht-nav button[aria-current="true"]::before { left: 25%; right: 25%; top: 0; bottom: auto; width: auto; height: 2px; border-radius: 0 0 2px 2px; }
   .ht-body { padding-bottom: 76px; }
   body[data-world="host"] .deck { grid-template-columns: 1fr; padding: 18px; }
   .deck-t { font-size: 28px; }
@@ -553,3 +554,16 @@ body[data-world="host"] .tbl th { background: #10121a; font: 600 10px/1 var(--fo
 .hn-top { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 6px; }
 .hn-when { margin-left: auto; font-size: 11px; color: rgba(255,255,255,.5); }
 .hn-item p { margin: 6px 0 10px; white-space: pre-wrap; line-height: 1.5; }
+/* phones and narrow windows (Nov 25 sweep): the later theme block above set a desktop grid that also
+   applied on phones, squeezing the page into 244px. Restore the one-column layout and bottom tab bar. */
+@media (max-width: 900px) {
+  .ht { grid-template-columns: minmax(0, 1fr); }
+  .ht-rail { box-sizing: border-box; width: 100%; max-width: 100vw; overflow: hidden; padding: 6px 6px calc(6px + env(safe-area-inset-bottom)); border-right: 0; }
+  .ht-body { min-width: 0; }
+  .ht-nav button { height: auto; font-size: 10.5px; border-radius: 8px; }
+  .ht-nav button[aria-current="true"]::before { left: 25%; }
+  .ht-bar-in { min-height: 58px; padding: 0 12px; }
+  .ht-clock b { font-size: 16px; }
+  .ht-stat { padding: 0 10px; }
+  .deck-t { font-size: 28px; }
+}
