@@ -81,7 +81,8 @@ const NW = (() => {
   }
   /* freezes (nw/frozen/{w} = { by: 'host'|'fbi'|'court', who, at, loan? }) and the thrown-out list (cast/{id}/out) */
   const frozen = (s, w) => (N(s).frozen || {})[w] || null;
-  const isOut = (s, id) => !!(s.cast && s.cast[id] && s.cast[id].out);
+  const untouchable = id => (((STORY.vote || {}).untouchable) || []).includes(id);
+  const isOut = (s, id) => !untouchable(id) && (!!(s.cast && s.cast[id] && s.cast[id].out) || loans(s).some(l => l.borrower === id && l.status === 'collections'));
   const FROZE = { fbi: 'by the FBI', court: 'by court order (an unpaid loan)', host: 'by the bank' };
   /** Why this person can't move money from this account right now (or null). A court freeze still lets you repay. */
   function blockedWhy(s, me, w, repay) {
@@ -316,7 +317,7 @@ const NW = (() => {
     if (!mine.length) return '';
     return `<section class="oz-sec"><span class="oz-sec-h">Loans from ${esc(wname(LC().lender))}</span>${mine.map(l => l.status === 'offer'
       ? `<div class="oz-loan"><div><b>${money(l.amt)} offered</b><small>${l.rate}% interest · you'd repay ${money(l.owed)} within ${l.term} minutes of accepting</small></div><div class="oz-btns"><button type="button" class="oz-btn go" data-nw-loanok="${l.id}">Accept</button><button type="button" class="oz-btn" data-nw-loanno="${l.id}">Decline</button></div></div>`
-      : `<div class="oz-loan${isLate(s, l) ? ' late' : ''}"><div><b>You owe ${money(l.owed)}</b><small>${isLate(s, l) ? 'Overdue' + (l.court ? ' · wallet frozen by court order' : '') : esc(dueLabel(s, l))}</small></div><div class="oz-btns"><button type="button" class="oz-btn go" data-nw-repay="${l.id}">Repay ${money(l.owed)}</button></div></div>`).join('')}${errBox(ui, 'loan')}</section>`;
+      : `<div class="oz-loan${isLate(s, l) ? ' late' : ''}"><div><b>You owe ${money(l.owed)}</b><small>${isLate(s, l) ? 'Overdue' + (l.court ? ' · wallet frozen by court order' : '') + debtNote(l) : esc(dueLabel(s, l))}</small></div><div class="oz-btns"><button type="button" class="oz-btn go" data-nw-repay="${l.id}">Repay ${money(l.owed)}</button></div></div>`).join('')}${errBox(ui, 'loan')}</section>`;
   }
   /* Jules: unfreeze one account, once */
   function unfreezeTool(s, me, ui) {
@@ -475,13 +476,26 @@ const NW = (() => {
       <div class="nb-row nb-sub"><span>Next ${money(f.amt / FU_STEPS)} at ${hmm(fuNextAt(s, f))}</span><span>all of it by ${hmm(f.ready)} · ${minsLeft(f.ready - now)} min left</span></div></div>`;
   }
   /* loans the borrower sees (offers to accept, loans to repay) */
+  /* Nov 25 (Jacob): an overdue loan is Cameron's call: a favor (done = debt cleared), forgive it, or
+     collections (thrown out: no vote, money locked). Not settled by the vote = no vote. Dusty is untouchable. */
+  const debtNote = l => l.favor ? `<br><b>Thorne Capital wants a favor:</b> "${esc(l.favor.text)}" Do it, then tell Cameron. When he marks it done, the debt is cleared.`
+    : '<br>Settle it before the vote or you lose your vote. Cameron may call in a favor instead of the money.';
+  /** why this person can't vote because of a Thorne Capital loan: 'collections', 'debt' or null */
+  function debtOut(s, id) {
+    if (untouchable(id)) return null;
+    const mine = loans(s).filter(l => l.borrower === id);
+    if (mine.some(l => l.status === 'collections')) return 'collections';
+    const r = Clock.read(s), vi = STORY.phases.findIndex(p => p.id === 'vote');
+    const voting = r.state === 'over' || (vi >= 0 && r.i >= vi) || !!(s.vote && s.vote.state === 'open');
+    return voting && mine.some(l => l.status === 'active' && isLate(s, l)) ? 'debt' : null;
+  }
   function loanPanel(s, me, w, ui) {
     const mine = loans(s).filter(l => l.to === w && (l.status === 'offer' || l.status === 'active'));
     if (!mine.length) return '';
     return `<div class="nb-panel nb-loan"><div class="nb-h">Loans <span class="nb-count">${mine.length}</span></div>${mine.map(l => l.status === 'offer'
       ? `<div class="nb-li"><div><b>${esc(wname(l.lender))} offers you ${money(l.amt)}</b><small>${l.rate}% interest · you'd repay ${money(l.owed)} within ${l.term} minutes of accepting</small></div>
           <div class="nb-li-a"><button type="button" class="btn small primary" data-nw-loanok="${l.id}">Accept</button><button type="button" class="btn small ghost" data-nw-loanno="${l.id}">Decline</button></div></div>`
-      : `<div class="nb-li ${isLate(s, l) ? 'late' : ''}"><div><b>You owe ${money(l.owed)}</b><small>${esc(wname(l.lender))} · borrowed ${money(l.amt)} at ${l.rate}% · ${isLate(s, l) ? `<span class="neg">OVERDUE${l.court ? ' · account frozen by court order' : ''}</span>` : esc(dueLabel(s, l))}</small></div>
+      : `<div class="nb-li ${isLate(s, l) ? 'late' : ''}"><div><b>You owe ${money(l.owed)}</b><small>${esc(wname(l.lender))} · borrowed ${money(l.amt)} at ${l.rate}% · ${isLate(s, l) ? `<span class="neg">OVERDUE${l.court ? ' · account frozen by court order' : ''}</span>${debtNote(l)}` : esc(dueLabel(s, l))}</small></div>
           <div class="nb-li-a"><button type="button" class="btn small primary" data-nw-repay="${l.id}">Repay ${money(l.owed)}</button></div></div>`).join('')}${errBox(ui, 'loan')}</div>`;
   }
   function acctView(s, me, ui, w) {
@@ -539,9 +553,15 @@ const NW = (() => {
     const profit = mine.filter(l => l.status === 'paid').reduce((n, l) => n + l.owed - l.amt, 0);
     const late = mine.filter(l => isLate(s, l)).length;
     const busy = new Set(mine.filter(l => l.status === 'offer' || l.status === 'active').map(l => l.borrower));
-    const chip = l => l.status === 'offer' ? '<span class="nb-tag hot">Offered</span>' : l.status === 'active' ? (isLate(s, l) ? '<span class="nb-tag bad">Overdue</span>' : '<span class="nb-tag">Active</span>') : l.status === 'paid' ? '<span class="nb-tag ok">Repaid</span>' : `<span class="nb-tag">${l.status === 'declined' ? 'Declined' : 'Withdrawn'}</span>`;
+    const chip = l => l.status === 'offer' ? '<span class="nb-tag hot">Offered</span>' : l.status === 'active' ? (isLate(s, l) ? '<span class="nb-tag bad">Overdue</span>' : '<span class="nb-tag">Active</span>') : l.status === 'paid' ? '<span class="nb-tag ok">Repaid</span>' : l.status === 'favor' ? '<span class="nb-tag ok">Paid with a favor</span>' : l.status === 'forgiven' ? '<span class="nb-tag ok">Forgiven</span>' : l.status === 'collections' ? '<span class="nb-tag bad">Collections</span>' : `<span class="nb-tag">${l.status === 'declined' ? 'Declined' : 'Withdrawn'}</span>`;
     const acts = l => l.status === 'offer' ? `<button type="button" class="btn small ghost" data-nw-loanwd="${l.id}">Withdraw</button>`
-      : isLate(s, l) ? `${l.court ? '<span class="nb-sub">Frozen by court order</span>' : `<button type="button" class="btn small danger" data-nw-court="${l.id}">Freeze by court order</button>`}${l.named ? '<span class="nb-sub">Named publicly</span>' : `<button type="button" class="btn small" data-nw-name="${l.id}">Name publicly</button>`}` : '';
+      : isLate(s, l) && l.status === 'active' ? `${debtActs(l)}${l.court ? '<span class="nb-sub">Frozen by court order</span>' : `<button type="button" class="btn small danger" data-nw-court="${l.id}">Freeze by court order</button>`}${l.named ? '<span class="nb-sub">Named publicly</span>' : `<button type="button" class="btn small" data-nw-name="${l.id}">Name publicly</button>`}` : '';
+    function debtActs(l) {
+      const f = l.favor, safe = untouchable(l.borrower);
+      return (f ? `<span class="nb-sub">Favor asked: "${esc(f.text)}"</span><button type="button" class="btn small primary" data-nw-favordone="${l.id}">Favor done: clear the debt</button>` : `<button type="button" class="btn small primary" data-nw-favor="${l.id}">Call in a favor</button>`)
+        + `<button type="button" class="btn small" data-nw-forgive="${l.id}">Forgive</button>`
+        + (safe ? '<span class="nb-sub">Can\'t be sent to collections</span>' : `<button type="button" class="btn small danger" data-nw-collect="${l.id}">Send to collections</button>`);
+    }
     const sorted = mine.slice().sort((a, b) => (isLate(s, b) - isLate(s, a)) || ((b.status === 'active') - (a.status === 'active')) || b.at - a.at);
     return `<div class="nb-grid"><div class="nb-a">
         <div class="nb-panel nb-lend"><div class="nb-lend-mark">TC</div><div class="nb-h">Thorne Capital <span class="nb-count">Private lending</span></div>
@@ -590,8 +610,8 @@ const NW = (() => {
     loans(s).forEach(l => {
       if (l.lateTold || !isLate(s, l)) return;
       u['nw/loans/' + l.id + '/lateTold'] = true;
-      alertWallet(u, l.to, 'Loan overdue', `Your loan from ${wname(l.lender)} is overdue: you owe ${money(l.owed)}. Repay now, or they can freeze your account by court order and name you publicly.`);
-      alertWallet(u, l.lender, 'Loan overdue', `${bname(l)} hasn't repaid ${money(l.owed)}. You can now freeze their account by court order or name them publicly (NightBank > Lending).`);
+      alertWallet(u, l.to, 'Loan overdue', `Your loan from ${wname(l.lender)} is overdue: you owe ${money(l.owed)}. Repay now, or Cameron can call in a favor, freeze your account, name you publicly, or send you to collections. If it isn't settled by the vote, you lose your vote.`);
+      alertWallet(u, l.lender, 'Loan overdue', `${bname(l)} hasn't repaid ${money(l.owed)}. Your call (NightBank > Lending): call in a favor, forgive it, freeze their account, name them publicly, or send them to collections (thrown out). Unsettled by the vote = no vote.`);
       Clock.log(u, 'nightwire', `${bname(l)}'s loan from ${wname(l.lender)} is overdue (${money(l.owed)}).`);
     });
   }
@@ -676,6 +696,41 @@ const NW = (() => {
         return u;
       }).then(ok => { if (!ok) { say(ui, 'loan', `That didn't go through: ${wname(w)} doesn't have ${money(l.owed)} any more.`); ctx.redraw(true); } });
       ui.err = ''; return done();
+    }
+    if ((el = q('[data-nw-favor]'))) {
+      const s = DB.fresh(), l = loanById(s, el.dataset.nwFavor); if (!l || !isLender(me) || !isLate(s, l) || l.status !== 'active') return true;
+      Ask.input(`What favor do you want from ${bname(l)}? Be specific: who, what, by when.`, '', text => {
+        text = String(text || '').trim().slice(0, 160); if (!text) return;
+        const u = { ['nw/loans/' + l.id + '/favor']: { text, at: Date.now() } };
+        alertWallet(u, l.to, 'Thorne Capital calls in a favor', `Instead of the ${money(l.owed)}: "${text}" Do it, then tell Cameron. When he marks it done, your debt is cleared.`);
+        Clock.log(u, 'nightwire', `${me.name} called in a favor from ${bname(l)}: "${text}"`);
+        DB.update(u); ctx.redraw(true);
+      }, { title: 'Call in a favor', ok: 'Send' });
+      return true;
+    }
+    const settleLoan = (id, status, ask) => {
+      const s = DB.fresh(), l = loanById(s, id); if (!l || !isLender(me) || l.status !== 'active') return true;
+      if (ask && !Ask.sure(ask(l), () => onClick(e, ctx))) return true;
+      const u = { ['nw/loans/' + l.id + '/status']: status, ['nw/loans/' + l.id + '/paidAt']: Date.now() };
+      const f = frozen(s, l.to);
+      if (status !== 'collections' && f && f.by === 'court' && !loans(s).some(x => x.id !== l.id && x.to === l.to && isLate(s, x))) unfreeze(u, l.to, l.lender);
+      return { s, l, u };
+    };
+    if ((el = q('[data-nw-favordone]'))) {
+      const r = settleLoan(el.dataset.nwFavordone, 'favor', l => `Mark ${bname(l)}'s favor as done? Their ${money(l.owed)} debt is cleared.`); if (r === true) return true;
+      alertWallet(r.u, r.l.to, 'Debt cleared', `Thorne Capital is satisfied. Your ${money(r.l.owed)} debt is cleared.`);
+      Clock.log(r.u, 'nightwire', `${me.name} cleared ${bname(r.l)}'s debt in return for a favor.`); DB.update(r.u); return done();
+    }
+    if ((el = q('[data-nw-forgive]'))) {
+      const r = settleLoan(el.dataset.nwForgive, 'forgiven', l => `Forgive ${bname(l)}'s ${money(l.owed)}? It's gone for good.`); if (r === true) return true;
+      alertWallet(r.u, r.l.to, 'Debt forgiven', `Thorne Capital has forgiven your ${money(r.l.owed)}. Don't make a habit of it.`);
+      Clock.log(r.u, 'nightwire', `${me.name} forgave ${bname(r.l)}'s debt of ${money(r.l.owed)}.`); DB.update(r.u); return done();
+    }
+    if ((el = q('[data-nw-collect]'))) {
+      const l0 = loanById(DB.get(), el.dataset.nwCollect); if (l0 && untouchable(l0.borrower)) return true;
+      const r = settleLoan(el.dataset.nwCollect, 'collections', l => `Send ${bname(l)} to collections? They're thrown out: no vote at the end, and their money is locked for the rest of the night.`); if (r === true) return true;
+      alertWallet(r.u, r.l.to, 'Sent to collections', 'You didn\'t pay Thorne Capital. You\'ve been sent to collections: you won\'t get a vote, and your money is locked for the rest of the night. Stay in character.');
+      Clock.log(r.u, 'nightwire', `${me.name} sent ${bname(r.l)} to collections (thrown out: no vote, money locked).`); DB.update(r.u); return done();
     }
     if ((el = q('[data-nw-court]'))) {
       const s = DB.fresh(), l = loanById(s, el.dataset.nwCourt);
@@ -861,5 +916,5 @@ const NW = (() => {
 
   return { newUI, render, renderBank, onClick, onInput, onChange, onSubmit, walletOf, wname, balance, spend, publish, sees, txs, money, amount, pendingState, wallets: W, membersOf,
     tick, arriveNow, freeze, unfreeze, frozen, isOut, blockedWhy, fuCfg, fuOf, fuReady, fuCleared, fuStep, loans, isLate, nightNow, bname, FROZE, phaseIdx, cfg: C,
-    brand: { mark: MARK, word: WORD } };
+    brand: { mark: MARK, word: WORD }, debtOut };
 })();

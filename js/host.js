@@ -774,6 +774,7 @@
     if ((t = q('[data-nwfast]'))) { const w = t.dataset.nwfast, u = {}; NW.arriveNow(u, w); DB.update(u); return toast(`${NW.wname(w)}: freed-up money arrived`); }
     if ((t = q('[data-out]'))) {
       const id = t.dataset.out, c = G.byId(id), on = !NW.isOut(DB.get(), id);
+      if (on && ((STORY.vote || {}).untouchable || []).includes(id)) return toast(`${c.name} can't be thrown out. Nobody can find who invited him, so nobody can uninvite him.`);
       if (on && !Ask.sure(`Throw ${c.name} out of the gala? They won't get a vote at the end, and they can't move money for the rest of the night.`, () => hostClick(e), { title: 'Thrown out', ok: 'Throw out', danger: true })) return;
       const u = { ['cast/' + id + '/out']: on ? { at: Date.now() } : null };
       u['feed/' + uid('m')] = { to: [id], title: on ? 'Thrown out' : 'Welcome back', text: on ? "You've been thrown out of the gala. You won't get a vote at the end, and your NightBank is locked for the rest of the night. Stay in character." : "You're back in the gala. Your vote and your NightBank are restored.", at: Date.now(), kind: 'msg' };

@@ -181,7 +181,8 @@
         <li>Each player's bank goes by a different name: Bebbit Banking (guests and staff), the Federal Credit Union (FBI), Omnizon Wallet (crew). It's one bank underneath.</li>
         <li>The rich can "free up" more money once a night; it arrives after a wait on the game clock.</li>
         <li>Casino: the house always wins in the end; its take goes to ${esc(nm((N.casino || {}).beneficiary) || 'the foundation')}, less a ${Math.round(((N.casino || {}).companyCut || 0) * 100)}% event fee to ${esc(nm((N.casino || {}).feeTo) || 'Harper')}'s events company. ${esc(nm((N.casino || {}).feeTo) || 'Harper')} only gets a ${(((N.casino || {}).harperCut || 0) * 100).toFixed(2).replace(/0$/, '')}% commission, so the casino never fixes her $180,000 problem. Winners count against the foundation, so its total can go negative. Table limit ${money((N.casino || {}).maxBet || 0)} a round; the roulette wheel has three zeros. The FBI can't play.</li>
-        <li>Cameron lends ${money((N.lending || {}).min)} to ${money((N.lending || {}).max)}; an overdue loan lets Cameron freeze the borrower by court order and name them publicly.</li>
+        <li>Cameron (Thorne Capital, advertised in every bank app) lends ${money((N.lending || {}).min)} to ${money((N.lending || {}).max)} at ${(N.lending || {}).rateMin}% to ${(N.lending || {}).rateMax}% interest. When a loan goes overdue it's Cameron's call: <b>call in a favor</b> (when he marks it done, the debt is cleared), <b>forgive it</b>, freeze their account, name them publicly, or <b>send them to collections</b> (thrown out: no vote, money locked). A debt still unsettled when the vote opens costs the borrower their vote.</li>
+        <li>Dusty can never be thrown out, by you or by Thorne Capital, and his ballot secretly counts three times. Only he and the hosts know.</li>
         <li>Host terminal > Omnizon: + or - money for anyone, freeze or unfreeze, make freed-up money arrive now.</li></ul>
         <h3>On Omnizon tonight</h3>` + tbl(['File', 'Seller', 'Price', 'Who can buy', 'Appears'], (N.market || []).map(it => [it.title, it.seller, money(it.price), it.for.map(groupName).join(', '), it.from ? clockAt(start(STORY.phases.findIndex(p => p.id === it.from))) : 'from the start'])));
     }
@@ -198,6 +199,7 @@
     html += partH('The end of the night', 'The vote, the arrest and the reveal');
     html += add('reveal', 'The vote, the arrest and the reveal', `<ol>
         <li>Voting opens by itself at "${esc((STORY.phases.find(p => p.id === 'vote') || {}).name || 'The accusation')}" (or Host > Vote > Open). Phones ask: who stole the painting, and who is the killer.</li>
+        <li>FBI votes count double. Dusty's counts three times (he cheated; nobody knows). Anyone thrown out, sent to collections, or still owing Thorne Capital when the vote opens doesn't get a vote. Dusty always votes.</li>
         <li>When voting closes, ${esc((STORY.vote.arrestBy || []).map(nm).join(', then '))} makes the arrest on their phone (the first one who is present).</li>
         <li>${k === 'main' ? 'Host > Vote: press Next to step through the slides. Read the line under each slide aloud. The big screen and every phone follow.' : 'Jacob runs the reveal from the main terminal. Stand with your group.'}</li>
         <li>Then announce each group's result (see "Who wins" in Part 2).</li></ol>

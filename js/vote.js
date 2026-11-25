@@ -27,10 +27,14 @@ const Vote = (() => {
     const r = Clock.read(s), vi = voteIdx();
     return r.state === 'over' || (vi >= 0 && r.i > vi && (r.state === 'live' || r.state === 'paused'));
   }
-  const out = (s, id) => !!(s.cast && s.cast[id] && s.cast[id].out);
+  const untouchable = id => (V().untouchable || []).includes(id);
+  /* thrown out by the host, sent to collections by Thorne Capital, or still in unpaid debt when the vote runs (Nov 25) */
+  const debt = (s, id) => typeof NW !== 'undefined' && NW.debtOut ? NW.debtOut(s, id) : null;
+  const out = (s, id) => !untouchable(id) && (!!(s.cast && s.cast[id] && s.cast[id].out) || !!debt(s, id));
   const canVote = (s, c) => !!c && !(V().noVote || []).includes(c.id) && !G.noshow(s, c.id) && !out(s, c.id);
-  const whyNot = (s, c) => out(s, c.id) ? "You were thrown out of the gala, so you don't get a vote." : (V().noVote || []).includes(c.id) ? "The dead don't vote. Watch it unfold." : 'You have no vote tonight.';
-  const weight = c => (V().weights || {})[c.group] || 1;
+  const whyNot = (s, c) => debt(s, c.id) === 'collections' ? "Thorne Capital sent you to collections, so you don't get a vote." : debt(s, c.id) === 'debt' ? "You still owe Thorne Capital, so you don't get a vote." : out(s, c.id) ? "You were thrown out of the gala, so you don't get a vote." : (V().noVote || []).includes(c.id) ? "The dead don't vote. Watch it unfold." : 'You have no vote tonight.';
+  const weight = c => (V().people || {})[c.id] || (V().weights || {})[c.group] || 1;
+  const counts = w => w === 2 ? ' <em>Your vote counts double.</em>' : w > 2 ? ' <em>Your vote counts ' + w + ' times. Nobody knows.</em>' : '';
   const candidates = s => STORY.characters.filter(c => !(V().notCandidates || []).includes(c.id) && !G.noshow(s, c.id)).sort((a, b) => a.name.localeCompare(b.name));
   const ballots = s => S(s).ballots || {};
   const voters = s => STORY.characters.filter(c => canVote(s, c));
@@ -102,11 +106,11 @@ const Vote = (() => {
     const steps = `<div class="vt-steps">${QS().map(([k, label], i) => { const c = b[k] && G.byId(b[k]); return `<button data-vt-q="${k}" aria-pressed="${!all || ui.edit ? ui.q === k : false}" class="${c ? 'ans' : ''}"><span class="vt-n">${c ? '' : i + 1}</span><span class="vt-st"><small>${esc(SHORT[k] || label)}</small><b>${c ? esc(c.name) : 'Not answered'}</b></span></button>`; }).join('')}</div>`;
     /* all answered: a filed ballot, with a way back in */
     if (all && !ui.edit) {
-      return `<section class="vt vt-filed">${head(kick, 'Your vote is in', `You can change it until voting closes.${weight(me) > 1 ? ' <em>Your vote counts double.</em>' : ''}`, ICON.ballot)}
+      return `<section class="vt vt-filed">${head(kick, 'Your vote is in', `You can change it until voting closes.${counts(weight(me))}`, ICON.ballot)}
         <div class="vt-ticket"><div class="vt-stamp">Vote cast</div>${QS().map(([k, label]) => { const c = G.byId(b[k]); return `<div class="vt-tk">${face(c)}<div><small>${esc(label)}</small><b>${esc(c.name)}</b></div></div>`; }).join('')}</div>
         <button class="vt-change" data-vt-edit>Change my answers</button>${turnout(s)}</section>`;
     }
-    return `<section class="vt">${head(kick, 'Cast your vote', `Two questions. Change your mind any time until voting closes.${weight(me) > 1 ? ' <em>Your vote counts double.</em>' : ''}`, ICON.ballot)}
+    return `<section class="vt">${head(kick, 'Cast your vote', `Two questions. Change your mind any time until voting closes.${counts(weight(me))}`, ICON.ballot)}
       ${steps}<div class="vt-q">${esc((QS().find(q => q[0] === ui.q) || [])[1] || '')}</div>${pickList(s, b[ui.q], 'data-vt-pick')}
       ${all ? '<button class="vt-change" data-vt-edit>Done</button>' : ''}${turnout(s)}</section>`;
   }

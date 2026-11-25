@@ -17,6 +17,9 @@
    ===================================================================== */
 (function () {
   const me = document.currentScript, base = me.src.replace(/js\/boot\.js.*$/, '');
+  /* Nov 25: publish.ps1 stamps every page with ?v=<publish time>; the scripts boot loads carry it too, so a
+     browser never mixes old cached code with a new update (that broke sign-in after a rebuild) */
+  const V = (me.src.match(/[?&]v=([0-9]+)/) || [])[1] || '', ver = src => V && !/^https?:/.test(src) ? src + (src.includes('?') ? '&' : '?') + 'v=' + V : src;
   const need = (me.dataset.need || '').split(',').map(s => s.trim()).filter(Boolean);
   const run = (me.dataset.run || '').split(',').map(s => s.trim()).filter(Boolean);
   const plain = /^(localhost|127\.0\.0\.1)$/.test(location.hostname) && !/[?&]locked=1/.test(location.search);
@@ -77,12 +80,12 @@
       for (const f of ['story', 'evidence', 'reveal', 'dossiers'].filter(f => f === 'story' || need.includes(f))) await load(base + 'dev/settings/' + f + '.js');
       return;
     }
-    if (!window.crypto || !crypto.subtle) { await load(base + 'settings/public.js'); return; }
+    if (!window.crypto || !crypto.subtle) { await load(ver(base + 'settings/public.js')); return; }
     /* host "Open as" and scanned links can carry a code word: app.html?as=CODE */
     const as = new URLSearchParams(location.search).get('as');
     if (as) { const r = await entry(as).catch(() => null); if (r) remember(r.kind, as); }
     let e = current() ? await entry(current()).catch(() => null) : null;
-    if (!e) { await load(base + 'settings/public.js'); return; }
+    if (!e) { await load(ver(base + 'settings/public.js')); return; }
     await load(lockedUrl(e.bundle));
     let text;
     try { text = await open(await aes(e.key), L()[e.bundle]); }
@@ -112,5 +115,5 @@
   window.Boot = { locked: !plain, tryCode, remember };
   window.Boot.ready = story()
     .catch(err => { console.error('[boot]', err); return load(base + 'settings/public.js').catch(() => { }); })
-    .then(async () => { for (const src of run) await load(/^https?:/.test(src) ? src : base + src); });
+    .then(async () => { for (const src of run) await load(/^https?:/.test(src) ? src : ver(base + src)); });
 })();
