@@ -16,7 +16,7 @@ const Coat = (() => {
   const mine = (s, id) => ((s.huntp || {})[id]) || {};
   const wonAt = (s, id) => ((s.hunt || {}).won || {})[id];
   const started = (s, id) => !!Q() && (!!wonAt(s, id) || (mine(s, id).step || 0) > 0);
-  const isOpen = s => { const r = Clock.read(s); return r.state === 'over' || (r.state !== 'before' && r.nightMin >= ((Q().opens || {}).min || 0)); };
+  const isOpen = s => { if ((s.setup || {}).coatTest) return true; const r = Clock.read(s); return r.state === 'over' || (r.state !== 'before' && r.nightMin >= ((Q().opens || {}).min || 0)); };
   const norm = v => String(v || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
   const tagName = stop => stop === 'start' ? 'The coat check poster' : (((STORY.nfc || {})[Object.keys(STORY.nfc || {}).find(k => (STORY.nfc[k] || {}).quest === stop)] || {}).title || stop);
   const money = n => typeof NW !== 'undefined' ? NW.money(n) : '$' + Number(n || 0).toLocaleString('en-US');

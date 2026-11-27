@@ -991,5 +991,29 @@ const Games = (() => {
     return true;
   }
 
-  return { forMe, status, render, mount, onClick, hostPanel, hostClick, openCount: (s, me) => forMe(s, me).filter(d => status(s, d) === 'open').length, wall };
+  /* What each evidence mini-game turns up, as a printable page (Nov 26, print.html > "Mini-game evidence").
+     A paper backup: hand it over if a game can't be played, or to put on the case board once it's solved.
+     Same words as the games themselves, so the two never disagree. Style 'gamedoc' in evdoc.js. */
+  function paper() {
+    const clueOf = id => (def(id) || {}).clue || null, out = [];
+    let item = 16;
+    const add = (id, p) => { if (!def(id)) return; out.push(Object.assign({ id: 'mg-' + id, style: 'gamedoc', item: item++, clue: clueOf(id), game: def(id).name }, p)); };
+    add('decrypt', { look: 'court', title: 'The sealed birth record (unsealed)', holder: 'The FBI\'s decrypt game', org: 'Harlow County Family Court', sub: 'Records Division · Record of live birth', ref: 'Docket 08-FC-0417',
+      lines: SEALED.map((x, i) => [['Section A · registry', 'Section B · parents', 'Section C · child'][i], x.text]), foot: ['Sealed 2008', 'Clerk: M. Ostrander'], stamp: 'Unsealed' });
+    add('messages', { look: 'phone', title: 'Victor\'s phone: the recovered thread', holder: 'The FBI\'s deleted-thread game', org: 'FBI Digital Evidence Unit', sub: 'Device extraction · V. Ashgrove (personal phone) · Deleted thread, recovered', ref: 'Case 27-0417',
+      head: ['Time', 'From', 'Message'], rows: THREAD.map(t => [t[1], t[0] === 'V' ? 'Victor' : 'Unknown number', t[2]]), note: 'Recovered in full and put back in order. The unknown number is not in the phone\'s contacts.' });
+    add('ledger', { look: 'ledger', title: 'Victor\'s collection ledger (audited)', holder: 'Sterling and Penn\'s ledger game', org: 'Ashgrove Collection', sub: 'Expense ledger · last month · prepared for V. J. Ashgrove', ref: 'Audit copy',
+      head: ['Date', 'Entry', 'Amount', 'Balance'], rows: LEDGER.map(r => [r.date, r.what + (r.hide ? ' ⚑' : ''), r.amt == null ? '' : usd(r.amt), usd(r.bal)]), mark: LEDGER.map((r, i) => r.hide ? i : -1).filter(i => i >= 0),
+      note: '⚑ Flagged by the audit: ' + LEDGER.filter(r => r.hide).map(r => `the ${r.date}, ${r.what.toLowerCase()} (the balance drops ${usd(r.hide)} more than the entry says; ${r.note})`).join('; ') + '.' });
+    const holder = b => (BADGES[b] || ['?'])[0], start = tmin('7:00'), end = tmin('8:10');
+    const rows = SWIPES.map((x, i) => ({ x, i })).filter(({ x }) => tmin(x[0]) >= start && tmin(x[0]) <= end);
+    add('doorlog', { look: 'badge', title: 'The door log: badge swipes, gala night', holder: 'Lane and Bo\'s door-log game', org: 'Harbor Hill Museum · Access control', sub: 'Badge swipes · all doors · 7:00 to 8:10 PM', ref: 'Printout',
+      head: ['Time', 'Badge', 'Registered to', 'Door', 'Result'], rows: rows.map(({ x }) => [x[0] + ' PM', x[1], holder(x[1]), x[2], x[3] ? 'Denied' : 'Opened']), mark: rows.map(({ i }, k) => i === ANSWER ? k : -1).filter(k => k >= 0),
+      note: 'Temporary badges T-01 to T-05: ' + TEMPNOTE });
+    add('differences', { look: 'lab', title: 'Is it real? "Harbor at Dusk"', holder: 'Ari\'s spot-the-difference game', org: 'Harbor Hill Museum · Conservation', sub: 'Condition report · "Harbor at Dusk" · catalogue photo (2019) against the canvas on the wall', ref: 'Report',
+      pics: typeof Art !== 'undefined' ? [['Catalogue photo, 2019', Art.uri(Art.harbor(false))], ['On the wall tonight', Art.uri(Art.harbor(true))]] : [],
+      list: (typeof Art !== 'undefined' ? Art.DIFFS : []).map(d => d.what), note: INFO.differences.outcome });
+    return out;
+  }
+  return { forMe, status, render, mount, onClick, hostPanel, hostClick, openCount: (s, me) => forMe(s, me).filter(d => status(s, d) === 'open').length, wall, paper };
 })();

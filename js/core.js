@@ -639,7 +639,7 @@ const PrintLock = (() => {
   function ask(go) {
     if (open) return; open = true;
     const main = isMain(), el = document.createElement('div');
-    el.className = 'pl'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-modal', 'true'); el.setAttribute('aria-labelledby', 'pl-t');
+    el.className = 'pwl'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-modal', 'true'); el.setAttribute('aria-labelledby', 'pl-t');
     el.innerHTML = `<form class="pl-card" autocomplete="off">
         <span class="pl-ic">${ICON}</span>
         <h2 id="pl-t">${main ? 'Print password' : 'Printing is locked'}</h2>
@@ -673,8 +673,8 @@ const PrintLock = (() => {
           body.print-locked::before { content: "Protected document"; display: block; margin: 3in auto 0; text-align: center; font: 600 22pt Georgia, serif; color: #222; }
           body.print-locked::after { content: "The Vanishing Hour. Printing needs the main host's print password.\\A ${(typeof COPYRIGHT !== 'undefined' ? COPYRIGHT : '').replace(/"/g, '')}"; white-space: pre-line; display: block; margin: 14pt auto 0; max-width: 5in; text-align: center; font: 11pt/1.6 Georgia, serif; color: #555; }
         }
-        .pl { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: 16px; background: rgba(10,12,18,.62); backdrop-filter: blur(6px); animation: plIn .2s both; }
-        .pl.out { animation: plOut .2s both; }
+        .pwl { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: 16px; background: rgba(10,12,18,.62); backdrop-filter: blur(6px); animation: plIn .2s both; }
+        .pwl.out { animation: plOut .2s both; }
         @keyframes plIn { from { opacity: 0; } } @keyframes plOut { to { opacity: 0; } }
         .pl-card { width: min(100%, 380px); padding: 24px 22px 18px; border-radius: 18px; background: #fff; color: #15171d; text-align: center; box-shadow: 0 30px 80px -20px rgba(0,0,0,.6); font: 15px/1.5 Inter, system-ui, sans-serif; animation: plPop .35s cubic-bezier(.2,.9,.3,1.2) both; }
         @keyframes plPop { from { transform: translateY(12px) scale(.96); opacity: 0; } }
@@ -694,7 +694,7 @@ const PrintLock = (() => {
         .pl-no { border: 1.5px solid #d6d9e0; background: #fff; color: #15171d; }
         .pl-yes { border: 0; background: #15171d; color: #fff; }
         .pl-c { display: block; margin-top: 14px; font-size: 11px; color: #9aa0ad; }
-        @media print { .pl { display: none !important; } }`;
+        @media print { .pwl { display: none !important; } }`;
       document.head.appendChild(st);
     }
     lock();
@@ -786,9 +786,9 @@ const Eggs = {
   /** find it and show it: the pop-up says "unlocked" the first time, and just shows the joke after that */
   unlock(me, key, u) {
     if (!Eggs.has(key)) return false;
-    const fresh = Eggs.find(me, key, u), [title, text] = Eggs.list()[key];
+    const fresh = Eggs.find(me, key, u), [title, text, diff] = Eggs.list()[key], stars = ' · ' + '★'.repeat(diff || 1) + '☆'.repeat(3 - (diff || 1));
     const n = me && me.id ? Eggs.found(DB.get(), me.id).length + (fresh && u ? 1 : 0) : 0;
-    Eggs.pop(title, text, fresh ? `Oddity unlocked · ${n} of ${Eggs.total()}` : 'Oddity');
+    Eggs.pop(title, text, (fresh ? `Oddity unlocked · ${n} of ${Eggs.total()}` : 'Oddity') + stars);
     return fresh;
   },
   /** only the first time: for things seen over and over (a search result, a profile) */

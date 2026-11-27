@@ -11,7 +11,7 @@
 (function () {
   const PAGE = document.body.dataset.page, root = $('#root');
   /* oddities (Nov 26): tiny fine print at the bottom of some posters. Jokes only, so they live here in the public code */
-  const FINE = { gala: 'The coat check is not responsible for lost coats. Cliff, this means you.', bebbit: 'By scanning this code you agree that Bebbit owns your photos, your soul and your crab cake opinions. (Drew wrote this himself at 3 AM.)', casino: 'The house always wins. The house is a charity. Please do the math, then do not tell anyone.' };
+  const FINE = { gala: 'The coat check is not responsible for lost coats. Cliff, this means you.', bebbit: 'By scanning this code you agree that Bebbit owns your photos, your soul and your crab cake opinions. Bebbit never forgets: not even the posts you deleted, not even the day you joined. (Drew wrote this himself at 3 AM.)', casino: 'The house always wins. The house is a charity. Lose five in a row and the house will remember your name.' };
   const fine = id => FINE[id] ? `<p class="pp-fine">${esc(FINE[id])}</p>` : '';
   if (!Session.lastHost()) { root.innerHTML = `<div class="pp-lock"><b>${esc(CONFIG.TITLE)}</b><p>This page is for the host. Sign in at the <a href="host.html">host terminal</a> first, then come back.</p></div>`; return; }
   const I = CONFIG.INVITE || {};

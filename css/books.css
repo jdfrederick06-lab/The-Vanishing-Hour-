@@ -174,3 +174,4 @@ a { color: inherit; }
 .cc-sign { text-align: right; }
 .cc-sticky { background: #fff59a; font-family: 'Segoe Print', 'Comic Sans MS', cursive; transform: rotate(-1.5deg); }
 .cc-sticky p:first-of-type { font-size: 22px; font-weight: 700; }
+.bk-links { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; } .bk-links a { padding: 6px 12px; border: 1px solid #b99a55; border-radius: 999px; text-decoration: none; color: inherit; font-size: 13px; } @media print { .bk-links { display: none; } }

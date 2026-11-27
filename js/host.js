@@ -662,6 +662,7 @@ ${sign}` };
       + panel('Doors', 'any code word works at any door', [['index.html', 'The invitation (the front page everyone sees first)'], ['gala/', 'The gala door (guests and staff type their code word here)'],['fbi/', 'FBI Headquarters'], ['bebbit/', 'Bebbit'], ['nightwire/', 'Omnizon (NIGHTWIRE)']].map(d => `<div class="sys"><div style="flex:1;min-width:0"><b>${d[1]}</b><small class="mono">${esc(new URL(d[0], location.href).href)}</small></div><a class="btn small" href="${d[0]}" target="_blank" rel="noopener">Open</a></div>`).join(''))
       + panel('Host codes', '', STORY.hosts.map(h => `<div class="sys"><div style="flex:1"><b>${esc(h.label)}</b><small>${h.groups ? 'Sees only: ' + h.groups.map(g => esc(STORY.groups[g].name)).join(', ') : 'Sees everything'}</small></div><span class="mono code">${esc(h.code)}</span></div>`).join(''))
       + coHosts(s)
+      + (STORY.coat ? panel('Test the sidequest', (s.setup || {}).coatTest ? '<span class="chip warn">open for testing</span>' : 'safe on the live site', `<p class="deck-n" style="margin-bottom:10px">Opens Cliff's Coat right now without touching the clock, so no cues or messages go to anyone's phone. Sign in as an unplayed character on a second phone or a private window, then open the tag links from the host book (Cliff's Coat > Test it yourself). Oddities work any time.</p><label class="check"><input type="checkbox" data-set="coattest" ${(s.setup || {}).coatTest ? 'checked' : ''}><span><b>Open Cliff's Coat now, for testing</b></span></label><p class="deck-n" style="margin:12px 0 8px">When you're done, turn it off and clear the test runs. This clears only sidequest progress, winners, Cliff's prize money and post, and oddities found. RSVPs, co-hosts and everything else stay.</p><button class="btn" data-act="coatclear">Clear sidequest and oddity test data</button>`) : '')
       + panel('Start over', '', `<p class="deck-n" style="margin-bottom:12px">Clears the clock, messages, sign-ins and the activity log on this computer. The story file isn't touched.</p><button class="btn danger" data-act="reset">Reset the night</button>`, 'danger-zone');
   }
 
@@ -876,6 +877,15 @@ ${sign}` };
     else if (a === 'sub1') { if (!isLive(r)) return; Clock.add(-1); toast('−1 minute on this phase'); }
     else if (a === 'next') { if (ME.role !== 'main' || r.state === 'over') return; const nx = STORY.phases[Math.max(-1, r.i) + 1]; if (Ask.sure(nx ? `Move to "${nx.name}" now?` : 'End the night now?', () => act('next'), { title: 'The clock', ok: nx ? 'Move on' : 'End the night' })) { Clock.start(Math.max(-1, r.i) + 1); } }
     else if (a === 'back') { if (ME.role !== 'main' || !(r.i > 0)) return; if (Ask.sure('Go back and restart the previous phase? Its cues will be sent again.', () => act('back'), { title: 'The clock', ok: 'Go back' })) Clock.start(r.i - 1); }
+    else if (a === 'coatclear') {
+      if (ME.role !== 'main') return;
+      if (Ask.sure("Clear all sidequest progress, winners, Cliff's prize money and post, and oddities found? RSVPs and everything else stay.", () => act('coatclear'), { title: 'Clear test data', ok: 'Clear it' })) {
+        const s = DB.fresh(), u = { huntp: null, hunt: null, 'setup/coatTest': null };
+        Object.entries((s.nw || {}).tx || {}).forEach(([k, x]) => { if (x && x.from === 'cliff') u['nw/tx/' + k] = null; });
+        Object.entries((s.beb || {}).posts || {}).forEach(([k, p]) => { if (p && p.by === 'cliff' && /^COAT FOUND/.test(p.text || '')) u['beb/posts/' + k] = null; });
+        Clock.log(u, 'host', 'Cleared the sidequest and oddity test data.'); DB.update(u); toast('Sidequest test data cleared');
+      }
+    }
     else if (a === 'reset') { if (Ask.sure('Reset the whole night on this computer? This clears the clock, messages and sign-ins.', () => act('reset'), { title: 'Reset', ok: 'Reset everything', danger: true })) { DB.reset(); toast('The night was reset'); } }
     else if (a === 'fbibonus') { const u = { 'fbi/bonus': ((s.fbi && s.fbi.bonus) || 0) + 1 }; Clock.log(u, 'host', 'Gave the FBI one extra lookup.'); DB.update(u); toast('The FBI got one extra lookup'); }
     else if (a === 'wclose') { W.id = null; render(); }
@@ -1044,6 +1054,7 @@ ${sign}` };
       Clock.log(u, 'host', on ? 'Merged the two handler jobs: either handler code now runs every handler group.' : 'Split the handler jobs again.');
       DB.update(u); toast(on ? 'Handlers merged' : 'Handlers split');
     }
+    else if (t.matches('[data-set="coattest"]')) { const u = { 'setup/coatTest': t.checked || null }; Clock.log(u, 'host', t.checked ? "Opened Cliff's Coat for testing." : "Closed Cliff's Coat testing."); DB.update(u); toast(t.checked ? "Cliff's Coat open for testing" : "Cliff's Coat back on the clock"); }
     else if (t.matches('[data-set="auto"]')) { DB.update({ 'setup/auto': t.checked }); toast(t.checked ? 'Auto-advance on' : 'Auto-advance off'); }
     else if (t.matches('[data-set="speed"]')) {
       /* keep the game clock where it is when the speed changes mid-phase */

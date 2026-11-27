@@ -152,6 +152,8 @@ const Bebbit = (() => {
     const q = ui.q.trim().toLowerCase();
     const ekey = 'search:' + q.replace(/[^a-z]/g, '');
     if (typeof Eggs !== 'undefined' && Eggs.has(ekey)) { Eggs.unlockOnce(me, ekey); return `<div class="bb-egg">${esc(Eggs.list()[ekey][1])}</div>`; }
+    /* an oddity: searching for yourself (your full name, or your first name) */
+    if (typeof Eggs !== 'undefined' && q.length > 2 && (q === me.name.toLowerCase() || q === me.name.toLowerCase().split(' ')[0])) Eggs.unlockOnce(me, 'vanity');
     const all = STORY.characters.filter(c => !G.noshow(s, c.id) && (!q || (c.name + ' ' + c.role).toLowerCase().includes(q))).sort(byName);
     return all.map(c => { const pr = prof(c.id), n = pr.followers + follows(s, c.id).length; return `<div class="person" data-bb-profile="${c.id}" role="button" tabindex="0">${avatar(c)}<div style="min-width:0;flex:1"><div class="nm">${esc(c.name)}${tick(c.id)}${c.id === me.id ? ' <span class="chip">you</span>' : ''}</div><div class="rl">@${esc(pr.handle)} · ${esc(c.role)}</div></div><span class="bb-fc"><b>${big(n)}</b>followers</span></div>`; }).join('') || '<div class="empty">No one matches.</div>';
   }
@@ -205,7 +207,10 @@ const Bebbit = (() => {
       /* the vote that hides a post goes in the host log, so it can be checked and brought back */
       const p = (B(s).posts || {})[id];
       if (p && want === 'down' && !p.keep && downs(s, id) + (cur === 'down' ? 0 : 1) === DOWN_HIDE()) Clock.log(u, 'bebbit', `A post by ${shown(who(p.by))} was hidden after ${DOWN_HIDE()} downvotes: ${(p.text || '[photo]').slice(0, 60)} (Host > Bebbit can show it again)`);
-      DB.update(u); return true;
+      DB.update(u);
+      /* an oddity: downvoting your own post */
+      if (want === 'down' && p && p.real === me.id && typeof Eggs !== 'undefined') setTimeout(() => Eggs.unlockOnce(me, 'selfdown'), 300);
+      return true;
     }
     if ((el = q('[data-bb-del]'))) {
       const id = el.dataset.bbDel, s = DB.fresh(), p = (B(s).posts || {})[id], n = left(s, me, 'delete');

@@ -288,6 +288,21 @@ const EvDoc = (() => {
           <table class="cp-t"><thead><tr><th>Holding</th><th>Position</th></tr></thead><tbody>${p.rows.map(([k, v]) => `<tr><td>${e(k)}</td><td>${e(v)}</td></tr>`).join('')}</tbody></table>
           <p class="cp-fine">Figures as of the close of business last month. This summary is for the client only and is not an offer or a valuation. Calloway Private does not give tax or legal advice.</p></div>`;
       }
+      /* the mini-games' results on paper (Nov 26, from Games.paper()): one layout, five looks */
+      case 'gamedoc': {
+        const mark = new Set(p.mark || []);
+        const tbl = p.rows ? `<table class="gd-t"><thead><tr>${p.head.map(x => `<th>${e(x)}</th>`).join('')}</tr></thead><tbody>${p.rows.map((r, i) => `<tr${mark.has(i) ? ' class="on"' : ''}>${r.map(c => `<td>${e(c)}</td>`).join('')}</tr>`).join('')}</tbody></table>` : '';
+        return `<div class="ed-doc gd gd-${e(p.look)}">
+          <header class="gd-h"><div><b>${e(p.org)}</b><span>${e(p.sub)}</span></div><em>${e(p.ref || '')}</em></header>
+          <h2 class="gd-title">${e(p.title)}</h2>
+          ${(p.lines || []).map(([k, v]) => `<div class="gd-line"><small>${e(k)}</small><p>${e(v)}</p></div>`).join('')}
+          ${(p.pics || []).length ? `<div class="gd-pics">${p.pics.map(([cap, src]) => `<figure><img alt="${e(cap)}" src="${src}"><figcaption>${e(cap)}</figcaption></figure>`).join('')}</div>` : ''}
+          ${(p.list || []).length ? `<ol class="gd-list">${p.list.map(x => `<li>${e(x)}</li>`).join('')}</ol>` : ''}
+          ${tbl}
+          ${p.note ? `<p class="gd-note">${e(p.note)}</p>` : ''}
+          ${p.foot ? `<footer class="gd-f">${p.foot.map(x => `<span>${e(x)}</span>`).join('')}</footer>` : ''}
+          ${p.stamp ? `<div class="gd-stamp">${e(p.stamp)}</div>` : ''}</div>`;
+      }
       default: return '';
     }
   }
