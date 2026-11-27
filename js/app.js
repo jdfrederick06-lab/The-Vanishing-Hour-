@@ -23,7 +23,7 @@
   document.body.dataset.world = WORLD;
   document.title = WORLD === 'nightwire' ? 'Omnizon' : W.name;
 
-  let tab = (/^(now|world|bank|beb|people|me|tasks)$/.test(new URLSearchParams(location.search).get('tab') || '') ? new URLSearchParams(location.search).get('tab') : 'now'), seenCount = Number(sessionStorage.getItem('vh:seen') || 0), openPerson = null;
+  let tab = (/^(now|world|bank|beb|people|me|tasks|coat)$/.test(new URLSearchParams(location.search).get('tab') || '') ? new URLSearchParams(location.search).get('tab') : 'now'), seenCount = Number(sessionStorage.getItem('vh:seen') || 0), openPerson = null;
   const freshIds = new Set();
   /* Bebbit: the main tab for guests and staff; an extra tab for everyone else */
   const bebUI = Bebbit.newUI();
@@ -47,10 +47,13 @@
     beb: '<svg viewBox="0 0 24 24"><path d="M5 4h11a4 4 0 014 4v5a4 4 0 01-4 4H9l-4 3z"/><path d="M9 9h6M9 12h4"/></svg>',
     people: '<svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.6-3.6 3.2-5.5 6.5-5.5s5.900 1.900 6.500 5.500M16 4.800a3.500 3.500 0 010 6.400M18 14.800c2 .700 3.200 2.400 3.600 5.200"/></svg>',
     me: '<svg viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>',
-    tasks: '<svg viewBox="0 0 24 24"><path d="M12 3l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.4 6.8 19.1l1-5.8L3.5 9.2l5.9-.9z"/></svg>'
+    tasks: '<svg viewBox="0 0 24 24"><path d="M12 3l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.4 6.8 19.1l1-5.8L3.5 9.2l5.9-.9z"/></svg>',
+    coat: '<svg viewBox="0 0 24 24"><path d="M12 6a2 2 0 1 1 2-2M12 6v2L3 15h18l-9-7"/><path d="M3 15v2h18v-2"/></svg>'
   };
   /* the mini-games: a "Tasks" tab for anyone who has one tonight */
   const hasGames = typeof Games !== 'undefined';
+  /* Cliff's Coat (Nov 26): once a player takes the case, its case file gets its own tab, apart from the game */
+  const hasCoat = typeof Coat !== 'undefined', coatUI = { msg: '', bad: false };
   const TASKS = { fbi: 'Tasks', bebbit: 'Puzzles', nightwire: 'Jobs' }[WORLD];
   /* the accusation: the ballot, the arrest and the reveal show at the top of Now */
   const hasVote = typeof Vote !== 'undefined' && !watched;
@@ -201,7 +204,7 @@
     const a = document.activeElement, typing = a && $('#main').contains(a) && a.matches('input, textarea, select');
     if (force || !typing) {
       const bv = () => Bebbit.render(s, ME, bebUI);
-      if (tab === 'now') drawNow(s); else patch($('#main'), tab === 'world' ? (WORLD === 'bebbit' ? bv() : WORLD === 'fbi' ? FBI.render(s, ME, fbiUI) : WORLD === 'nightwire' ? Names.say(NW.render(s, ME, nwUI), ME) : worldView()) : tab === 'bank' ? Names.say(NW.renderBank(s, ME, nwUI), ME) : tab === 'beb' ? `<div class="beb-skin">${bv()}</div>` : tab === 'people' ? peopleView(s) : tab === 'tasks' && hasGames ? Games.render(s, ME) : meView(s));
+      if (tab === 'now') drawNow(s); else patch($('#main'), tab === 'world' ? (WORLD === 'bebbit' ? bv() : WORLD === 'fbi' ? FBI.render(s, ME, fbiUI) : WORLD === 'nightwire' ? Names.say(NW.render(s, ME, nwUI), ME) : worldView()) : tab === 'bank' ? Names.say(NW.renderBank(s, ME, nwUI), ME) : tab === 'beb' ? `<div class="beb-skin">${bv()}</div>` : tab === 'people' ? peopleView(s) : tab === 'tasks' && hasGames ? Games.render(s, ME) : tab === 'coat' && hasCoat ? Coat.render(s, ME, coatUI) : meView(s));
       /* the casino's wheel and dice, and the mini-games, are kept alive between redraws (a spin or a drag never restarts) */
       countUp();
       if (hasGames) Games.mount(tab === 'tasks');
@@ -211,6 +214,7 @@
     if (WORLD !== 'bebbit') items.push(b('beb', 'Bebbit', icons.beb));
     if (hasBank) items.push(b('bank', ({ 'Bebbit Banking': 'Banking', 'Federal Credit Union': 'Banking' })[Names.bank(ME)] || Names.bank(ME), icons.bank));
     if (hasGames && Games.forMe(s, ME).length) items.push(b('tasks', TASKS, icons.tasks, Games.openCount(s, ME)));
+    if (hasCoat && !watched && Coat.started(s, ME.id)) items.push(b('coat', 'Coat', icons.coat));
     items.push(b('people', 'People', icons.people), b('me', 'My file', icons.me));
     patch($('#navin'), `<div style="grid-template-columns:repeat(${items.length},1fr)">${items.join('')}</div>`);
     /* slide the highlight under the current tab */
@@ -249,14 +253,21 @@
     const now = Date.now();
     if (oddTaps.k !== key || now - oddTaps.t > 1500) { oddTaps.k = key; oddTaps.n = 0; }
     oddTaps.t = now; if (++oddTaps.n < need) return;
-    oddTaps.n = 0; if (!line) return;
-    const fresh = !watched && Eggs.find(ME, key);
-    toast(fresh ? 'You found an oddity' : 'Still here', line);
+    oddTaps.n = 0; if (!watched) Eggs.unlock(ME, key);
   }
+  const hasEggs = typeof Eggs !== 'undefined';
+  /* hold your own name (top right) for 3 seconds */
+  let holdT = 0, held = false;
+  document.addEventListener('pointerdown', e => { if (!hasEggs || !e.target.closest('#head .me-chip')) return; held = false; clearTimeout(holdT); holdT = setTimeout(() => { held = true; if (!watched) Eggs.unlock(ME, 'mirror'); }, 3000); });
+  ['pointerup', 'pointercancel', 'pointerleave'].forEach(n => document.addEventListener(n, () => clearTimeout(holdT)));
+  document.addEventListener('contextmenu', e => { if (e.target.closest('#head .me-chip')) e.preventDefault(); });
+  /* a cheat code typed at the gala door before signing in (js/door.js leaves a note) */
+  try { if (hasEggs && !watched && localStorage.getItem('vh:cheat')) { localStorage.removeItem('vh:cheat'); DB.loaded().then(() => setTimeout(() => Eggs.unlock(ME, 'cheat'), 1500)); } } catch (e) { }
   document.addEventListener('click', e => {
-    if (typeof Eggs !== 'undefined') {
-      if (e.target.closest('#head') && !e.target.closest('button, a')) oddTap('logo', 7, Eggs.cfg().logo);
-      else if (e.target.closest('.hero-ring')) oddTap('timer', 10, Eggs.cfg().timer);
+    if (held && e.target.closest('#head .me-chip')) { held = false; e.preventDefault(); e.stopPropagation(); return; }
+    if (hasEggs) {
+      if (e.target.closest('#head') && !e.target.closest('button, a')) oddTap('logo', 7);
+      else if (e.target.closest('.hero-ring')) oddTap('timer', 10);
     }
     if (e.target.closest('[data-hostnote]')) { if (watched) return; HostNote.open(ME.id, 'app').then(ok => { if (ok) toast('Sent to the host', 'Only the hosts can read it.'); }); return; }
     const t = e.target.closest('[data-tab]'); if (t) { const changed = tab !== t.dataset.tab; tab = t.dataset.tab; window.scrollTo(0, 0); render(true); if (changed) enter(); return; }
@@ -272,7 +283,7 @@
   document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.matches('[data-person], .person[data-bb-profile]')) e.target.click(); });
   document.addEventListener('input', e => { if (hasVote && Vote.onInput(e)) return; if (onBebbit()) Bebbit.onInput(e, bctx); else if (onFBI()) FBI.onInput(e, fctx); else if (onNW()) NW.onInput(e, nctx); });
   document.addEventListener('change', e => { if (onBebbit()) Bebbit.onChange(e, bctx); else if (onFBI()) FBI.onChange(e, fctx); else if (onNW()) NW.onChange(e, nctx); });
-  document.addEventListener('submit', e => { if (onBebbit()) Bebbit.onSubmit(e, bctx); else if (onFBI()) FBI.onSubmit(e, fctx); else if (onNW()) NW.onSubmit(e, nctx); });
+  document.addEventListener('submit', e => { if (tab === 'coat' && hasCoat && Coat.onSubmit(e, ME, coatUI, () => render(true))) return; if (onBebbit()) Bebbit.onSubmit(e, bctx); else if (onFBI()) FBI.onSubmit(e, fctx); else if (onNW()) NW.onSubmit(e, nctx); });
   /* leaving a text box: catch up on anything that changed while typing */
   document.addEventListener('focusout', () => setTimeout(render, 0));
 

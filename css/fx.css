@@ -1266,3 +1266,48 @@ body[data-world="bebbit"] .door-copy, body[data-world="fbi"] .door-copy { color:
 .hn-row svg { flex: none; width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linejoin: round; stroke-linecap: round; opacity: .8; }
 .hn-row span { flex: 1; display: flex; flex-direction: column; gap: 1px; } .hn-row b { font-size: 14.5px; } .hn-row small { font-size: 12.5px; opacity: .65; }
 .hn-row i { font-style: normal; font-size: 20px; opacity: .5; }
+/* the oddities: a video-game "unlocked" pop-up (Nov 26) */
+.egg-pop { position: fixed; z-index: 9999; left: 50%; top: calc(env(safe-area-inset-top, 0px) + 12px); transform: translateX(-50%); width: min(92vw, 420px); display: flex; gap: 12px; align-items: flex-start; padding: 12px 16px; border-radius: 14px; background: linear-gradient(135deg, #1d1630, #2b1f48); color: #f4ecff; box-shadow: 0 0 0 1.5px #d9b45a, 0 18px 40px -12px rgba(0,0,0,.7); animation: eggIn .5s cubic-bezier(.2,1.4,.4,1); cursor: pointer; }
+.egg-pop i { flex: none; width: 38px; height: 38px; display: grid; place-items: center; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #ffe9a6, #d9b45a 60%, #9b7a2c); color: #2b1f48; font-style: normal; font-size: 20px; }
+.egg-pop small { display: block; font: 700 10.5px Inter, sans-serif; letter-spacing: .14em; text-transform: uppercase; color: #d9b45a; }
+.egg-pop b { display: block; margin: 2px 0; font: 700 16px Inter, sans-serif; }
+.egg-pop span { display: block; font: 13.5px/1.45 Inter, sans-serif; color: #d8cdee; }
+.egg-pop.out { opacity: 0; transform: translate(-50%, -12px); transition: .5s; }
+@keyframes eggIn { from { opacity: 0; transform: translate(-50%, -30px) scale(.9); } }
+@media (prefers-reduced-motion: reduce) { .egg-pop { animation: none; } }
+/* Cliff's Coat: the case file tab (Nov 26), deliberately its own look, apart from the game */
+.cf { max-width: 620px; margin: 0 auto; padding: 4px 0 24px; }
+.cf-card { position: relative; padding: 18px 18px 16px; border-radius: 6px; color: #2a2112; background: linear-gradient(170deg, #fbf6ea, #efe3c6); box-shadow: 0 0 0 1px #b99a55, 0 0 0 5px #fbf6ea, 0 0 0 6px #b99a55, 0 18px 40px -18px rgba(0,0,0,.8); }
+.cf-kick { display: block; text-align: center; font: 700 11px Inter, sans-serif; letter-spacing: .22em; text-transform: uppercase; color: #8a6a2c; }
+.cf-dots { display: flex; justify-content: center; gap: 7px; list-style: none; padding: 0; margin: 10px 0 8px; }
+.cf-dots li { width: 10px; height: 10px; border-radius: 50%; border: 1.5px solid #b99a55; }
+.cf-dots li.on { background: #b99a55; } .cf-dots li.now { box-shadow: 0 0 0 3px rgba(185,154,85,.35); }
+.cf-lv { margin: 0; text-align: center; font: 700 11px Inter, sans-serif; letter-spacing: .14em; text-transform: uppercase; color: #8a6a2c; }
+.cf-card h2 { margin: 4px 0 8px; text-align: center; font: italic 700 23px/1.2 'Libre Baskerville', Georgia, serif; color: #2a2112; }
+.cf-text { margin: 0 0 12px; font: 15px/1.55 'Libre Baskerville', Georgia, serif; color: #3a2e16; }
+.cf-stops { list-style: none; margin: 0 0 12px; padding: 0; display: grid; gap: 8px; }
+.cf-stops li { position: relative; padding: 9px 12px 9px 32px; border-radius: 8px; border: 1.5px dashed #c9b07a; font: 14px/1.5 'Libre Baskerville', Georgia, serif; }
+.cf-stops li::before { content: ''; position: absolute; left: 10px; top: 12px; width: 12px; height: 12px; border-radius: 50%; border: 1.5px solid #b99a55; }
+.cf-stops li.on { border-style: solid; background: rgba(185,154,85,.12); } .cf-stops li.on::before { background: #b99a55; }
+.cf-stops b { display: block; font: 700 11.5px Inter, sans-serif; letter-spacing: .08em; text-transform: uppercase; color: #6b5a34; }
+.cf-stops .mute { color: #9a8a66; font-style: italic; }
+.cf-q { margin: 4px 0 8px; font: 700 15px/1.45 'Libre Baskerville', Georgia, serif; }
+.cf-form { display: flex; gap: 8px; }
+.cf-in { flex: 1; min-width: 0; text-transform: uppercase; letter-spacing: .06em; background: #fffdf7 !important; color: #2a2112 !important; border-color: #b99a55 !important; }
+.cf-in.bad { border-color: #b3443a !important; }
+.cf-msg { min-height: 18px; margin: 6px 0 0; font: 600 13px Inter, sans-serif; color: #8a3a2c; }
+.cf-hint { margin: 2px 0 0; font: italic 13.5px 'Libre Baskerville', Georgia, serif; color: #6b5a34; }
+.cf-wait { margin: 4px 0 0; font: 600 13px Inter, sans-serif; color: #7a6a44; text-align: center; }
+.cf-done b { display: block; text-align: center; font: italic 700 26px 'Libre Baskerville', Georgia, serif; color: #8a6a2c; margin: 6px 0; }
+.cf-done p, .cf-done ul { font: 15px/1.55 'Libre Baskerville', Georgia, serif; }
+.cf-notes { margin: 14px 0 0; padding: 10px 14px; border-radius: 10px; background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.12); }
+.cf-notes summary { cursor: pointer; font: 700 13px Inter, sans-serif; letter-spacing: .06em; }
+.cf-notes ol { margin: 10px 0 0; padding-left: 20px; display: grid; gap: 8px; font-size: 14px; line-height: 1.5; }
+.cf-foot { margin: 12px 0 0; text-align: center; font-size: 12.5px; opacity: .7; }
+/* Bebbit oddities (Nov 26) */
+.bb-egg { padding: 16px 4px; font-style: italic; color: var(--mute, #9a92b8); text-align: center; }
+.bb-fans { all: unset; cursor: pointer; border-bottom: 1px dotted currentColor; }
+.bb-fans:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+.bb-botlist { font-family: ui-monospace, Menlo, monospace; font-size: 12.5px; word-break: break-word; }
+.bb-pin { border-left: 3px solid #d9b45a; }
+.bb-gone { border-left-color: #e0457b; } .bb-gone .bb-text { font-style: italic; }

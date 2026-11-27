@@ -467,3 +467,4 @@ body.ev { margin: 0; background: #16161a; color: #e9e4d8; font-family: 'Inter', 
 .hu-small { margin: 8px 0 0; text-align: center; font: 600 12.5px 'Inter', sans-serif; color: #7a6a44; }
 .hu-odd { margin: 12px 0 0; text-align: center; font: 600 12.5px 'Inter', sans-serif; color: #7a6a44; }
 .hu-egg .hu-intro { font-size: 16px; }
+.hu-link { display: block; box-sizing: border-box; text-align: center; line-height: 46px; text-decoration: none; margin-top: 10px; }

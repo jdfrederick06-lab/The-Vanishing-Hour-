@@ -10,6 +10,9 @@
    ===================================================================== */
 (function () {
   const PAGE = document.body.dataset.page, root = $('#root');
+  /* oddities (Nov 26): tiny fine print at the bottom of some posters. Jokes only, so they live here in the public code */
+  const FINE = { gala: 'The coat check is not responsible for lost coats. Cliff, this means you.', bebbit: 'By scanning this code you agree that Bebbit owns your photos, your soul and your crab cake opinions. (Drew wrote this himself at 3 AM.)', casino: 'The house always wins. The house is a charity. Please do the math, then do not tell anyone.' };
+  const fine = id => FINE[id] ? `<p class="pp-fine">${esc(FINE[id])}</p>` : '';
   if (!Session.lastHost()) { root.innerHTML = `<div class="pp-lock"><b>${esc(CONFIG.TITLE)}</b><p>This page is for the host. Sign in at the <a href="host.html">host terminal</a> first, then come back.</p></div>`; return; }
   const I = CONFIG.INVITE || {};
   const base = location.href.replace(/[^/]*([?#].*)?$/, '');
@@ -255,7 +258,7 @@
     }
     /* one poster alone: posters.html?only=gala (classic) or ?only=gala&v=new */
     const q = new URLSearchParams(location.search), only = q.get('only');
-    if (only) { const p = (q.get('v') === 'new' ? POSTERS_NEW : POSTERS).find(x => x.id === only); document.body.classList.add('pp-bare'); root.innerHTML = p ? `<article class="pp-page pp-${p.id}-page">${p.html()}</article>` : ''; return; }
+    if (only) { const p = (q.get('v') === 'new' ? POSTERS_NEW : POSTERS).find(x => x.id === only); document.body.classList.add('pp-bare'); root.innerHTML = p ? `<article class="pp-page pp-${p.id}-page">${p.html()}${fine(p.id)}</article>` : ''; return; }
     /* every poster in both versions; the host ticks the ones to print (or save as a PDF) */
     const VERS = [['classic', 'Classic', POSTERS], ['new', 'New', POSTERS_NEW]];
     root.innerHTML = `<div class="pp-bar"><h1>Posters and signs<small>${POSTERS.length} posters · each in two versions · tick the ones to print</small></h1>
@@ -263,7 +266,7 @@
       <button data-pk="classic">All classic</button><button data-pk="new">All new</button><button data-pk="none">Clear</button>
       <a href="host.html">Host terminal</a><button class="go" data-act="print" id="ppgo">Print selected</button></div>
       <p class="pp-note">Tick "Print this" under each version you want, then Print selected. To make a PDF, choose "Save as PDF" as the printer. Letter paper, portrait, "Background graphics" on, margins "None". Every page also scales cleanly to a print shop's 11 × 17 or 18 × 24.${local ? ' <b>The Bebbit QR code points at this computer, so print that poster again once the site is online.</b>' : ''}</p>
-      ${POSTERS.map(p => `<section class="pp-sec pp-row" data-row="${p.id}"><header><h2>${esc(p.title)}</h2><small>${esc(p.group)} · ${esc(p.note)}</small></header><div class="pp-pair">${VERS.map(([v, label, list]) => { const x = list.find(y => y.id === p.id); return x ? `<div class="pp-item" data-key="${p.id}:${v}"><div class="pp-ver"><b>${label}</b><button class="pp-pick" data-pick="${p.id}:${v}" aria-pressed="false"><i></i>Print this</button></div><article class="pp-page pp-${x.id}-page">${x.html()}</article></div>` : ''; }).join('')}</div></section>`).join('')}`;
+      ${POSTERS.map(p => `<section class="pp-sec pp-row" data-row="${p.id}"><header><h2>${esc(p.title)}</h2><small>${esc(p.group)} · ${esc(p.note)}</small></header><div class="pp-pair">${VERS.map(([v, label, list]) => { const x = list.find(y => y.id === p.id); return x ? `<div class="pp-item" data-key="${p.id}:${v}"><div class="pp-ver"><b>${label}</b><button class="pp-pick" data-pick="${p.id}:${v}" aria-pressed="false"><i></i>Print this</button></div><article class="pp-page pp-${x.id}-page">${x.html()}${fine(x.id)}</article></div>` : ''; }).join('')}</div></section>`).join('')}`;
     sync();
   }
   /* which versions are ticked, remembered on this computer */

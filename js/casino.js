@@ -221,7 +221,7 @@ const Casino = (() => {
     if (!open) return 'We\'re still setting up the tables. Have a look around.';
     const r = c.res && c.res.game === c.game ? c.res : null;
     /* an oddity (Nov 26): a round bet with nothing but the smallest chip */
-    const tiny = r && r.stake === chipsFor()[0] && typeof Eggs !== 'undefined' && Eggs.cfg().minbet ? ' ' + Eggs.cfg().minbet : '';
+    const tiny = r && r.stake === chipsFor()[0] && typeof Eggs !== 'undefined' && Eggs.has('minbet') ? ' ' + Eggs.list().minbet[1] : '';
     const pays = (wins, name) => wins.length ? `${wins.map(name).join(' and ')} ${wins.length > 1 ? 'pay' : 'pays'}.` : 'The house takes the table.';
     if (c.game === 'roulette') return c.busy ? 'No more bets.' : r ? `${lab(r.n)} ${col(r.n)}. ${pays(r.wins, k => rbet(k)[2])}${tiny}` : sum(c.bets.roulette) ? 'Bets are down. Spin when ready.' : 'Place your bets.';
     if (c.game === 'dice') return c.busy ? 'Dice are out…' : r ? `${r.a + r.b}${r.a === r.b ? ', a pair' : ''}. ${pays(r.wins, k => DB_[k][2])}${tiny}` : sum(c.bets.dice) ? 'Bets are down. Roll when ready.' : 'Place your bets on the felt.';
@@ -393,7 +393,7 @@ const Casino = (() => {
       const net = settle(id, payout, { n }, `Roulette · ${lab(n)} ${col(n)}`);
       c.busy = false; c.active = null; c.bets.roulette = {}; c.hist.roulette = [];
       c.res = { game: 'roulette', n, wins, stake, net: net == null ? payout - stake : net, at: Date.now(), note: wins.length ? 'Winning: ' + wins.map(k => rbet(k)[2]).join(', ') : `No bets on ${lab(n)} ${col(n)}` };
-      if (stake === chipsFor()[0] && typeof Eggs !== 'undefined') Eggs.find(me, 'minbet');
+      oddity(me, c, stake);
       celebrate(c.res.net, `${lab(n)} ${col(n)}`); ctx.redraw(true);
     }), ms + 150);
   }
@@ -411,7 +411,7 @@ const Casino = (() => {
       const net = settle(id, payout, { a, b }, `Lucky dice · rolled ${a + b}`);
       c.busy = false; c.active = null; c.bets.dice = {}; c.hist.dice = [];
       c.res = { game: 'dice', a, b, wins, stake, net: net == null ? payout - stake : net, at: Date.now(), note: wins.length ? 'Winning: ' + wins.map(k => DB_[k][2]).join(', ') : `Rolled ${a} and ${b}` };
-      if (stake === chipsFor()[0] && typeof Eggs !== 'undefined') Eggs.find(me, 'minbet');
+      oddity(me, c, stake);
       celebrate(c.res.net, `Rolled ${a + b}`); ctx.redraw(true);
     }), ms + 150);
   }
@@ -470,6 +470,13 @@ const Casino = (() => {
       bjSettle(ctx);
     });
   }
+  /* the oddities (Nov 26): a round on nothing but the smallest chip, and five losses in a row */
+  function oddity(me, c, stake) {
+    if (typeof Eggs === 'undefined' || !me) return;
+    if (stake === chipsFor()[0]) Eggs.unlockOnce(me, 'minbet');
+    c.lossRun = c.res && c.res.net < 0 ? (c.lossRun || 0) + 1 : 0;
+    if (c.lossRun >= 5) { c.lossRun = 0; Eggs.unlockOnce(me, 'losing'); }
+  }
   function bjSettle(ctx) {
     const c = S(ctx.ui), h = c.bj; if (!h || h.phase === 'done') return;
     const pt = total(h.p).t, dt = total(h.d).t, pbj = isBJ(h.p), dbj = isBJ(h.d);
@@ -487,6 +494,7 @@ const Casino = (() => {
     h.phase = 'done'; h.out = out; h.net = net == null ? pay - h.stake : net; h.doneAt = Date.now();
     h.msg = { bj: 'Blackjack! Pays six to five.', win: 'You win.', push: 'Push. Your bet comes back.', lose: 'Dealer wins.', bust: 'Bust. Dealer wins.', dbj: 'Dealer has blackjack.', dbust: 'Dealer busts. You win.' }[out];
     c.active = null; c.res = { game: 'blackjack', out, net: h.net, at: Date.now(), note: `You ${pt > 21 ? 'bust with ' + pt : pt} · dealer ${dt > 21 ? 'busts with ' + dt : dt}` };
+    oddity(ctx.me, c, h.stake);
     celebrate(h.net, out === 'bj' ? 'Blackjack!' : 'You win');
     ctx.redraw(true);
   }

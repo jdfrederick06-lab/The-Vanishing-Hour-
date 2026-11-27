@@ -764,19 +764,41 @@ function sendMessage(to, text, from) {
   DB.update(u);
 }
 
-/* ---- the oddities (easter eggs, Nov 26: STORY.eggs and the egg tags in STORY.nfc) ----
+/* ---- the oddities (easter eggs, Nov 26: STORY.eggs.list) ----
+   Video-game style: each find pops up "Oddity unlocked · 3 of 17" once, and is counted.
    Each player's finds are kept with their sidequest progress (huntp/{id}/eggs/{key}, theirs alone).
    Host devices (previews, "open as them") never record anything. */
 const Eggs = {
   cfg: () => (typeof STORY !== 'undefined' && STORY.eggs) || {},
-  found: (s, id) => Object.keys((((s || {}).huntp || {})[id] || {}).eggs || {}),
-  /** record a find once; returns true the first time. u = an update to add to (or null to save now) */
+  list: () => Eggs.cfg().list || {},
+  has: key => !!Eggs.list()[key],
+  total: () => Object.keys(Eggs.list()).length,
+  found: (s, id) => Object.keys((((s || {}).huntp || {})[id] || {}).eggs || {}).filter(k => Eggs.has(k)),
+  /** record a find once; true the first time. u = an update to add to (or null to save now) */
   find(me, key, u) {
-    if (!me || !me.id || Session.hostDevice()) return false;
+    if (!me || !me.id || !Eggs.has(key) || Session.hostDevice()) return false;
     const s = DB.get(); if ((((s.huntp || {})[me.id] || {}).eggs || {})[key]) return false;
     const w = u || {}; w['huntp/' + me.id + '/eggs/' + key] = Date.now();
-    Clock.log(w, 'game', `${me.name} found an oddity: ${key}.`);
+    Clock.log(w, 'game', `${me.name} found an oddity: ${Eggs.list()[key][0]}.`);
     if (!u) DB.update(w);
     return true;
+  },
+  /** find it and show it: the pop-up says "unlocked" the first time, and just shows the joke after that */
+  unlock(me, key, u) {
+    if (!Eggs.has(key)) return false;
+    const fresh = Eggs.find(me, key, u), [title, text] = Eggs.list()[key];
+    const n = me && me.id ? Eggs.found(DB.get(), me.id).length + (fresh && u ? 1 : 0) : 0;
+    Eggs.pop(title, text, fresh ? `Oddity unlocked · ${n} of ${Eggs.total()}` : 'Oddity');
+    return fresh;
+  },
+  /** only the first time: for things seen over and over (a search result, a profile) */
+  unlockOnce(me, key) { if (!me || !me.id || (((DB.get().huntp || {})[me.id] || {}).eggs || {})[key]) return false; return Eggs.unlock(me, key); },
+  pop(title, text, kick) {
+    const old = document.querySelector('.egg-pop'); if (old) old.remove();
+    const d = document.createElement('div'); d.className = 'egg-pop'; d.setAttribute('role', 'status');
+    d.innerHTML = `<i aria-hidden="true">★</i><div><small>${esc(kick || 'Oddity')}</small><b>${esc(title)}</b><span>${esc(text)}</span></div>`;
+    d.addEventListener('click', () => d.remove());
+    document.body.appendChild(d);
+    setTimeout(() => d.classList.add('out'), 6500); setTimeout(() => d.remove(), 7100);
   }
 };

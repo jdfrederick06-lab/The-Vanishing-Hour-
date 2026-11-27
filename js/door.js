@@ -162,6 +162,10 @@
     e.preventDefault();
     const code = $('#code').value, err = $('#err');
     if (!normCode(code)) { err.textContent = 'Enter your code word first.'; return; }
+    /* an oddity (Nov 26): classic video-game cheat codes. Jokes only; the app counts it after sign-in */
+    const CHEATS = { IDDQD: 'God mode is not available at this gala.', IDKFA: 'All keys? Nice try. Lane has them.', UPUPDOWNDOWNLEFTRIGHTLEFTRIGHTBA: 'Thirty extra lives. You will need them.', UUDDLRLRBA: 'Thirty extra lives. You will need them.', ROSEBUD: '+$1,000. Just kidding. This is not that kind of game.', MOTHERLODE: '+$50,000. Still kidding.', HESOYAM: 'Health, armor and $250,000. In a different game.', HUNTER2: 'All we see is *******.', PASSWORD: 'Bold. Wrong, but bold.', LETMEIN: 'No.', XYZZY: 'Nothing happens.' };
+    const cheat = CHEATS[String(code).toUpperCase().replace(/[^A-Z0-9]/g, '')];
+    if (cheat) { err.textContent = cheat + ' (Your real code word is on your invitation.)'; try { localStorage.setItem('vh:cheat', '1'); } catch (x) { } return; }
     /* the code word is checked against the locked story (Boot.tryCode), so no list of code words is ever on the page */
     const fail = () => { err.textContent = { fbi: 'Badge code not recognized.', nightwire: "We couldn't find an account with that key." }[door] || "That code word didn't work. Check your invitation."; card.classList.remove('shake'); void card.offsetWidth; card.classList.add('shake'); };
     const btn = e.target.querySelector('button'); if (btn) btn.disabled = true;
