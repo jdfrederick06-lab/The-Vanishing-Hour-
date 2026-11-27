@@ -230,7 +230,7 @@
   function quickMsg() {
     const groups = Object.keys(STORY.groups).filter(g => !scope() || scope().includes(g));
     return panel('Quick message', '<kbd>M</kbd> to type here', `<form id="qf" class="qf">
-      <select class="field" id="qto" aria-label="Send to">${scope() ? '' : '<option value="all">Everyone</option>'}${groups.map(g => `<option value="g:${g}">${esc(STORY.groups[g].name)} (group)</option>`).join('')}${cast().slice().sort((a, b) => a.name.localeCompare(b.name)).map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('')}</select>
+      <select class="field" id="qto" aria-label="Send to">${scope() ? '' : '<option value="all">Everyone</option>'}${groups.map(g => `<option value="g:${g}">${esc(STORY.groups[g].name)} (group)</option>`).join('')}${cast().slice().sort((a, b) => nameKey(a.name).localeCompare(nameKey(b.name))).map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('')}</select>
       <div class="qrow"><input class="field" id="qtx" placeholder="Type, then press Enter" aria-label="Message" autocomplete="off"><button class="btn primary" type="submit">Send</button></div></form>`, 'qm');
   }
 
@@ -359,7 +359,7 @@
         <div><label class="lbl" for="mto">To</label><select class="field" id="mto">
           ${scope() ? '' : '<option value="all">Everyone</option>'}
           ${groups.map(g => `<option value="g:${g}">${esc(STORY.groups[g].name)} (group)</option>`).join('')}
-          ${cast().slice().sort((a, b) => a.name.localeCompare(b.name)).map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('')}</select></div>
+          ${cast().slice().sort((a, b) => nameKey(a.name).localeCompare(nameKey(b.name))).map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('')}</select></div>
         <div><label class="lbl" for="mtx">Message</label><textarea class="field" id="mtx" placeholder="What should they see?"></textarea></div>
         <div class="row"><button class="btn primary" type="submit">Send <kbd>Ctrl Enter</kbd></button><span class="err" id="me" role="alert"></span></div>
       </form>`);
@@ -388,7 +388,7 @@
     return panel('Post to Bebbit', 'appears on every phone instantly', `<form id="bf" style="display:flex;flex-direction:column;gap:12px">
         <div><label class="lbl" for="bas">Post as</label><select class="field" id="bas">
           ${acc.map(a => `<option value="${a}" ${hb.as === a ? 'selected' : ''}>@${esc(STORY.bebbit.accounts[a].name)} (${esc(STORY.bebbit.accounts[a].role)})</option>`).join('')}
-          ${STORY.characters.slice().sort((a, b) => a.name.localeCompare(b.name)).map(c => `<option value="${c.id}" ${hb.as === c.id ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</select></div>
+          ${STORY.characters.slice().sort((a, b) => nameKey(a.name).localeCompare(nameKey(b.name))).map(c => `<option value="${c.id}" ${hb.as === c.id ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</select></div>
         <div><label class="lbl" for="btx">Post</label><textarea class="field" id="btx" maxlength="500" placeholder="Gossip, a leak, an old photo…">${esc(hb.text)}</textarea></div>
         ${hb.photo ? `<div class="row"><img src="${esc(hb.photo)}" alt="Photo to post" style="width:120px;border-radius:10px"><button type="button" class="btn small" data-act="bunphoto">Remove photo</button></div>` : ''}
         <div class="row" style="flex-wrap:wrap"><label class="btn small">Add photo<input type="file" accept="image/*" id="bph" class="hide"></label><button class="btn primary" type="submit">Post now</button><span class="err" role="alert">${esc(hb.err)}</span></div>
@@ -606,7 +606,7 @@ ${sign}` };
     const dupe = r => all.filter(x => x.id !== r.id && !x.archived && (x.first + ' ' + x.last).toLowerCase() === (r.first + ' ' + r.last).toLowerCase()).length > 0;
     const list = all.filter(r => (rv.show === 'archived' ? r.archived : !r.archived) && (rv.show === 'all' || rv.show === 'archived' || (rv.show === 'uncast' ? r.reply !== 'no' && (!r.cast || (r.plus && !r.plus.cast)) : r.reply === rv.show))
       && (!q || [r.first, r.last, r.email, r.with, r.notes, r.pronouns, r.plus && r.plus.first, r.plus && r.plus.last].join(' ').toLowerCase().includes(q)));
-    const chars = STORY.characters.slice().sort((a, b) => a.name.localeCompare(b.name));
+    const chars = STORY.characters.slice().sort((a, b) => nameKey(a.name).localeCompare(nameKey(b.name)));
     const opt = (key, cur, id, label) => { const t = taken[id] && taken[id] !== key; return `<option value="${id}" ${cur === id ? 'selected' : ''} ${t ? 'disabled' : ''}>${esc(label)}${t ? ' (taken)' : ''}</option>`; };
     const pick = (key, cur, who) => `<select class="field rv-cast" data-rvcast="${key}" aria-label="Cast ${esc(who)} as"><option value="">Not cast</option><optgroup label="Co-hosts">${Object.keys(COH).filter(cohostCh).map(r => opt(key, cur, 'host:' + r, 'Co-host: ' + COH[r])).join('')}</optgroup>${Object.keys(STORY.groups).map(g => `<optgroup label="${esc(STORY.groups[g].name)}">${chars.filter(c => c.group === g).map(c => opt(key, cur, c.id, c.name)).join('')}</optgroup>`).join('')}</select>${cur && chOf(cur) ? `<small class="mono rv-code">${esc(chOf(cur).code)}</small>` : ''}`;
     const face = r => r.photo && /^data:image\/(jpeg|png|webp);base64,/.test(r.photo) ? `<img class="rv-ph" src="${esc(r.photo)}" alt="">` : `<span class="rv-ph none">${esc(initials(r.first + ' ' + r.last))}</span>`;

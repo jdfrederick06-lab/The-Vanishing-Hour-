@@ -106,13 +106,13 @@
       <div class="iv-mat-text">
         <small class="iv-kick">The Ashgrove Foundation</small>
         <p class="iv-line">requests the pleasure of the company of</p>
-        <h1 class="iv-guest">${esc(g || 'our honoured guest')}</h1>
+        <h1 class="iv-guest">${esc(g || 'our honored guest')}</h1>
         <p class="iv-line">at the unveiling of</p>
         <p class="iv-work"><i>The Vanishing Hour</i></p>
         <p class="iv-line small">shown in public for one night only, at the Ashgrove Gala</p>
         <dl class="iv-when">
           <div><dt>When</dt><dd>${esc(INV.DATE || '')}</dd></div>
-          <div><dt>Doors</dt><dd>${esc(INV.TIME || '')}</dd></div>
+          <div><dt>Doors</dt><dd>${esc((INV.TIME || '').replace(/^Doors at /i, ''))}</dd></div>
           <div><dt>Where</dt><dd>${esc(INV.PLACE || '')}</dd></div>
           <div><dt>Dress</dt><dd>${esc(INV.DRESS || '')}</dd></div>
         </dl>

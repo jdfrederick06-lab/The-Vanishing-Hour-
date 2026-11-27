@@ -494,3 +494,7 @@ body.ev { margin: 0; background: #16161a; color: #e9e4d8; font-family: 'Inter', 
 .gd-ledger { background: #f4f7ef; } .gd-ledger .gd-t td:nth-child(3), .gd-ledger .gd-t td:nth-child(4) { text-align: right; white-space: nowrap; }
 .gd-badge .gd-t { font-size: .68em; } .gd-badge .gd-t td { padding: .12em .3em; }
 .gd-court .gd-stamp { top: auto; bottom: 22%; right: 12%; }
+
+/* typography polish (Nov 26 sweep): balanced headings and short lines, no orphans in paragraphs */
+h1, h2, h3, h4, h5, figcaption, small, label, button, .btn { text-wrap: balance; }
+p, li, dd, blockquote { text-wrap: pretty; }

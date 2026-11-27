@@ -17,8 +17,10 @@
 const FBI = (() => {
   const C = () => STORY.fbi || {};
   const F = s => s.fbi || {};
-  const byName = (a, b) => a.name.localeCompare(b.name);
+  const byName = (a, b) => nameKey(a.name).localeCompare(nameKey(b.name));
   const first = id => { const c = G.byId(id); return c ? c.name.split(' ')[0] : id; };
+  /* how a record names whoever pulled it: title, initial, surname (SA D. WARD, IA N. HADDAD, ET K. LOCKE) */
+  const agentTag = id => { const c = G.byId(id); if (!c) return String(id).toUpperCase(); const t = /Analyst/.test(c.role) ? 'IA' : /Technician/.test(c.role) ? 'ET' : 'SA', p = c.name.split(' '); return (t + ' ' + p[0][0] + '. ' + p.slice(1).join(' ')).toUpperCase(); };
   const agents = () => STORY.characters.filter(c => c.group === 'fbi');
   const isLead = me => me.id === C().lead;
   const ago = ts => { const m = Math.floor((Date.now() - ts) / 60000); return m < 1 ? 'just now' : m + ' min ago'; };
@@ -161,7 +163,7 @@ const FBI = (() => {
     const subj = `<div class="fbf-subj"><div class="fbf-photo">${photo}</div><div class="fbf-boxes">
         <div class="w2"><small>Subject</small><b>${esc(r.title)}</b></div>
         <div><small>File no.</small><b>${esc(f.fileNo)}</b></div><div><small>Record type</small><b>${esc(type)}</b></div>
-        <div><small>Retrieved</small><b>${esc(f.opened)}</b></div><div><small>Requested by</small><b>${esc(firstBy ? 'SA ' + first(firstBy).toUpperCase() : 'ART CRIME TEAM')}</b></div>
+        <div><small>Retrieved</small><b>${esc(f.opened)}</b></div><div><small>Requested by</small><b>${esc(firstBy ? agentTag(firstBy) : 'ART CRIME TEAM')}</b></div>
         <div><small>Classification</small><b class="red">Confidential</b></div><div><small>Pages</small><b>${N}</b></div></div></div>`;
     return `<div class="fbf${r._anim ? ' opening' : ''}">
       <div class="fbf-tabrow"><div class="fbf-tab"><span>${esc(r.title.split(' · ')[0])}</span><span class="mono">${esc(f.fileNo)}</span></div><button class="fbf-close" data-fb-close aria-label="Close the file">Close file ✕</button></div>

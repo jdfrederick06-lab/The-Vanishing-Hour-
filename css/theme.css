@@ -408,3 +408,7 @@ body[data-world] .beb-skin .avatar { border-radius: 50%; }
 .bb-name { display: inline-flex; align-items: center; }
 /* a character's pronouns next to their name (Nov 25) */
 .pron { display: inline-block; margin-left: 5px; font-size: .78em; font-weight: 500; color: var(--mute); letter-spacing: 0; text-transform: none; vertical-align: 1px; }
+
+/* typography polish (Nov 26 sweep): balanced headings and short lines, no orphans in paragraphs */
+h1, h2, h3, h4, h5, figcaption, small, label, button, .btn { text-wrap: balance; }
+p, li, dd, blockquote { text-wrap: pretty; }

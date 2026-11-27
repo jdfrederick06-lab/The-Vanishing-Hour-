@@ -567,3 +567,6 @@ body[data-world="host"] .tbl th { background: #10121a; font: 600 10px/1 var(--fo
   .ht-stat { padding: 0 10px; }
   .deck-t { font-size: 28px; }
 }
+/* the top bar keeps its main button on screen on laptops (Nov 26 sweep) */
+@media (min-width: 901px) and (max-width: 1440px) { .ht-bar-in > .ht-stat:nth-child(5), .ht-bar-acts .ht-go kbd { display: none; } }
+@media (min-width: 901px) and (max-width: 1280px) { .ht-bar-in > .ht-stat:nth-child(6) { display: none; } }

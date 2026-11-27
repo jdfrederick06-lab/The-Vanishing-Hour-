@@ -392,3 +392,13 @@ body.opening .hero * { animation-play-state: paused !important; }
   .title .c, .motes i, .cue i, .hero .canvas > *, .hang, .label { animation: none !important; }
   .reveal { opacity: 1; transform: none; transition: none; }
 }
+
+/* typography polish (Nov 26 sweep): balanced headings and short lines, no orphans in paragraphs */
+h1, h2, h3, h4, h5, figcaption, small, label, button, .btn { text-wrap: balance; }
+p, li, dd, blockquote { text-wrap: pretty; }
+.kick, .event em, .hero .from { text-wrap: balance; }
+.hero .kick { display: block; }
+.lh span { display: block; text-wrap: balance; }
+@media (max-width: 520px) { .clock { width: 42px; height: 42px; right: 10px; bottom: max(10px, env(safe-area-inset-bottom)); } .clock svg { width: 34px; height: 34px; } .clock .t { display: none; } }
+/* short laptop screens: the whole framed invitation fits above the fold (Nov 26 sweep) */
+@media (min-width: 700px) and (max-height: 820px) { .hero { padding-top: 96px; padding-bottom: 36px; } .canvas { padding-bottom: 26px; } .title { font-size: clamp(44px, 7.6vh, 62px); } }

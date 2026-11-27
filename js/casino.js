@@ -320,7 +320,7 @@ const Casino = (() => {
         <div class="cs-bal"><small>Your chips</small><b>${money(bal)}</b><em class="${myNet > 0 ? 'up' : myNet < 0 ? 'down' : ''}">${mine.length ? `tonight ${myNet >= 0 ? '+' : '−'}${short(Math.abs(myNet))}` : 'no bets yet'}</em></div>
         <div class="cs-icons"><button type="button" class="cs-ico" data-cs-rules aria-label="House rules" aria-pressed="${c.rules}">${ICON.rules}</button></div></div>
       ${ticker(s)}
-      <div class="cs-games" role="tablist">${[['roulette', 'Roulette', '0 · 00'], ['blackjack', 'Blackjack', '6 to 5'], ['dice', 'Lucky dice', 'up to 15:1']].map(([k, l, sub]) => `<button type="button" role="tab" data-cs-game="${k}" aria-selected="${g === k}" ${c.busy || (c.bj && (c.bj.phase === 'play' || c.bj.phase === 'dealer')) ? 'disabled' : ''}><b>${l}</b><small>${sub}</small></button>`).join('')}</div>
+      <div class="cs-games" role="tablist">${[['roulette', 'Roulette', '0 · 00 · 000'], ['blackjack', 'Blackjack', '6 to 5'], ['dice', 'Lucky dice', 'up to 15:1']].map(([k, l, sub]) => `<button type="button" role="tab" data-cs-game="${k}" aria-selected="${g === k}" ${c.busy || (c.bj && (c.bj.phase === 'play' || c.bj.phase === 'dealer')) ? 'disabled' : ''}><b>${l}</b><small>${sub}</small></button>`).join('')}</div>
       ${c.rules ? rulesCard(g) : ''}
       <div class="cs-table">
         <div class="cs-felt cs-felt-${g}">

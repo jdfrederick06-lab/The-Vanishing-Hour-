@@ -14,6 +14,8 @@ const uid = p => p + Date.now().toString(36) + Math.random().toString(36).slice(
 /** the copyright line on every page and printout (Jacob, Nov 25) */
 const COPYRIGHT = '© 2026 Jacob Frederick. All rights reserved.';
 const normCode = s => String(s || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+/* sort people by name, ignoring a title ("Dr. Ari Castellane" files under A) */
+const nameKey = n => String(n || '').replace(/^(Dr|Mr|Ms|Mrs)\.\s+/, '');
 const initials = n => String(n).replace(/^Dr\.\s+/, '').split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase();
 const wallTime = ts => new Date(ts).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 const mmss = ms => { if (!isFinite(ms)) return '--:--'; const s = Math.max(0, Math.round(ms / 1000)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };

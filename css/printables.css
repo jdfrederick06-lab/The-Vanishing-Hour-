@@ -610,4 +610,8 @@ body.pp.pp-bare { background: transparent; } .pp-bare .pp-page { box-shadow: non
 }/* the copyright line on every printed page (Nov 25) */
 @page { @bottom-center { content: "© 2026 Jacob Frederick. All rights reserved."; font: 7pt Inter, system-ui, sans-serif; color: #888; } }
 @media print { .pp-item, .pp-sheet { position: relative; } .pp-item::after, .pp-sheet::after { content: "© 2026 Jacob Frederick. All rights reserved."; position: absolute; left: 0; right: 0; bottom: .08in; text-align: center; font: 6.5pt Inter, system-ui, sans-serif; color: #999; } }
-.pp-fine { position: absolute; left: 0; right: 0; bottom: 1.2cqw; margin: 0; z-index: 5; text-align: center; font: 1.05cqw/1.3 Inter, Arial, sans-serif; color: rgba(127,127,127,.85); padding: 0 8cqw; }
+.pp-fine { position: absolute; left: 0; right: 0; bottom: 1.2cqw; margin: 0; z-index: 5; text-align: center; font: 1.05cqw/1.3 Inter, Arial, sans-serif; color: rgba(255,255,255,.62); padding: 0 8cqw; }
+
+/* typography polish (Nov 26 sweep): balanced headings and short lines, no orphans in paragraphs */
+h1, h2, h3, h4, h5, figcaption, small, label, button, .btn { text-wrap: balance; }
+p, li, dd, blockquote { text-wrap: pretty; }

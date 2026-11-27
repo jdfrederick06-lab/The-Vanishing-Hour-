@@ -40,7 +40,7 @@
           <h1 class="gl-title" aria-label="${esc(CONFIG.EVENT)}">${title}</h1>
           <div class="gl-orn" aria-hidden="true"><i></i><b>◆</b><i></i></div>
           <p class="gl-sub">An evening with the Ashgrove Collection<br>and the Winter Star</p>
-          <div class="gl-meta"><span>One night only</span><span>Black tie</span></div>
+          <div class="gl-meta"><span>One night only</span><span>Black tie optional</span></div>
           <form id="f" autocomplete="off">
             <div class="gl-label">Present your invitation</div>
             ${field('Your code word', 'Your code word')}

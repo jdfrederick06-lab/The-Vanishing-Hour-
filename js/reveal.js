@@ -29,7 +29,7 @@ const Reveal = (() => {
     return Object.entries(auto).map(([key, x]) => Object.assign({ key, auto: x.win, overruled: typeof ov[key] === 'boolean' }, x, typeof ov[key] === 'boolean' ? { win: ov[key] } : {}));
   }
 
-  /** A few honours for the curtain */
+  /** A few honors for the curtain */
   function awards(s) {
     const out = [], killer = R().killer;
     /* sharpest eyes: everyone who named a member of the crew AND the killer */
@@ -44,7 +44,7 @@ const Reveal = (() => {
     /* the Bebbit post with the most upvotes */
     if (typeof Bebbit !== 'undefined') {
       const top = Bebbit.list(s).filter(p => !p.deleted && G.byId(p.by)).map(p => ({ p, n: Bebbit.nVotes(s, p.id) })).sort((a, b) => b.n - a.n)[0];
-      if (top && top.n) out.push({ title: 'Bebbit\'s favourite post', who: nm(top.p.by), why: `${top.n} upvote${top.n === 1 ? '' : 's'}: "${String(top.p.text || '').slice(0, 70)}${String(top.p.text || '').length > 70 ? '…' : ''}"` });
+      if (top && top.n) out.push({ title: 'Bebbit\'s favorite post', who: nm(top.p.by), why: `${top.n} upvote${top.n === 1 ? '' : 's'}: "${String(top.p.text || '').slice(0, 70)}${String(top.p.text || '').length > 70 ? '…' : ''}"` });
     }
     /* Cliff's Coat (the NFC sidequest) and the oddities (Nov 26) */
     const coat = Object.entries((s.hunt || {}).won || {}).sort((a, b) => a[1] - b[1]);
@@ -68,7 +68,7 @@ const Reveal = (() => {
     R().chapters.forEach((c, k) => list.push(Object.assign({ chapter: k + 1 }, c)));
     list.push({ id: 'results', kicker: 'Tonight\'s results', title: 'Who won', results: results(s).map(x => ({ who: x.who, win: x.win, why: x.why })), say: 'Here is how each side did tonight.' });
     const aw = awards(s);
-    if (aw.length) list.push({ id: 'awards', kicker: 'Curtain', title: 'The night\'s honours', awards: aw, say: 'And a few honours before we go.' });
+    if (aw.length) list.push({ id: 'awards', kicker: 'Curtain', title: 'The night\'s honors', awards: aw, say: 'And a few honors before we go.' });
     list.push({ id: 'end', kicker: CONFIG.EVENT, title: 'Thank you for playing', body: [CONFIG.TITLE], say: 'Thank you for coming. Goodnight.' });
     return list;
   }

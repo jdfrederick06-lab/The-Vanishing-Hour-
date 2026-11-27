@@ -238,7 +238,7 @@
   function badgeList() {
     HARBOR = HARBOR || (typeof Art !== 'undefined' ? Art.uri(Art.harbor(false)) : '');
     const P = players(), order = { fbi: 0, staff: 1, press: 2, guest: 3 };
-    const cast = STORY.characters.slice().sort((a, b) => order[look(a)] - order[look(b)] || a.name.localeCompare(b.name)).map(c => badge(c, { player: P[c.id] }));
+    const cast = STORY.characters.slice().sort((a, b) => order[look(a)] - order[look(b)] || nameKey(a.name).localeCompare(nameKey(b.name))).map(c => badge(c, { player: P[c.id] }));
     const extra = [badge(null, { kind: 'host' }), badge(null, { kind: 'host' }), badge(null, { kind: 'host' }), badge(null, { kind: 'guest' }), badge(null, { kind: 'guest' }), badge(null, { kind: 'staff' }), badge(null, { kind: 'staff' }), badge(null, { kind: 'fbi' })];
     return { cast, extra, cast_n: Object.keys(P).length };
   }

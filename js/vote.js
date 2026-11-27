@@ -35,7 +35,7 @@ const Vote = (() => {
   const whyNot = (s, c) => debt(s, c.id) === 'collections' ? "Thorne Capital sent you to collections, so you don't get a vote." : debt(s, c.id) === 'debt' ? "You still owe Thorne Capital, so you don't get a vote." : out(s, c.id) ? "You were thrown out of the gala, so you don't get a vote." : (V().noVote || []).includes(c.id) ? "The dead don't vote. Watch it unfold." : 'You have no vote tonight.';
   const weight = c => (V().people || {})[c.id] || (V().weights || {})[c.group] || 1;
   const counts = w => w === 2 ? ' <em>Your vote counts double.</em>' : w > 2 ? ' <em>Your vote counts ' + w + ' times. Nobody knows.</em>' : '';
-  const candidates = s => STORY.characters.filter(c => !(V().notCandidates || []).includes(c.id) && !G.noshow(s, c.id)).sort((a, b) => a.name.localeCompare(b.name));
+  const candidates = s => STORY.characters.filter(c => !(V().notCandidates || []).includes(c.id) && !G.noshow(s, c.id)).sort((a, b) => nameKey(a.name).localeCompare(nameKey(b.name)));
   const ballots = s => S(s).ballots || {};
   const voters = s => STORY.characters.filter(c => canVote(s, c));
   const done = (s, id) => { const b = ballots(s)[id]; return b ? QS().every(q => b[q[0]]) : !!(S(s).in && S(s).in[id]); };

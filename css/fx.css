@@ -1253,8 +1253,9 @@ body[data-world="gala"] .ask-btns .btn.primary { background: #1d1912; color: #f2
 .tc-ad .err { color: #ffb4b0; }
 .tc-oz { border-radius: 14px; }
 /* the copyright line (Nov 25) */
-.door-copy { position: fixed; left: 0; right: 0; bottom: 6px; z-index: 5; margin: 0; text-align: center; font: 500 10.5px/1.4 Inter, system-ui, sans-serif; color: rgba(255,255,255,.55); text-shadow: 0 1px 2px rgba(0,0,0,.5); pointer-events: none; }
-body[data-world="bebbit"] .door-copy, body[data-world="fbi"] .door-copy { color: rgba(0,0,0,.45); text-shadow: none; }
+.door-copy { position: relative; z-index: 5; margin: 0; padding: 14px 16px max(12px, env(safe-area-inset-bottom)); text-align: center; font: 500 10.5px/1.4 Inter, system-ui, sans-serif; color: rgba(255,255,255,.55); text-shadow: 0 1px 2px rgba(0,0,0,.5); pointer-events: none; }
+body[data-world="bebbit"] .door-copy { color: rgba(0,0,0,.45); text-shadow: none; }
+body[data-world="fbi"] .door-copy { color: rgba(200,214,235,.5); padding-bottom: 44px; }
 .app-copy { margin: 14px 0 0; text-align: center; font-size: 11px; color: var(--mute); }
 .iv-copy { opacity: .75; }
 /* a note to the host (HostNote.open) */
@@ -1311,3 +1312,4 @@ body[data-world="bebbit"] .door-copy, body[data-world="fbi"] .door-copy { color:
 .bb-botlist { font-family: ui-monospace, Menlo, monospace; font-size: 12.5px; word-break: break-word; }
 .bb-pin { border-left: 3px solid #d9b45a; }
 .bb-gone { border-left-color: #e0457b; } .bb-gone .bb-text { font-style: italic; }
+@media (max-width: 480px) { .ds-stamp { top: auto; bottom: 16px; right: 12px; padding: 5px 9px; font-size: 9.5px; letter-spacing: 1.2px; transform: rotate(-6deg); } }

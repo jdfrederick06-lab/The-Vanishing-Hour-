@@ -13,7 +13,7 @@
 const Bebbit = (() => {
   const C = () => STORY.bebbit || {};
   const B = s => s.beb || {};
-  const byName = (a, b) => a.name.localeCompare(b.name);
+  const byName = (a, b) => nameKey(a.name).localeCompare(nameKey(b.name));
 
   /* ---------- reading ---------- */
   function who(id) {

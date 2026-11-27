@@ -35,7 +35,7 @@ const NW = (() => {
   const walletOf = me => { const e = Object.entries(W()).find(([, w]) => [].concat(w.members).some(m => m === me.id || m === 'g:' + me.group)); return e ? e[0] : null; };
   const wname = id => id === 'market' ? 'NIGHTWIRE market' : id === 'host' ? 'NightBank' : id === 'casino' ? 'Charity casino' : id === 'freeup' ? 'Your investments' : W()[id] ? W()[id].name : id;
   /** who you can pay by name: everyone outside your own account. Secret accounts are paid by handle. */
-  const payees = (me, w) => STORY.characters.filter(c => c.id !== me.id && walletOf(c) !== w).sort((a, b) => a.name.localeCompare(b.name));
+  const payees = (me, w) => STORY.characters.filter(c => c.id !== me.id && walletOf(c) !== w).sort((a, b) => nameKey(a.name).localeCompare(nameKey(b.name)));
   const byHandle = h => { const k = String(h || '').trim().replace(/^@/, '').toLowerCase(); return Object.keys(W()).find(id => W()[id].name.toLowerCase() === k) || null; };
   const txs = s => Object.entries(N(s).tx || {}).map(([id, t]) => Object.assign({ id }, t)).sort((a, b) => b.at - a.at);
   /* escrow: money marked hold:'<phase id>' leaves the sender at once but reaches the
@@ -413,7 +413,7 @@ const NW = (() => {
     const body = open ? `<p class="tc-p">You have ${open.status === 'offer' ? 'an offer' : 'a loan'} from Thorne Capital. See it above.</p>`
       : mine ? `<p class="tc-p">✓ You asked for <b>${money(mine.amt)}</b>${mine.note ? ` ("${esc(mine.note)}")` : ''}. Cameron Thorne will send an offer if he likes it.</p>`
       : `<form class="tc-form" data-nw-form="loanreq"><div class="tc-quick">${quick.map(v => `<button type="button" class="tc-pill${ui.lreq === String(v) ? ' on' : ''}" data-nw-lreq="${v}">${'$' + (v / 1000) + 'K'}</button>`).join('')}</div>
-          <input class="field" data-nw="lreqamt" inputmode="decimal" placeholder="Or type an amount (${money(L.min)} to ${money(L.max)})" value="${esc(ui.lreq || '')}" aria-label="Loan amount to ask for" autocomplete="off">
+          <input class="field" data-nw="lreqamt" inputmode="decimal" placeholder="Or type an amount" value="${esc(ui.lreq || '')}" aria-label="Loan amount to ask for" autocomplete="off">
           <input class="field" data-nw="lreqnote" maxlength="60" placeholder="What's it for? (optional)" value="${esc(ui.lreqNote || '')}" aria-label="What it's for">
           <button class="tc-go" type="submit">Ask for a loan</button>${errBox(ui, 'loanreq')}</form>`;
     return `<section class="tc-ad${oz ? ' tc-oz' : ''}" aria-label="Advertisement"><span class="tc-sp">Sponsored</span>
@@ -530,7 +530,7 @@ const NW = (() => {
           <span class="nb-chip" aria-hidden="true"></span>
           <div class="nb-bal"><small>Available balance</small><b data-count="${b}" data-count-k="nb">${money(b)}</b></div>
           <div class="nb-row"><span class="nb-num">•••• •••• •••• ${last4(w)}</span><span class="nb-tier">${tier(b)}</span></div></div>
-        <div class="nb-stats"><div><small>Money in tonight</small><b class="pos">+${money(inSum)}</b></div><div><small>Money out tonight</small><b class="neg">−${money(outSum)}</b></div></div>
+        <div class="nb-stats"><div><small>Money in tonight</small><b class="${inSum ? 'pos' : ''}">${inSum ? '+' : ''}${money(inSum)}</b></div><div><small>Money out tonight</small><b class="${outSum ? 'neg' : ''}">${outSum ? '−' : ''}${money(outSum)}</b></div></div>
         ${loanPanel(s, me, w, ui)}${offer}${freeUpPanel(s, me, w, ui)}${loanAd(s, me, ui, w)}
       </div><div class="nb-b">
         <form class="nb-panel" data-nw-form="send"><div class="nb-h">Send money</div>

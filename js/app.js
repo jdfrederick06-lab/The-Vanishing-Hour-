@@ -140,7 +140,7 @@
     const cover = c => (c.group === 'crew' || c.group === 'thief') ? (c.id === 'blair' || c.id === 'vivienne' ? 'guest' : 'staff') : c.group;
     const names = { guest: 'Guests', staff: 'Staff and security', fbi: 'FBI detail' };
     return '<div class="ppl">' + ['guest', 'staff', 'fbi'].map(g => {
-      const list = STORY.characters.filter(c => cover(c) === g && !G.noshow(s, c.id)).sort((a, b) => a.name.localeCompare(b.name));
+      const list = STORY.characters.filter(c => cover(c) === g && !G.noshow(s, c.id)).sort((a, b) => nameKey(a.name).localeCompare(nameKey(b.name)));
       return `<section class="ppl-g"><div class="sec-title">${names[g]} · ${list.length}</div><div class="card" style="padding-top:6px;padding-bottom:6px">` + list.map(c => `
         <div class="person" data-person="${c.id}" role="button" tabindex="0">
           <span class="avatar">${esc(initials(c.name))}</span>
@@ -207,6 +207,7 @@
       if (tab === 'now') drawNow(s); else patch($('#main'), tab === 'world' ? (WORLD === 'bebbit' ? bv() : WORLD === 'fbi' ? FBI.render(s, ME, fbiUI) : WORLD === 'nightwire' ? Names.say(NW.render(s, ME, nwUI), ME) : worldView()) : tab === 'bank' ? Names.say(NW.renderBank(s, ME, nwUI), ME) : tab === 'beb' ? `<div class="beb-skin">${bv()}</div>` : tab === 'people' ? peopleView(s) : tab === 'tasks' && hasGames ? Games.render(s, ME) : tab === 'coat' && hasCoat ? Coat.render(s, ME, coatUI) : meView(s));
       /* the casino's wheel and dice, and the mini-games, are kept alive between redraws (a spin or a drag never restarts) */
       countUp();
+      if (typeof Casino !== 'undefined' && Casino.mount) Casino.mount();
       if (hasGames) Games.mount(tab === 'tasks');
     }
     const b = (id, label, ic, badge) => `<button data-tab="${id}" aria-current="${tab === id}">${ic}${label}${badge ? `<span class="badge">${badge}</span>` : ''}</button>`;

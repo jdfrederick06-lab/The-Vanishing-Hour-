@@ -76,7 +76,7 @@
     const inScope = c => !groups || groups.includes(c.group);
     const touches = to => !groups || G.touches(to, groups);
     const mine = r => k === 'main' || r === k || r === 'all';
-    const cast = STORY.characters.filter(inScope).sort((a, b) => a.group.localeCompare(b.group) || a.name.localeCompare(b.name)), names = players();
+    const cast = STORY.characters.filter(inScope).sort((a, b) => a.group.localeCompare(b.group) || nameKey(a.name).localeCompare(nameKey(b.name))), names = players();
     const R = STORY.reveal || {}, killer = G.byId(R.killer);
     const nm = id => (G.byId(id) || { name: id }).name;
     const ROLE = { main: 'Main host', fbi: 'FBI handler', crew: 'Crew handler', all: 'Every host' };
@@ -206,7 +206,7 @@
         html += add('coat', CQ.title + ': the sidequest', `<p>${md(`Solo, about **25 to 30 minutes**, a race to finish first. It has nothing to do with the mystery: Cliff (@cliff_is_lost) is a background account on Bebbit, not a player, and so are the witnesses. It opens at **${clockAt(CQ.opens.min)}**, when Cliff posts that his coat is gone; before that the poster tag says nothing. Anyone can tap the poster and **take the case**: from then on they have a tab called **"Coat"** on their phone, separate from the rest of the game, with their case file (what to do next, every clue found, and the answer box). The tags only record what they find.`)}</p>` +
           `<p>${md('**Level 0: the poster.** Tap the MISSING poster (card 1, with the coat check tag on it) and press **Take the case**.')}</p>` +
           tbl(['Level', 'What players do', 'Answer', 'Your setup'], L.map((l, i) => [`**${i + 1}. ${l.name}**`, does(l), l.a ? `**${l.a[0]}**` : '', job[l.id] || ''])) +
-          `<p>${md(`**First to finish:** ${CQ.first.prize}, ${money(CQ.first.money)} from Cliff, **one free Bebbit trace** (on any post made after they win), a story in the morning paper and an honour at the curtain. **Everyone after:** ${money(CQ.later.money)}. A hint appears after two wrong answers. Tap any coat tag yourself to see who has finished and who is on which level.`)}</p>
+          `<p>${md(`**First to finish:** ${CQ.first.prize}, ${money(CQ.first.money)} from Cliff, **one free Bebbit trace** (on any post made after they win), a story in the morning paper and an honor at the curtain. **Everyone after:** ${money(CQ.later.money)}. A hint appears after two wrong answers. Tap any coat tag yourself to see who has finished and who is on which level.`)}</p>
           <h3>The five cards (print this page, cut along the lines)</h3>
           <div class="cc-cards">
             <div class="cc-card cc-poster"><small>Card 1 · the coat rack, with the coat check tag</small><b class="cc-miss">MISSING</b><b class="cc-sub">One (1) coat</b><p>Beige trench, medium. Answers to nothing. Smells faintly of crab cake.</p><p>Last seen: on Cliff.</p><p class="cc-big">REWARD</p><p class="cc-tap">Tap here with your phone</p></div>
@@ -229,8 +229,8 @@
       }
       const EL = EG.list || {};
       if (Object.keys(EL).length) {
-        const how = { logo: 'The app: tap the app\'s name at the top 7 times', vanity: 'Bebbit > People: search for your own name', selfdown: 'Bebbit: downvote your own post', timer: 'The app: tap the Now timer 10 times', mirror: 'The app: press and hold your own name (top right) for 3 seconds', cheat: 'The gala door: type a video-game cheat code instead of a code word (IDDQD, ROSEBUD, HUNTER2, the Konami code UUDDLRLRBA...). It counts once they sign in', first: 'Bebbit: post just the word "first" (the moderator replies)', bots: `Bebbit: open ${(G.byId(EG.bots) || {}).name || EG.bots}'s profile and tap the follower count`, pinned: 'Bebbit: open @thecityscene\'s profile', minbet: 'Casino: play a round with only the smallest chip', losing: 'Casino: lose 5 rounds in a row' };
-        const where = k => how[k] || (k.startsWith('search:') ? `Bebbit > People: search for "${k.slice(7)}"` : k.startsWith('deleted:') ? `Bebbit: open ${(G.byId(k.slice(8)) || {}).name || k.slice(8)}'s profile and tap "Joined ..." 5 times` : '');
+        const how = { logo: 'The app: tap the app\'s name at the top 7 times', vanity: 'Bebbit > People: search for your own name', selfdown: 'Bebbit: downvote your own post', timer: 'The app: tap the Now timer 10 times', mirror: 'The app: press and hold your own name (top right) for 3 seconds', cheat: 'The gala door: type a video-game cheat code instead of a code word (IDDQD, ROSEBUD, HUNTER2, the Konami code UUDDLRLRBA…). It counts once they sign in', first: 'Bebbit: post just the word "first" (the moderator replies)', bots: `Bebbit: open ${(G.byId(EG.bots) || {}).name || EG.bots}'s profile and tap the follower count`, pinned: 'Bebbit: open @thecityscene\'s profile', minbet: 'Casino: play a round with only the smallest chip', losing: 'Casino: lose 5 rounds in a row' };
+        const where = k => how[k] || (k.startsWith('search:') ? `Bebbit > People: search for "${k.slice(7)}"` : k.startsWith('deleted:') ? `Bebbit: open ${(G.byId(k.slice(8)) || {}).name || k.slice(8)}'s profile and tap "Joined …" 5 times` : '');
         const rows = Object.entries(EL).sort((a, b) => (a[1][2] || 1) - (b[1][2] || 1)).map(([k, [t, x, d]]) => [`**${t}**`, '★'.repeat(d || 1), where(k), x]);
         const by = n => rows.filter(r => r[1].length === n).length;
         html += add('eggs', 'The oddities (easter eggs)', `<p>${md(`**${rows.length} secrets in the apps**, video-game style: no tags, nothing to set up. ${by(1)} are easy (★, you trip over them), ${by(2)} take some poking (★★), and ${by(3)} are hard (★★★): the hard ones **spill a player's secret**, side secrets only (Dusty's bought followers, Ainsley and Quincy, Jet and Skyler's marriage, Jet's lip-sync, Bailey's staged life, Sterling's fandom, Parker's layoff, Jamie's acting). Nothing about the murder, the theft or the diamond. The first time a player finds one, their phone pops up **"Oddity unlocked · 3 of ${rows.length} · ★★☆"**. Whoever finds the most (3 or more) gets **"Nosiest guest"** at the curtain.`)}</p>` + tbl(['Oddity', 'Level', 'How to find it', 'What it says'], rows) +
@@ -282,7 +282,7 @@
     const H = host.role === 'main' ? null : (hostOf(host.role).groups || null);
     let list = STORY.characters.filter(c => !H || H.includes(c.group));
     if (only !== 'all') list = G.byId(only) ? list.filter(c => c.id === only) : list.filter(c => c.group === only);
-    return list.slice().sort((a, b) => a.group.localeCompare(b.group) || a.name.localeCompare(b.name));
+    return list.slice().sort((a, b) => a.group.localeCompare(b.group) || nameKey(a.name).localeCompare(nameKey(b.name)));
   }
   const secOf = (c, re) => (Dossier.sections(Names.say(STORY.dossiers[c.id] || '', c)).find(x => x.title && re.test(x.title)) || null);
   const firstLines = (sec, n) => !sec ? [] : sec.lines.map(l => l.trim()).filter(l => l && !/^\|\s*:?-{2,}/.test(l) && !/^#/.test(l)).slice(0, n);
@@ -321,7 +321,7 @@
     const groupsList = Object.keys(STORY.groups).filter(g => !H || H.includes(g));
     const people = ['cards', 'dossiers'].includes(kind);
     const bar = `<div class="bk-bar"><b>Books</b>${allowedKinds.map(([k, t]) => `<button data-k="${k}" aria-pressed="${kind === k}">${esc(t)}</button>`).join('')}
-      ${people ? `<select data-only><option value="all">Everyone (${STORY.characters.filter(c => !H || H.includes(c.group)).length})</option>${groupsList.map(g => `<option value="${g}" ${only === g ? 'selected' : ''}>${esc(groupName(g))}</option>`).join('')}<optgroup label="One person">${STORY.characters.filter(c => !H || H.includes(c.group)).sort((a, b) => a.name.localeCompare(b.name)).map(c => `<option value="${c.id}" ${only === c.id ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</optgroup></select>` : ''}
+      ${people ? `<select data-only><option value="all">Everyone (${STORY.characters.filter(c => !H || H.includes(c.group)).length})</option>${groupsList.map(g => `<option value="${g}" ${only === g ? 'selected' : ''}>${esc(groupName(g))}</option>`).join('')}<optgroup label="One person">${STORY.characters.filter(c => !H || H.includes(c.group)).sort((a, b) => nameKey(a.name).localeCompare(nameKey(b.name))).map(c => `<option value="${c.id}" ${only === c.id ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</optgroup></select>` : ''}
       ${!people ? `<select data-jump aria-label="Go to a section"><option value="">Go to…</option></select><button data-now title="Jump to the part of the night that's happening">Right now</button>` : ''}
       <a href="host.html">Host terminal</a><button class="go" data-print>Print or save as PDF</button></div>`;
     const body = kind === 'cards' ? cards() : kind === 'dossiers' ? dossiers() : hostBook(kind);

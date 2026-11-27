@@ -35,7 +35,7 @@
     ['Your code word is your key', 'It signs your phone into the game. Never share it, and never type in anyone else\'s.'],
     ['You may lie, except under oath', 'Everyone has secrets and you may lie about yours. But some facts in your file are sworn: if you\'re asked about one directly and on the record, you must tell the truth.', 1],
     ['Your file stays yours', 'Never show anyone your character file. Share what you choose, in your own words.'],
-    ['Leave things as you find them', 'If you find something with a tag on it, scan it, then put it back where it was. Never force a lock.'],
+    ['Leave things as you find them', 'If you find something with a tag or a code on it, scan or tap it with your phone, then put it back where it was. Never force a lock.'],
     ['Nothing real is at stake', 'Any money in the game is play money. Nobody spends a real cent.'],
     ['The host\'s word is final', 'If the host calls "Pause," everyone freezes. The host settles every dispute.'],
     ['Be kind', 'Real people are behind every character. Mind the building, no running on the stairs, and look after each other.']
@@ -43,7 +43,7 @@
   const BRING = [['A charged phone', 'The night runs on it.'], ['Gala attire', 'Black tie optional. Your file suggests a look.'], ['Your character', 'Read your file before you arrive.'], ['Nothing else', 'No real money or valuables needed.']];
   const FAQ = [
     ['Do I need to be good at acting?', 'Not at all. Read your file, talk to people and chase your goals. Every part works at any level.'],
-    ['When do I find out who I am?', 'About a week before the night, your character file arrives by email: who you are, what you want, what you\'re hiding, and your code word.'],
+    ['When do I find out who I am?', 'A week or two before the night, your character file arrives by email: who you are, what you want, what you\'re hiding, and your code word.'],
     ['How long is it?', 'About two and a half hours, start to finish.'],
     ['Can I come with a friend?', 'Yes, as long as they reply too. Tell us in your reply if you\'d like a storyline together.'],
     ['What if I don\'t have a smartphone?', 'Say so in your reply and we\'ll set you up another way.'],
@@ -154,7 +154,7 @@
           ${['tl', 'tr', 'bl', 'br'].map(rosette).join('')}
           <div class="fillet"><div class="liner"><div class="canvas"><div class="patch" aria-hidden="true"></div><i class="hook l" aria-hidden="true"></i><i class="hook r" aria-hidden="true"></i>
             <span class="kick">An interactive murder mystery</span>
-            <p class="from">Mr. Victor Ashgrove<br>requests the pleasure of your company at</p>
+            <p class="from">Mr. Victor Ashgrove<br>requests the pleasure of your company&nbsp;at</p>
             <h1 class="title" aria-label="${esc(CONFIG.TITLE)}">${title}</h1>
             <div class="rule" aria-hidden="true"><i></i><b></b><i></i></div>
             <p class="event">${esc(CONFIG.EVENT)}<em>An evening with the Ashgrove Collection · ${esc(CONFIG.SEASON)}</em></p>
@@ -184,7 +184,7 @@
         </article></div>
         <div class="reveal" style="transition-delay:.12s"><p class="steps-h">How the night works</p><ol class="steps">
           <li><b>Reply</b><p>Tell us you're coming, how big a part you'd like, and whether you're bringing a plus-one. We'll do the rest.</p></li>
-          <li><b>Become someone else</b><p>About a week before, your character arrives by email: a name, a past, secrets worth keeping, goals worth chasing, and a code word.</p></li>
+          <li><b>Become someone else</b><p>A week or two before, your character arrives by email: a name, a past, secrets worth keeping, goals worth chasing, and a code word.</p></li>
           <li><b>Play the night</b><p>Your phone becomes your character's. Talk, trade, bargain and dig. At the end, everyone gives their verdict, and the truth comes out.</p></li>
         </ol></div>
       </div>
@@ -196,12 +196,12 @@
         <div class="tk-head"><div class="tk-crest">${crest}</div><div><small>The Ashgrove Collection requests your presence at</small><b>${esc(CONFIG.EVENT)}</b><em>One night only · ${esc(CONFIG.SEASON)}</em></div></div>
         <div class="tk-grid">
           <div><small>Date</small><b>${esc(I.DATE || '')}</b></div>
-          <div><small>Doors</small><b>${esc(I.TIME || '')}</b></div>
+          <div><small>Doors</small><b>${esc((I.TIME || '').replace(/^Doors at /i, ''))}</b></div>
           <div><small>Place</small><b>${esc(I.PLACE || '')}</b><span>The evening moves between several rooms. Directions come with your character.</span></div>
           <div><small>Dress</small><b>${esc(I.DRESS || '')}</b></div>
         </div>
         <div class="tk-foot"><span>By invitation only · not transferable</span><span>Series A · Hall I</span></div></div>
-        <div class="tk-stub"><div class="tk-adm">Admit<br>one</div>${barcode()}<small>No. 001874</small></div>
+        <div class="tk-stub"><div class="tk-adm">Admit<br> one</div>${barcode()}<small>No. 001874</small></div>
       </div>
       <div class="bring reveal">${BRING.map(([h, p], i) => `<div><small>Bring ${['i', 'ii', 'iii', 'iv'][i]}</small><b>${esc(h)}</b><span>${esc(p)}</span></div>`).join('')}</div>
     </div></section>
@@ -231,14 +231,14 @@
         <p class="who">${esc(r.first)} ${esc(r.last)}${r.pronouns ? `<small>${esc(r.pronouns)}</small>` : ''}</p>
         <p class="rep">${esc(rep)}</p>
         ${r.reply === 'no' ? '<p>Thank you for letting us know. If your plans change, you can change your reply here.</p>'
-          : `<p>About a week before the night you'll receive your character: who you are, what you're hiding, and the code word that lets you in. ${r.email ? 'It goes to <b>' + esc(r.email) + '</b>.' : 'Your host will hand it to you.'}</p>
+          : `<p>A week or two before the night you'll receive your character: who you are, what you're hiding, and the code word that lets you in. ${r.email ? 'It goes to <b>' + esc(r.email) + '</b>.' : 'Your host will hand it to you.'}</p>
             <ul class="sum"><li><span>Part</span>${esc(label(SIZES, r.size) || 'To be decided')}</li>${r.plus ? `<li><span>Plus-one</span>${esc(r.plus.first)} ${esc(r.plus.last)}</li>` : ''}</ul>`}
         <p class="refno">Reply no. ${esc(ref(r.id))}</p>
         <button type="button" class="linkbtn" data-iv="edit">Change my reply</button></div></div>`;
     }
     const bringing = f.plus === 'yes';
     return `<form class="card" id="rvf" novalidate>${waxSeal()}
-      <div class="card-head"><small>The favour of a reply</small><b>${esc(CONFIG.EVENT)}</b><span>${esc(I.RSVP_BY || '')}</span></div>
+      <div class="card-head"><small>The favor of a reply</small><b>${esc(CONFIG.EVENT)}</b><span>${esc(I.RSVP_BY || '')}</span></div>
       <div class="name"><input class="fld" name="first" placeholder="First name" value="${esc(f.first)}" autocomplete="given-name" aria-label="First name"><input class="fld" name="last" placeholder="Last name" value="${esc(f.last)}" autocomplete="family-name" aria-label="Last name"></div>
       <label class="lab">Pronouns <i>(optional)</i><input class="fld" name="pronouns" placeholder="she/her, he/him, they/them…" value="${esc(f.pronouns)}" maxlength="40" list="pron"></label>
       <datalist id="pron"><option value="she/her"><option value="he/him"><option value="they/them"><option value="she/they"><option value="he/they"></datalist>
