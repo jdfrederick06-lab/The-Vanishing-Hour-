@@ -704,9 +704,11 @@ ${sign}` };
     if (cs && cs.rounds) stories.push({ head: cs.foundation >= 0 ? `Charity casino raises ${NW.money(cs.foundation)}` : `Charity casino loses ${NW.money(-cs.foundation)}`, body: `${cs.rounds} rounds were played and ${NW.money(cs.wagered)} was wagered.${cs.best && cs.best.net > 0 ? ` The biggest win: ${NW.money(cs.best.net)} for ${nm(cs.best.by)}.` : ''}` });
     const L = NW.loans(s), coll = L.filter(l => l.status === 'collections'), favor = L.filter(l => l.status === 'favor');
     if (L.length) stories.push({ head: 'Thorne Capital does a brisk trade', body: `${L.filter(l => l.status !== 'offer' && l.status !== 'declined' && l.status !== 'withdrawn').length} loans at up to ${(STORY.nightwire.lending || {}).rateMax || 800}% interest.${favor.length ? ` ${favor.length} paid off with a favor.` : ''}${coll.length ? ` Sent to collections: ${coll.map(l => nm(l.borrower)).join(', ')}.` : ''}` });
-    /* the Curator's Hunt (NFC sidequest): who solved it first */
-    const huntWon = Object.entries((s.hunt || {}).won || {}).sort((a, b) => a[1] - b[1]), HN = ((STORY.nfc || {}).frame || {}).hunt;
-    if (HN && huntWon.length) stories.push({ head: `${nm(huntWon[0][0])} wins ${HN.title}`, body: `A card behind the painting in the vault led to three riddles. ${nm(huntWon[0][0])} solved them first${huntWon.length > 1 ? `, ahead of ${huntWon.length - 1} other${huntWon.length > 2 ? 's' : ''}` : ''}, and walked away with the Curator's reward.` });
+    /* Cliff's Coat (the NFC sidequest, Nov 26): who found it first */
+    const huntWon = Object.entries((s.hunt || {}).won || {}).sort((a, b) => a[1] - b[1]), CQ = STORY.coat, EP = (STORY.eggs || {}).paper || {};
+    if (CQ && huntWon.length) stories.push({ head: `${nm(huntWon[0][0])} finds Cliff's coat`, body: `A beige trench coat went missing at the Ashgrove gala shortly after eight. ${nm(huntWon[0][0])} tracked it down first${huntWon.length > 1 ? `, ahead of ${huntWon.length - 1} other${huntWon.length > 2 ? 's' : ''}` : ''}. Its owner, a guest named Cliff, was described as "inconsolable, then extremely consolable."` });
+    /* the back page: horoscopes, classifieds and corrections (STORY.eggs.paper) */
+    const extras = EP.horoscopes ? { horoscopes: EP.horoscopes, classifieds: [huntWon.length ? String(EP.found || '').split('{name}').join(nm(huntWon[0][0])) : EP.lost].filter(Boolean).concat(EP.classifieds || []), corrections: EP.corrections || '' } : null;
     const dusty = Object.entries((STORY.vote || {}).people || {}).map(([id, w]) => G.byId(id) ? `${G.byId(id).name} voted ${w === 3 ? 'three' : w} times. Nobody noticed.` : '').filter(Boolean);
     const votes = Object.keys(Vote.ballots(s)).length;
     /* pronoun tags are filled in now, with tonight's choices, since the paper may be read where the story isn't loaded */
@@ -714,6 +716,7 @@ ${sign}` };
       at: Date.now(), closed: true, paper: 'The Harbor Ledger', edition: 'The day after the Ashgrove Gala',
       lead,
       stories, sources: dusty,
+      extras,
       vote: { killer: K.bars ? K.bars : null, votes, topKiller: K.top ? nm(K.top) : null, topThief: T.top ? nm(T.top) : null },
       truth: (R.chapters || []).map(ch => ({ kicker: ch.kicker || '', title: ch.title + (ch.big ? ' ' + ch.big : ''), body: ch.body || [] })),
       results: Reveal.results(s).map(x => ({ who: x.who, win: !!x.win, why: x.why })),
@@ -1082,7 +1085,7 @@ ${sign}` };
   /* one-time tidy-up (Nov 26): change-request notes saved publicly before today move to the private
      spot (changereq/{id}); the profile keeps only that they asked */
   let tidied = false;
-  DB.loaded().then(() => { if (tidied || ME.role !== 'main') return; tidied = true; const s = DB.get(), u = {};
+  DB.loaded().then(() => { if (tidied || !ME || ME.role !== 'main') return; tidied = true; const s = DB.get(), u = {};
     Object.entries(s.players || {}).forEach(([id, p]) => { const c = p && p.profile && p.profile.change; if (c && c.note) { u['changereq/' + id] = { note: c.note, at: c.at || Date.now() }; u['players/' + id + '/profile/change/note'] = null; } });
     if (Object.keys(u).length) DB.update(u); });
   DB.on(s => { Handlers.apply(s); render(s); });

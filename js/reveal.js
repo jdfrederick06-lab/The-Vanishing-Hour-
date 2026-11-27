@@ -46,6 +46,13 @@ const Reveal = (() => {
       const top = Bebbit.list(s).filter(p => !p.deleted && G.byId(p.by)).map(p => ({ p, n: Bebbit.nVotes(s, p.id) })).sort((a, b) => b.n - a.n)[0];
       if (top && top.n) out.push({ title: 'Bebbit\'s favourite post', who: nm(top.p.by), why: `${top.n} upvote${top.n === 1 ? '' : 's'}: "${String(top.p.text || '').slice(0, 70)}${String(top.p.text || '').length > 70 ? '…' : ''}"` });
     }
+    /* Cliff's Coat (the NFC sidequest) and the oddities (Nov 26) */
+    const coat = Object.entries((s.hunt || {}).won || {}).sort((a, b) => a[1] - b[1]);
+    if (STORY.coat && coat.length) out.push({ title: 'Found Cliff\'s coat', who: nm(coat[0][0]), why: coat.length > 1 ? `First of ${coat.length} detectives. Cliff is still crying.` : 'Cliff is still crying.' });
+    if (typeof Eggs !== 'undefined') {
+      const odd = STORY.characters.map(c => ({ c, n: Eggs.found(s, c.id).length })).filter(x => x.n).sort((a, b) => b.n - a.n)[0];
+      if (odd && odd.n >= 3) out.push({ title: 'Nosiest guest', who: odd.c.name, why: `Found ${odd.n} oddities hidden around the house and the apps.` });
+    }
     return out;
   }
 

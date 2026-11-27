@@ -100,7 +100,9 @@ const Route = (() => {
     return out.includes('pub') ? ['pub'] : uniq(out);
   }
   const orHost = a => (a = uniq(a)).length ? a : ['h'];
-  const tracers = () => Object.entries(((typeof STORY !== 'undefined' && STORY.bebbit) || {}).powers || {}).filter(([, p]) => p.trace).map(([id]) => 'p/' + id);
+  /* who can trace posts: the story's tracers, plus whoever won a trace on Cliff's Coat (they get the real poster of every post made after that) */
+  const tracers = () => uniq(Object.entries(((typeof STORY !== 'undefined' && STORY.bebbit) || {}).powers || {}).filter(([, p]) => p.trace).map(([id]) => 'p/' + id)
+    .concat(Object.entries((((typeof DB !== 'undefined' && DB.get && DB.get()) || {}).hunt || {}).prize || {}).filter(([, p]) => p && p.perk === 'trace').map(([id]) => 'p/' + id)));
   /* collections whose items go where their contents say (self = the path is the item itself) */
   const ITEMS = [
     { at: 'feed', fn: it => orHost(to(it.to)) },
@@ -117,7 +119,7 @@ const Route = (() => {
     { at: 'asks', fn: it => orHost(it.from ? ['p/' + it.from] : []) },
     /* what a guest wrote when asking for a different character: only that guest and the hosts (Nov 26) */
     { at: 'changereq', fn: (it, key) => ['p/' + key] },
-    /* the Curator's Hunt (NFC sidequest): each player's progress is theirs alone; who finished is public */
+    /* Cliff's Coat (NFC sidequest) and the oddities: each player's progress and finds are theirs alone; who finished is public (hunt/won) */
     { at: 'huntp', fn: (it, key) => ['p/' + key] },
     /* a Bebbit post is public, but who REALLY posted it is only for that person and anyone who can trace posts */
     { at: 'beb/posts', fn: () => ['pub'], fields: { real: it => it.real && G.byId(it.real) ? uniq(['p/' + it.real].concat(tracers())) : [] } }
@@ -761,3 +763,20 @@ function sendMessage(to, text, from) {
   Clock.log(u, 'msg', 'Message to ' + G.toLabel(to) + ': ' + text);
   DB.update(u);
 }
+
+/* ---- the oddities (easter eggs, Nov 26: STORY.eggs and the egg tags in STORY.nfc) ----
+   Each player's finds are kept with their sidequest progress (huntp/{id}/eggs/{key}, theirs alone).
+   Host devices (previews, "open as them") never record anything. */
+const Eggs = {
+  cfg: () => (typeof STORY !== 'undefined' && STORY.eggs) || {},
+  found: (s, id) => Object.keys((((s || {}).huntp || {})[id] || {}).eggs || {}),
+  /** record a find once; returns true the first time. u = an update to add to (or null to save now) */
+  find(me, key, u) {
+    if (!me || !me.id || Session.hostDevice()) return false;
+    const s = DB.get(); if ((((s.huntp || {})[me.id] || {}).eggs || {})[key]) return false;
+    const w = u || {}; w['huntp/' + me.id + '/eggs/' + key] = Date.now();
+    Clock.log(w, 'game', `${me.name} found an oddity: ${key}.`);
+    if (!u) DB.update(w);
+    return true;
+  }
+};

@@ -1,0 +1,6 @@
+/* oddities (Nov 26) */
+.bb-egg { padding: 16px 4px; font-style: italic; color: var(--mute, #9a92b8); text-align: center; }
+.bb-fans { all: unset; cursor: pointer; border-bottom: 1px dotted currentColor; }
+.bb-fans:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+.bb-botlist { font-family: ui-monospace, Menlo, monospace; font-size: 12.5px; word-break: break-word; }
+.bb-pin { border-left: 3px solid #d9b45a; }

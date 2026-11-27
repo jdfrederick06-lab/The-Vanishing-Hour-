@@ -45,9 +45,11 @@ const Bebbit = (() => {
   const voted = (s, id, me) => myVote(s, id, me) === 'up';
   const buried = (s, p) => !p.keep && downs(s, p.id) >= DOWN_HIDE();
   const comments = (s, id) => Object.entries((B(s).comments || {})[id] || {}).map(([cid, c]) => Object.assign({ id: cid }, c)).sort((a, b) => a.at - b.at);
-  const limit = (me, power) => (((C().powers || {})[me.id]) || {})[power] || 0;
+  /* the first to find Cliff's coat earns one extra power (STORY.coat.first.perk, Nov 26) */
+  const perk = (s, me, power) => s && ((((s.hunt || {}).prize || {})[me.id]) || {}).perk === power ? 1 : 0;
+  const limit = (me, power, s) => ((((C().powers || {})[me.id]) || {})[power] || 0) + perk(s || DB.get(), me, power);
   const used = (s, id, power) => (((B(s).used || {})[id]) || {})[power] || 0;
-  const left = (s, me, power) => Math.max(0, limit(me, power) - used(s, me.id, power));
+  const left = (s, me, power) => Math.max(0, limit(me, power, s) - used(s, me.id, power));
   const canWrite = me => !(C().readOnly || []).includes(me.group);
   const ago = ts => { const m = Math.floor((Date.now() - ts) / 60000); return m < 1 ? 'now' : m < 60 ? m + 'm' : Math.floor(m / 60) + 'h'; };
   /** Only our own shrunk photos (data:image) or files shipped with the site are shown. */
@@ -123,7 +125,7 @@ const Bebbit = (() => {
     if (buried(s, p)) return `<article class="bb-post bb-removed">[removed by the community · ${downs(s, p.id)} downvotes] <span>· ${ago(p.at)}</span></article>`;
     const a = who(p.by), n = nVotes(s, p.id), cs = comments(s, p.id), ro = !canWrite(me), img = safeImg(p.photo);
     const tr = (B(s).traces || {})[p.id], mineTrace = tr && tr.by === me.id;
-    const pow = (limit(me, 'trace') && !mineTrace ? `<button class="btn small ghost" data-bb-trace="${p.id}" ${left(s, me, 'trace') ? '' : 'disabled'}>Trace · ${left(s, me, 'trace')}</button>` : '')
+    const pow = (limit(me, 'trace', s) && !mineTrace && (p.real || (((C().powers || {})[me.id]) || {}).trace) ? `<button class="btn small ghost" data-bb-trace="${p.id}" ${left(s, me, 'trace') ? '' : 'disabled'}>Trace · ${left(s, me, 'trace')}</button>` : '')
       + (limit(me, 'delete') ? `<button class="btn small ghost" data-bb-del="${p.id}" ${left(s, me, 'delete') ? '' : 'disabled'}>Remove · ${left(s, me, 'delete')}</button>` : '');
     const traceBox = mineTrace ? `<div class="bb-trace"><b>Trace result.</b> ${p.real !== p.by ? `This post came from <b>${esc(who(p.real).name)}</b>'s phone, not ${esc(shown(a))}'s.` : `Posted from ${esc(shown(a))}'s own phone. Nothing unusual.`}</div>` : '';
     const tags = (p.tags || []).filter(t => G.byId(t));
@@ -148,6 +150,8 @@ const Bebbit = (() => {
   }
   function peopleList(s, me, ui) {
     const q = ui.q.trim().toLowerCase();
+    const joke = (typeof Eggs !== 'undefined' && (Eggs.cfg().search || {})[q.replace(/[^a-z]/g, '')]) || '';
+    if (joke) { Eggs.find(me, 'search:' + q.replace(/[^a-z]/g, '')); return `<div class="bb-egg">${esc(joke)}</div>`; }
     const all = STORY.characters.filter(c => !G.noshow(s, c.id) && (!q || (c.name + ' ' + c.role).toLowerCase().includes(q))).sort(byName);
     return all.map(c => { const pr = prof(c.id), n = pr.followers + follows(s, c.id).length; return `<div class="person" data-bb-profile="${c.id}" role="button" tabindex="0">${avatar(c)}<div style="min-width:0;flex:1"><div class="nm">${esc(c.name)}${tick(c.id)}${c.id === me.id ? ' <span class="chip">you</span>' : ''}</div><div class="rl">@${esc(pr.handle)} · ${esc(c.role)}</div></div><span class="bb-fc"><b>${big(n)}</b>followers</span></div>`; }).join('') || '<div class="empty">No one matches.</div>';
   }
@@ -159,6 +163,7 @@ const Bebbit = (() => {
     const tagged = list(s).filter(p => !p.deleted && (p.tags || []).includes(a.id)).length, live = ps.filter(p => !p.deleted).length;
     const fans = pr.followers + follows(s, a.id).length, fol = pr.following + (a.id === me.id ? followingNow(s, me.id) : 0);
     const mine = a.id === me.id, on = amFollowing(s, a.id, me.id);
+    const E = typeof Eggs !== 'undefined' ? Eggs.cfg() : {}, bots = E.bots && E.bots.who === a.id, pin = (E.pinned || {})[a.id];
     const btn = mine ? '<span class="bb-you">This is you</span>' : canWrite(me) ? `<button class="btn ${on ? '' : 'primary'} bb-follow" data-bb-follow="${a.id}" aria-pressed="${on}">${on ? 'Following' : pr.priv ? 'Request to follow' : 'Follow'}</button>` : '';
     return `<div class="bb"><button class="btn small ghost bb-back" data-bb="back">‹ Back</button>
       <div class="card bb-pro"><div class="bb-cover" style="${a.sys ? 'background:linear-gradient(135deg,#18122b,#3a2a6b)' : tint(a.name)}" aria-hidden="true"><i></i><i></i><i></i></div>
@@ -167,8 +172,8 @@ const Bebbit = (() => {
         <div class="bb-handle">@${esc(pr.handle)}${a.role && !a.sys ? ` · ${esc(a.role)}` : ''}</div>
         ${pr.bio ? `<p class="bb-bio">${esc(pr.bio)}</p>` : ''}
         <div class="bb-meta2">${pr.priv ? '<span>🔒 Private account</span>' : ''}<span>Joined ${pr.joined}</span>${a.sys ? '' : '<span>At the Ashgrove Gala tonight</span>'}</div>
-        <div class="bb-stats2"><span><b>${big(fans)}</b> followers</span><span><b>${big(fol)}</b> following</span><span><b>${live}</b> ${live === 1 ? 'post' : 'posts'}</span><span><b>${tagged}</b> tagged in</span></div></div>
-      ${a.profile && !a.sys ? `<div class="card bb-about"><small>About</small>${esc(a.profile)}</div>` : ''}
+        <div class="bb-stats2">${bots ? `<button class="bb-fans" data-bb-fans aria-expanded="${!!ui.fans}">` : '<span>'}<b>${big(fans)}</b> followers${bots ? '</button>' : '</span>'}<span><b>${big(fol)}</b> following</span><span><b>${live}</b> ${live === 1 ? 'post' : 'posts'}</span><span><b>${tagged}</b> tagged in</span></div></div>
+      ${bots && ui.fans ? `<div class="card bb-about bb-botlist"><small>Followers</small>${esc(E.bots.text)}</div>` : ''}${a.profile && !a.sys ? `<div class="card bb-about"><small>About</small>${esc(a.profile)}</div>` : ''}${pin ? `<article class="bb-post bb-pin"><div class="bb-meta">📌 Pinned · from the archive, ${esc(pin.year)}</div><div class="bb-text">${esc(pin.text)}</div></article>` : ''}
       ${pr.priv && !mine && !on ? '<div class="card empty">This account is private. Follow to see posts.</div>' : ps.map(p => card(s, me, ui, p)).join('') || '<div class="card empty">No posts yet.</div>'}</div>`;
   }  function render(s, me, ui) { return ui.view === 'profile' && ui.profile ? profile(s, me, ui) : ui.view === 'people' ? people(s, me, ui) : feed(s, me, ui); }
 
@@ -176,13 +181,14 @@ const Bebbit = (() => {
   function onClick(e, ctx) {
     const { me, ui } = ctx, q = sel => e.target.closest(sel); let el;
     if ((el = q('[data-bb-sort]'))) { const k = el.dataset.bbSort; if (k === 'people') ui.view = 'people'; else { ui.view = 'feed'; ui.sort = k; } ctx.redraw(true); return true; }
-    if ((el = q('[data-bb-profile]'))) { if (ui.view !== 'profile') ui.from = ui.view; ui.view = 'profile'; ui.profile = el.dataset.bbProfile; ctx.redraw(true); window.scrollTo(0, 0); return true; }
+    if ((el = q('[data-bb-profile]'))) { if (ui.view !== 'profile') ui.from = ui.view; ui.view = 'profile'; ui.profile = el.dataset.bbProfile; ui.fans = false; if (typeof Eggs !== 'undefined' && (Eggs.cfg().pinned || {})[ui.profile]) Eggs.find(me, 'pinned'); ctx.redraw(true); window.scrollTo(0, 0); return true; }
     if ((el = q('[data-bb-follow]'))) {
       const id = el.dataset.bbFollow, s = DB.fresh(); if (!canWrite(me) || id === me.id) return true;
       const on = amFollowing(s, id, me.id), u = { ['beb/follows/' + id + '/' + me.id]: on ? null : Date.now() };
       if (!on && G.byId(id)) u['feed/' + uid('f')] = { to: [id], title: 'Bebbit', text: `@${prof(me.id).handle} started following you.`, at: Date.now(), kind: 'beb' };
       DB.update(u); ctx.redraw(true); return true;
     }
+    if ((el = q('[data-bb-fans]'))) { ui.fans = !ui.fans; if (ui.fans) Eggs.find(me, 'bots'); ctx.redraw(true); return true; }
     if ((el = q('[data-bb="back"]'))) { ui.view = ui.from || 'feed'; ui.profile = null; ctx.redraw(true); return true; }
     if ((el = q('[data-bb="compose"]'))) { ui.compose = true; ctx.redraw(true); setTimeout(() => { const t = $('[data-bb="text"]'); if (t) t.focus(); }, 0); return true; }
     if ((el = q('[data-bb="cancel"]'))) { ui.compose = false; ui.draft = freshDraft(); ui.err = ''; ctx.redraw(true); return true; }
@@ -245,6 +251,9 @@ const Bebbit = (() => {
       if (d.hack && !d.as) return fail('Choose who the post should look like it came from.');
       if (d.hack && !left(s, me, 'hack')) return fail('You have no disguised posts left.');
       const u = {}, pid = post(u, { by: d.hack ? d.as : me.id, real: me.id, text, photo: d.photo, tags: d.tags, hacked: d.hack });
+      /* an oddity: a post that just says "first" gets a reply from the moderator */
+      const E = typeof Eggs !== 'undefined' ? Eggs.cfg() : {};
+      if (E.first && text.toLowerCase().replace(/[^a-z]/g, '') === 'first') { u['beb/comments/' + pid + '/' + uid('c')] = { by: 'mod', text: E.first, at: Date.now() + 1500 }; Eggs.find(me, 'first', u); ui.open[pid] = true; }
       ui.fresh = pid; setTimeout(() => { if (ui.fresh === pid) { ui.fresh = null; } }, 1400);
       if (d.hack) u['beb/used/' + me.id + '/hack'] = used(s, me.id, 'hack') + 1;
       if (!DB.update(u)) return fail("Couldn't save the post. The photo may be too large for this test computer.");

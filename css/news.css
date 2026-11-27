@@ -65,3 +65,8 @@ body { overflow-x: hidden; }
 }
 @media print { html, body { background: #fff; } .np { box-shadow: none; margin: 0; animation: none; } }
 @media (prefers-reduced-motion: reduce) { .np { animation: none; } }
+/* the back page (Nov 26) */
+.np-horo p, .np-class p { margin: 0 0 8px; font-size: 13.5px; line-height: 1.45; }
+.np-class p { padding-bottom: 8px; border-bottom: 1px dotted rgba(0,0,0,.25); }
+.np-class p:last-child { border-bottom: 0; }
+.np-corr p { margin: 0; font-size: 12.5px; font-style: italic; }

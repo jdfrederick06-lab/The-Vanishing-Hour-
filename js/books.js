@@ -189,16 +189,42 @@
     }
 
     /* ===== Part 6: your players ===== */
-    /* the NFC tag and the Curator's Hunt (Nov 26): main host's book */
-    const TAG = (STORY.nfc || {}).frame;
+    /* the NFC tags, Cliff's Coat and the oddities (Nov 26): main host's book */
+    const NFC = STORY.nfc || {}, TAG = NFC.frame, CQ = STORY.coat, EG = STORY.eggs || {};
     if (TAG && !groups) {
-      const HU = TAG.hunt;
-      html += add('nfc', 'The NFC tag and the Curator\'s Hunt', `<p>${md(`**Where:** ${TAG.where}. It wakes up at the start of ${(STORY.phases.find(p => p.id === (TAG.opens || {}).phase) || {}).name || 'the night'}; before that, tapping it shows a blank sticker.`)}</p>
-        <p>${md('Write this link onto the tag with the free **NFC Tools** app (Write > Add a record > URL):')} <code>${esc(site + 'tap.html?t=frame')}</code></p>
-        <p>${md('Each group sees its own line when they tap it (FBI a lab note, the crew a warning, and so on). Every tap goes in your activity log.')}</p>` +
-        (HU ? `<h3>${esc(HU.title)}: a sidequest</h3><p>${md('Anyone who taps the tag also gets a curator\'s card with three riddles. **The first to solve all three** gets a true secret, ' + money(HU.first.money) + ' in their bank and a line in the morning paper. Everyone who finishes later gets ' + money(HU.later.money) + '.')}</p>` +
-          tbl(['Riddle', 'Answer', 'Your job'], HU.steps.map(st => [st.q, `**${st.a[0]}**`, st.place ? `Write **${st.a[0]}** on a small card and hide it: ${st.place}.` : 'Nothing: it\'s on the painting (make sure the signature shows **J. Ellery**).'])) +
-          `<p>${md('Players get a hint after two wrong answers. To check who has finished, tap the tag yourself: hosts see every riddle and the list of winners.')}</p>` : ''));
+      const link = id => site + 'tap.html?t=' + id;
+      const kindOf = t => t.quest ? 'Cliff\'s Coat' : t.egg ? 'Oddity' : 'Story';
+      html += add('nfc', 'The NFC tags', `<p>${md(`**${Object.keys(NFC).length} tags in all.** Write each link onto its own sticker with the free **NFC Tools** app (Write > Add a record > URL), then tap it once with your own phone to check: hosts see where it goes and every version of what it says. Every tap goes in your activity log.`)}</p>` +
+        tbl(['Tag', 'Kind', 'Where it goes', 'Link to write on it'], Object.entries(NFC).map(([id, t]) => [`**${t.title || id}**`, kindOf(t), t.where || '', link(id)])) +
+        `<p>${md(`**The story tag** (${TAG.title}) wakes up at the start of ${(STORY.phases.find(p => p.id === (TAG.opens || {}).phase) || {}).name || 'the night'}. Each group sees its own line (FBI a lab note, the crew a warning, and so on).`)}</p>`);
+      if (CQ) {
+        const L = CQ.levels, V = (L.find(l => l.visits) || {}).visits || {};
+        const job = { poster: 'Pin **card 1** (the poster, with the coat check tag on it) at the coat rack.', retrace: 'Tags in the kitchen, the bathroom and on the biggest plant. Stick **card 5** (Cliff\'s note) on the bathroom mirror.', ledger: 'Pin **card 2** (the ledger) beside the poster.', host: '**You.** Keep a stack of **card 3** (Axel\'s IOU) in your pocket. Anyone who says "Is this coat giving?" gets one. Nobody else does.', coat: `Hide a beige trench coat ${CQ.iou.where}. The **coat tag** and **card 4** go in its pocket.` };
+        html += add('coat', CQ.title + ': the sidequest', `<p>${md(`Solo, about 20 minutes, a race to finish first. It has nothing to do with the mystery: Cliff (@cliff_is_lost) is a background account on Bebbit, not a player, and so are the witnesses. It opens at **${clockAt(CQ.opens.min)}**, when Cliff posts that his coat is gone. Before that the poster says nothing.`)}</p>` +
+          tbl(['Level', 'What players do', 'Answer', 'Your setup'], L.map((l, i) => [`**${i + 1}. ${l.name}**`, l.visits ? `Tap the three tags (${Object.keys(V).map(k => (NFC[k] || {}).title || k).join(', ')}) and piece the ticket number together.` : l.q ? l.q : l.go ? 'Tap the poster and take the case.' : 'Find the coat and tap the tag in its pocket.', l.a ? `**${l.a[0]}**` : '', job[l.id] || ''])) +
+          `<p>${md(`**First to finish:** ${CQ.first.prize}, ${money(CQ.first.money)} from Cliff, **one free Bebbit trace** (on any post made after they win), a story in the morning paper and an honour at the curtain. **Everyone after:** ${money(CQ.later.money)}. Players get a hint after two wrong answers. Tap any coat tag yourself to see who has finished and who is still looking.`)}</p>
+          <h3>The five cards (print this page, cut along the lines)</h3>
+          <div class="cc-cards">
+            <div class="cc-card cc-poster"><small>Card 1 · the coat rack</small><b class="cc-miss">MISSING</b><b class="cc-sub">One (1) coat</b><p>Beige trench, medium. Answers to nothing. Smells faintly of crab cake.</p><p>Last seen: on Cliff.</p><p class="cc-big">REWARD</p><p class="cc-tap">Tap here with your phone</p></div>
+            <div class="cc-card cc-ledger"><small>Card 2 · beside the poster</small><b class="cc-sub">Coat check ledger</b><table>${(CQ.ledger || []).map(r => `<tr><td>${esc(r[0])}</td><td>${esc(r[1])}</td><td>${esc(r[2])}</td></tr>`).join('')}</table></div>
+            <div class="cc-card cc-iou"><small>Card 3 · in your pocket (print several)</small><b class="cc-sub">I.O.U.</b><p>One (1) beige trench coat. I hid it ${esc(CQ.iou.where)}.</p><p>Code word: <b>${esc(CQ.iou.code)}</b></p><p class="cc-sign">Axel (@artbro_axel)<br><i>P.S. it was not giving.</i></p></div>
+            <div class="cc-card cc-note"><small>Card 4 · in the coat's pocket</small><p>You found me. Please put me back exactly where I was, so the next detective can find me too. Don't tell anyone where I am.</p><p>Now tap the tag in this pocket.</p><p class="cc-sign">The Coat<br><i>P.S. There is half a crab cake in here. Don't.</i></p></div>
+            <div class="cc-card cc-sticky"><small>Card 5 · the bathroom mirror</small><p>TICKET 2 _ _</p><p>wrote it on my hand. then washed my hands. obviously.</p><p class="cc-sign">Cliff</p></div>
+          </div>`);
+      }
+      if (EG.search || Object.values(NFC).some(t => t.egg)) {
+        const rows = Object.entries(NFC).filter(([, t]) => t.egg).map(([, t]) => ['NFC tag', `${t.where}`, t.idle + (t.money ? ` (pays ${money(t.money)} once)` : '')]);
+        if (EG.first) rows.push(['Bebbit', 'Post the single word "first"', `The moderator replies: "${EG.first}"`]);
+        Object.entries(EG.search || {}).forEach(([w, t]) => rows.push(['Bebbit', `Search People for "${w}"`, t]));
+        if (EG.bots) rows.push(['Bebbit · clue', `Tap ${(G.byId(EG.bots.who) || {}).name || EG.bots.who}'s follower count`, EG.bots.text]);
+        Object.entries(EG.pinned || {}).forEach(([a, p]) => rows.push(['Bebbit · clue', `Open @${((STORY.bebbit.accounts || {})[a] || {}).name || a}'s profile`, `Pinned, ${p.year}: ${p.text}`]));
+        if (EG.logo) rows.push(['The app', 'Tap the app\'s name at the top 7 times', EG.logo]);
+        if (EG.timer) rows.push(['The app', 'Tap the Now timer 10 times', EG.timer]);
+        if (EG.minbet) rows.push(['Casino', 'Bet only the smallest chip on a roulette or dice round', `The dealer: "${EG.minbet}"`]);
+        if (EG.paper) rows.push(['Morning paper', 'The back page', 'Horoscopes, classifieds (Cliff\'s coat, lost or found) and a corrections box']);
+        if (EG.crabpost) rows.push(['Bebbit', 'Posted by the clock at minute 92', EG.crabpost]);
+        html += add('eggs', 'The oddities (easter eggs)', `<p>${md(`**${rows.length + (EG.paper ? 2 : 0)} small jokes** hidden around the house and the apps. They change nothing in the game. Two are quiet clues to **side secrets** only (Dusty\'s followers, and Ainsley and Quincy in 1980). Each player\'s finds are counted; whoever finds the most (3 or more) gets "Nosiest guest" at the curtain.`)}</p>` + tbl(['Where', 'How to find it', 'What happens'], rows));
+      }
     }
     html += partH(groups ? 'Your players' : 'The cast', 'Code words, and everything each player is trying to do');
     html += add('cast', groups ? 'Your groups and code words' : 'Cast and code words', tbl(['Character', 'Group', 'Cover role', 'Code word', 'Played by'], cast.map(c => [`**${c.name}**${Pron.of(c.id) ? ' (' + Pron.of(c.id) + ')' : ''}${c.key ? ' <span class="bk-key">key</span>' : ''}`, groupName(c.group), c.role, '`' + c.code + '`', names[c.id] || ''])) +

@@ -23,6 +23,7 @@
   function paper(n) {
     /* dated the morning after: a paper closed in the evening carries the next day's date */
     const now = new Date(n.at || Date.now()); if (now.getHours() >= 12) now.setDate(now.getDate() + 1);
+    const X = n.extras || {};
     const cols = (n.stories || []).map(st => `<article class="np-story"><h3>${esc(st.head)}</h3>${P(st.body)}</article>`).join('');
     root.innerHTML = `<main class="np">
       <header class="np-head">
@@ -47,6 +48,9 @@
           ${(n.awards || []).length ? `<div class="np-box"><h4>The night's honors</h4>${n.awards.map(a => `<div class="np-aw"><small>${esc(a.title)}</small><b>${esc(a.who)}</b><span>${esc(a.why)}</span></div>`).join('')}</div>` : ''}
           <div class="np-box"><h4>The vote</h4><p>${n.vote.votes} ballots were cast.${n.vote.topKiller ? ` The room named <b>${esc(n.vote.topKiller)}</b> as the killer` : ''}${n.vote.topThief ? ` and <b>${esc(n.vote.topThief)}</b> for the theft` : ''}.</p></div>
           ${(n.sources || []).length ? `<div class="np-box np-scoop"><h4>Sources say</h4>${n.sources.map(P).join('')}</div>` : ''}
+          ${X.horoscopes ? `<div class="np-box np-horo"><h4>Your stars</h4>${X.horoscopes.map(([sign, t]) => `<p><b>${esc(sign)}.</b> ${esc(t)}</p>`).join('')}</div>` : ''}
+          ${(X.classifieds || []).length ? `<div class="np-box np-class"><h4>Classifieds</h4>${X.classifieds.map(P).join('')}</div>` : ''}
+          ${X.corrections ? `<div class="np-box np-corr">${P(X.corrections)}</div>` : ''}
         </aside>
       </div>
       <section class="np-cast"><h4>Starring</h4><div class="np-cast-l">${(n.cast || []).map(c => `<div><b>${esc(c.name)}</b>${c.pronouns ? ` <i>(${esc(c.pronouns)})</i>` : ''}<span>${esc(c.role)}</span>${c.player ? `<em>played by ${esc(c.player)}</em>` : ''}</div>`).join('')}</div></section>

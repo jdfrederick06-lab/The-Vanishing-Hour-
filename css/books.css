@@ -158,3 +158,19 @@ a { color: inherit; }
   .bk-gloss { grid-template-columns: 1fr; } .bk-gloss dd { margin-bottom: 6px; }
 }
 @media print { .bk-tip { display: none; } }
+/* Cliff's Coat cards (Nov 26) */
+.cc-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); align-items: start; gap: 14px; margin: 10px 0; }
+.cc-card { break-inside: avoid; border: 1.5px dashed #888; padding: 14px 16px; background: #fff; color: #1d1a14; font: 14px/1.5 Georgia, serif; }
+.cc-card small { display: block; margin-bottom: 8px; font: 600 10px Inter, sans-serif; letter-spacing: .12em; text-transform: uppercase; color: #888; }
+.cc-card p { margin: 0 0 6px; }
+.cc-miss { display: block; text-align: center; font: 900 40px/1 Impact, 'Arial Black', sans-serif; letter-spacing: .06em; color: #b3261e; }
+.cc-sub { display: block; text-align: center; margin: 4px 0 10px; font: 700 16px Inter, sans-serif; letter-spacing: .1em; text-transform: uppercase; }
+.cc-big { text-align: center; font: 900 22px Impact, 'Arial Black', sans-serif; letter-spacing: .12em; }
+.cc-tap { text-align: center; font: 600 11px Inter, sans-serif; color: #666; border-top: 1px solid #ccc; padding-top: 6px; }
+.cc-ledger table { width: 100%; border-collapse: collapse; font: 11.5px/1.35 'Courier New', monospace; }
+.cc-ledger td { border-bottom: 1px solid #ddd; padding: 4px 3px; vertical-align: top; }
+.cc-ledger td:first-child { white-space: nowrap; font-weight: 700; }
+.cc-iou, .cc-note { font-family: 'Comic Sans MS', 'Segoe Print', cursive; }
+.cc-sign { text-align: right; }
+.cc-sticky { background: #fff59a; font-family: 'Segoe Print', 'Comic Sans MS', cursive; transform: rotate(-1.5deg); }
+.cc-sticky p:first-of-type { font-size: 22px; font-weight: 700; }

@@ -243,7 +243,21 @@
   $('#root').innerHTML = `<div class="amb amb-${WORLD}" aria-hidden="true"></div><div class="app"><header class="app-head" id="head"></header><div class="app-body"><nav class="app-nav" id="nav" aria-label="Sections"><div class="navwrap"><span class="nav-ind" id="navind"></span><div id="navin"></div></div><div class="nav-foot" id="navfoot"></div></nav><main class="app-main" id="main"></main></div></div>`;
   addEventListener('resize', () => render());
 
+  /* oddities (Nov 26): tap the app's name 7 times, or the Now timer 10 times, in a row */
+  const oddTaps = { k: '', n: 0, t: 0 };
+  function oddTap(key, need, line) {
+    const now = Date.now();
+    if (oddTaps.k !== key || now - oddTaps.t > 1500) { oddTaps.k = key; oddTaps.n = 0; }
+    oddTaps.t = now; if (++oddTaps.n < need) return;
+    oddTaps.n = 0; if (!line) return;
+    const fresh = !watched && Eggs.find(ME, key);
+    toast(fresh ? 'You found an oddity' : 'Still here', line);
+  }
   document.addEventListener('click', e => {
+    if (typeof Eggs !== 'undefined') {
+      if (e.target.closest('#head') && !e.target.closest('button, a')) oddTap('logo', 7, Eggs.cfg().logo);
+      else if (e.target.closest('.hero-ring')) oddTap('timer', 10, Eggs.cfg().timer);
+    }
     if (e.target.closest('[data-hostnote]')) { if (watched) return; HostNote.open(ME.id, 'app').then(ok => { if (ok) toast('Sent to the host', 'Only the hosts can read it.'); }); return; }
     const t = e.target.closest('[data-tab]'); if (t) { const changed = tab !== t.dataset.tab; tab = t.dataset.tab; window.scrollTo(0, 0); render(true); if (changed) enter(); return; }
     if (tab === 'me' && typeof Dossier !== 'undefined' && Dossier.onClick(e)) return;

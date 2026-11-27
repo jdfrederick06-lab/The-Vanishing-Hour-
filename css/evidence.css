@@ -452,3 +452,18 @@ body.ev { margin: 0; background: #16161a; color: #e9e4d8; font-family: 'Inter', 
 .hu-money { margin: 8px 0 0; text-align: center; font: 700 14px 'Inter', sans-serif; color: #1d6b3a; }
 @media (prefers-reduced-motion: reduce) { .hu-in.bad { animation: none; } }
 .sc .who a { color: #d9b45a; }
+/* Cliff's Coat and the oddities (Nov 26) */
+.hu-h { margin: 6px 0 4px; text-align: center; font: italic 700 22px/1.2 'Libre Baskerville', Georgia, serif; color: #2a2112; }
+.hu-lv { margin: 0; text-align: center; font: 700 11px 'Inter', sans-serif; letter-spacing: .14em; text-transform: uppercase; color: #8a6a2c; }
+.hu-wide { width: 100%; margin-top: 6px; }
+.hu-stops { list-style: none; margin: 4px 0 12px; padding: 0; display: grid; gap: 8px; }
+.hu-stops li { padding: 10px 12px 10px 34px; border-radius: 8px; border: 1.5px dashed #c9b07a; position: relative; font: 14px/1.5 'Libre Baskerville', Georgia, serif; }
+.hu-stops li::before { content: ''; position: absolute; left: 11px; top: 13px; width: 13px; height: 13px; border-radius: 50%; border: 1.5px solid #b99a55; }
+.hu-stops li.on { border-style: solid; background: rgba(185,154,85,.1); }
+.hu-stops li.on::before { background: #b99a55; box-shadow: inset 0 0 0 2px #fbf6ea; }
+.hu-stops b { display: block; font: 700 12px 'Inter', sans-serif; letter-spacing: .08em; text-transform: uppercase; color: #6b5a34; }
+.hu-stops .mute { color: #9a8a66; font-style: italic; }
+.hu-gets { margin: 6px 0 10px; padding-left: 20px; font: 15px/1.6 'Libre Baskerville', Georgia, serif; }
+.hu-small { margin: 8px 0 0; text-align: center; font: 600 12.5px 'Inter', sans-serif; color: #7a6a44; }
+.hu-odd { margin: 12px 0 0; text-align: center; font: 600 12.5px 'Inter', sans-serif; color: #7a6a44; }
+.hu-egg .hu-intro { font-size: 16px; }
