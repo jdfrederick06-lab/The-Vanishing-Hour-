@@ -517,10 +517,38 @@
      where they are. Sent times are kept on the RSVP (invite/sent, invite/reminders). */
   const SITE = location.href.replace(/[^/]*([?#].*)?$/, '');
   const youLink = ch => SITE + 'you.html?as=' + encodeURIComponent(ch.code);
-  const stage = (s, ch) => { const pf = Pron.profile(ch.id, s) || {}; return pf.accepted ? (pf.dossier ? 'ready' : 'accepted') : pf.change ? 'change' : pf.opened ? 'opened' : 'new'; };
+  /* co-hosts are cast like players: an RSVP's cast is 'host:fbi' or 'host:crew' (Nov 26).
+     chOf() turns a cast value into something with a name, a code and a link either way. */
+  const COH = { fbi: 'FBI handler', crew: 'Crew handler' };
+  const cohostCh = role => { const h = STORY.hosts.find(x => x.role === role); return h ? { id: 'host:' + role, cohost: role, name: COH[role] || h.label, role: 'Co-host', code: h.code } : null; };
+  const chOf = id => id && String(id).startsWith('host:') ? cohostCh(String(id).slice(5)) : G.byId(id);
+  const profOf = (s, ch) => ch.cohost ? ((((s || DB.get()) || {}).cohosts || {})[ch.cohost] || {}) : (Pron.profile(ch.id, s) || {});
+  const guestPath = ch => ch.cohost ? 'cohosts/' + ch.cohost + '/guest' : 'players/' + ch.id + '/profile/guest';
+  const stage = (s, ch) => { const pf = profOf(s, ch), read = ch.cohost ? pf.book : pf.dossier; return pf.accepted ? (read ? 'ready' : 'accepted') : pf.change ? 'change' : pf.opened ? 'opened' : 'new'; };
   function mail(s, who, ch, kind) {
     const fn = who.first || 'there', pr = Pron.of(ch.id, s), I = CONFIG.INVITE || {}, sign = I.HOST || 'Your hosts';
     const when = `When: ${I.DATE || ''}\n${I.TIME || ''}\nWhere: ${I.PLACE || ''}`;
+    if (ch.cohost) {
+      const st = stage(s, ch), job = ch.cohost === 'fbi' ? 'look after the FBI team' : 'look after the art crew, the thief and the staff';
+      if (kind === 'invite') return { subject: `Co-host ${CONFIG.TITLE} with me? (${ch.name})`, body:
+`Hi ${fn},
+
+Thank you for helping run ${CONFIG.TITLE}! You'll be the ${ch.name}: on the night you ${job}, keep their cues on time, and help them when they're stuck.
+
+Open your personal link to see the invitation and accept:
+${youLink(ch)}
+
+Your host code word is ${ch.code}. Keep it secret: it opens the host terminal and your host book, which give away the whole story.
+
+${when}
+
+Before the night, read your host book. It walks you through everything, step by step.
+
+Thank you!
+${sign}` };
+      const line = st === 'accepted' ? `Thanks for agreeing to be the ${ch.name}! Your host book is ready. Please read it before the night:` : st === 'ready' ? `A reminder that your host book is here whenever you need it:` : `Just checking in: will you co-host as the ${ch.name}? Your invitation is here:`;
+      return { subject: `Reminder: co-hosting ${CONFIG.TITLE}`, body: `Hi ${fn},\n\n${line}\n${st === 'accepted' || st === 'ready' ? SITE + 'books.html' : youLink(ch)}\n\nYour host code word is ${ch.code}.\n\n${when}\n\n${sign}` };
+    }
     if (kind === 'invite') return { subject: `Your character for ${CONFIG.TITLE}: ${ch.name}`, body:
 `Hi ${fn},
 
@@ -555,20 +583,20 @@ ${when}
 ${sign}` };
   }
   function inviteBox(s, key, who, chId) {
-    const ch = chId && G.byId(chId); if (!ch) return '';
-    const inv = who.invite || {}, pf = Pron.profile(ch.id, s) || {}, st = stage(s, ch), d = t => new Date(t).toLocaleDateString([], { month: 'short', day: 'numeric' });
-    /* a four-step tracker: emailed > opened the link > accepted > read their file */
-    const rem = (inv.reminders || []).length, pr = Pron.of(ch.id, s);
+    const ch = chId && chOf(chId); if (!ch) return '';
+    const inv = who.invite || {}, pf = profOf(s, ch), st = stage(s, ch), d = t => new Date(t).toLocaleDateString([], { month: 'short', day: 'numeric' });
+    /* a four-step tracker: emailed > opened the link > accepted > read their file (a co-host: their host book) */
+    const rem = (inv.reminders || []).length, pr = ch.cohost ? '' : Pron.of(ch.id, s), read = ch.cohost ? pf.book : pf.dossier;
     const steps = [
       ['Emailed', inv.sent, inv.sent ? d(inv.sent) + (rem ? ` · ${rem} reminder${rem > 1 ? 's' : ''}` : '') : 'not yet'],
       ['Opened', pf.opened, pf.opened ? d(pf.opened) : ''],
       ['Accepted', pf.accepted, pf.accepted ? (pr || d(pf.accepted)) : ''],
-      ['Read file', pf.dossier, pf.dossier ? d(pf.dossier) : '']
+      [ch.cohost ? 'Read book' : 'Read file', read, read ? d(read) : '']
     ];
     const chips = `<ol class="rv-steps" aria-label="Invite progress">${steps.map(([l, on, sub]) => `<li class="${on ? 'on' : ''}"><i aria-hidden="true">${on ? '✓' : ''}</i><span>${l}${sub ? `<small>${esc(sub)}</small>` : ''}</span></li>`).join('')}</ol>`
       + (pf.declined ? '<span class="chip bad">Declined from the invitation</span>' : pf.change && !pf.accepted ? '<span class="chip bad">Asked for a different part</span>' : '');
     const noEmail = !who.email;
-    return `<div class="rv-inv">${chips}${pf.change && !pf.accepted ? `<div class="rv-chg">"${esc(pf.change.note || '')}"</div>` : ''}
+    return `<div class="rv-inv">${chips}${pf.change && !pf.accepted ? `<div class="rv-chg">"${esc(((s.changereq || {})[ch.id] || {}).note || pf.change.note || '')}"</div>` : ''}
       <div class="rv-inv-b">${noEmail ? '<span class="mute">No email on file</span>' : `<button class="btn small ${inv.sent ? '' : 'primary'}" data-rvmail="${key}|${inv.sent ? 'remind' : 'invite'}">${inv.sent ? (st === 'ready' ? 'Email again' : 'Email reminder') : 'Email invite'}</button>`}<button class="btn small ghost" data-rvlink="${esc(youLink(ch))}">Copy link</button></div></div>`;
   }
   function rsvpList(s) {
@@ -579,7 +607,8 @@ ${sign}` };
     const list = all.filter(r => (rv.show === 'archived' ? r.archived : !r.archived) && (rv.show === 'all' || rv.show === 'archived' || (rv.show === 'uncast' ? r.reply !== 'no' && (!r.cast || (r.plus && !r.plus.cast)) : r.reply === rv.show))
       && (!q || [r.first, r.last, r.email, r.with, r.notes, r.pronouns, r.plus && r.plus.first, r.plus && r.plus.last].join(' ').toLowerCase().includes(q)));
     const chars = STORY.characters.slice().sort((a, b) => a.name.localeCompare(b.name));
-    const pick = (key, cur, who) => `<select class="field rv-cast" data-rvcast="${key}" aria-label="Cast ${esc(who)} as"><option value="">Not cast</option>${Object.keys(STORY.groups).map(g => `<optgroup label="${esc(STORY.groups[g].name)}">${chars.filter(c => c.group === g).map(c => { const t = taken[c.id] && taken[c.id] !== key; return `<option value="${c.id}" ${cur === c.id ? 'selected' : ''} ${t ? 'disabled' : ''}>${esc(c.name)}${t ? ' (taken)' : ''}</option>`; }).join('')}</optgroup>`).join('')}</select>${cur && G.byId(cur) ? `<small class="mono rv-code">${esc(G.byId(cur).code)}</small>` : ''}`;
+    const opt = (key, cur, id, label) => { const t = taken[id] && taken[id] !== key; return `<option value="${id}" ${cur === id ? 'selected' : ''} ${t ? 'disabled' : ''}>${esc(label)}${t ? ' (taken)' : ''}</option>`; };
+    const pick = (key, cur, who) => `<select class="field rv-cast" data-rvcast="${key}" aria-label="Cast ${esc(who)} as"><option value="">Not cast</option><optgroup label="Co-hosts">${Object.keys(COH).filter(cohostCh).map(r => opt(key, cur, 'host:' + r, 'Co-host: ' + COH[r])).join('')}</optgroup>${Object.keys(STORY.groups).map(g => `<optgroup label="${esc(STORY.groups[g].name)}">${chars.filter(c => c.group === g).map(c => opt(key, cur, c.id, c.name)).join('')}</optgroup>`).join('')}</select>${cur && chOf(cur) ? `<small class="mono rv-code">${esc(chOf(cur).code)}</small>` : ''}`;
     const face = r => r.photo && /^data:image\/(jpeg|png|webp);base64,/.test(r.photo) ? `<img class="rv-ph" src="${esc(r.photo)}" alt="">` : `<span class="rv-ph none">${esc(initials(r.first + ' ' + r.last))}</span>`;
     return panel(`${rv.show === 'archived' ? 'Archived replies' : 'Every reply'} · ${list.length}`, 'never deleted; changes keep the earlier version', `<div class="tbl-wrap"><table class="tbl rv-tbl"><thead><tr><th>Name</th><th>Reply</th><th>Part</th><th>Email</th><th>Notes</th><th>Character</th><th>Replied</th><th></th></tr></thead><tbody>
       ${list.map(r => `<tr class="${r.archived ? 'gone' : ''}"><td><div class="rv-who">${face(r)}<div><b>${esc(r.first)} ${esc(r.last)}</b>${r.pronouns ? `<small>${esc(r.pronouns)}</small>` : ''}${r.updated ? ` <span class="chip" title="Changed ${(r.history || []).length} time(s)">changed</span>` : ''}${dupe(r) ? ' <span class="chip bad">same name twice?</span>' : ''}</div></div></td>
@@ -596,7 +625,7 @@ ${sign}` };
   /** Everything as a spreadsheet (archived replies included, marked). */
   function rsvpCSV() {
     const s = DB.get(), cell = v => `"${String(v == null ? '' : v).replace(/"/g, '""')}"`;
-    const ch = id => id && G.byId(id) ? G.byId(id) : null;
+    const ch = id => id && chOf(id) ? chOf(id) : null;
     const rows = [['First', 'Last', 'Pronouns', 'Reply', 'Part', 'Plus-one of', 'Email', 'Storyline with', 'Notes', 'Has photo', 'Character', 'Code word', 'Replied', 'Changed', 'Archived']];
     rsvps(s).forEach(r => {
       rows.push([r.first, r.last, r.pronouns, RV.reply[r.reply], RV.size[r.size], '', r.email, r.with, r.notes, r.photo ? 'yes' : '', ch(r.cast) ? ch(r.cast).name : (r.cast || ''), ch(r.cast) ? ch(r.cast).code : '', new Date(r.at).toLocaleString(), r.updated ? new Date(r.updated).toLocaleString() : '', r.archived ? 'yes' : '']);
@@ -614,12 +643,25 @@ ${sign}` };
       STORY.phases.map((p, i) => `<div class="setrow"><label for="len_${p.id}"><span class="mono dim">${hmm(Clock.startOf(s, i))}</span> ${esc(p.name)}</label><input class="field mono" id="len_${p.id}" data-len="${p.id}" type="number" min="1" max="120" value="${Clock.mins(s, i)}"></div>`).join('')
       + `<p class="mute" style="font-size:12px;margin-top:8px">A change applies the next time that phase starts.</p>`);
   }
+  /* the co-hosts: who is cast as each handler (from RSVPs), how far along they are, and the merge switch */
+  function coHosts(s) {
+    const cast = Handlers.cast(s), on = Handlers.merged(s), main = ME.role === 'main';
+    const rows = Object.keys(COH).map(role => {
+      const r = cast[role], ch = cohostCh(role); if (!ch) return '';
+      const pf = profOf(s, ch), st = !r ? 'Not cast yet (RSVPs > Character > Co-hosts)' : pf.declined ? 'Declined' : pf.accepted ? (pf.book ? 'Accepted · read their book' : 'Accepted · hasn\'t opened their book') : pf.opened ? 'Opened the invitation' : (r.invite && r.invite.sent) ? 'Invitation emailed' : 'Cast, not emailed yet';
+      const h = STORY.hosts.find(x => x.role === role) || {};
+      return `<div class="sys"><div style="flex:1;min-width:0"><b>${esc(COH[role])}${r ? ' · ' + esc(`${r.first || ''} ${r.last || ''}`.trim()) : ''}</b><small>${esc(st)} · looks after ${esc((h.groups || []).map(g => STORY.groups[g].name).join(', '))}</small></div><span class="mono code">${esc(ch.code)}</span></div>`;
+    }).join('');
+    const sw = main ? `<label class="check coh-merge"><input type="checkbox" data-set="merge" ${on ? 'checked' : ''}><span><b>Merge the handlers</b> · if a co-host can't make it (even mid-night), one person runs both jobs. Either handler code then sees and runs every handler group, and their host book covers both. Untick to split them again.</span></label>` : (on ? '<p class="deck-n">The main host has merged the handlers: you\'re running both jobs tonight.</p>' : '');
+    return panel('Co-hosts', on ? '<span class="chip warn">merged</span>' : 'cast them in RSVPs, like players', rows + sw);
+  }
   function setupTools(s, r) {
     return panel('Clock', '', `<label class="check"><input type="checkbox" data-set="auto" ${Clock.auto(s) ? 'checked' : ''}><span>Move to the next phase by itself when time runs out</span></label>
         <div class="setrow"><label for="spd">Test speed (1 = real time; 60 = one minute per second)</label><select class="field" id="spd" data-set="speed">${[1, 10, 30, 60].map(v => `<option value="${v}" ${Clock.speed(s) === v ? 'selected' : ''}>×${v}</option>`).join('')}</select></div>
         <div class="setrow"><label for="jump">Jump to a phase</label><select class="field" id="jump" data-set="jump"><option value="">Choose…</option>${STORY.phases.map((p, i) => `<option value="${i}">${esc(p.short)}</option>`).join('')}</select></div>`)
       + panel('Doors', 'any code word works at any door', [['index.html', 'The invitation (the front page everyone sees first)'], ['gala/', 'The gala door (guests and staff type their code word here)'],['fbi/', 'FBI Headquarters'], ['bebbit/', 'Bebbit'], ['nightwire/', 'Omnizon (NIGHTWIRE)']].map(d => `<div class="sys"><div style="flex:1;min-width:0"><b>${d[1]}</b><small class="mono">${esc(new URL(d[0], location.href).href)}</small></div><a class="btn small" href="${d[0]}" target="_blank" rel="noopener">Open</a></div>`).join(''))
       + panel('Host codes', '', STORY.hosts.map(h => `<div class="sys"><div style="flex:1"><b>${esc(h.label)}</b><small>${h.groups ? 'Sees only: ' + h.groups.map(g => esc(STORY.groups[g].name)).join(', ') : 'Sees everything'}</small></div><span class="mono code">${esc(h.code)}</span></div>`).join(''))
+      + coHosts(s)
       + panel('Start over', '', `<p class="deck-n" style="margin-bottom:12px">Clears the clock, messages, sign-ins and the activity log on this computer. The story file isn't touched.</p><button class="btn danger" data-act="reset">Reset the night</button>`, 'danger-zone');
   }
 
@@ -662,9 +704,13 @@ ${sign}` };
     if (cs && cs.rounds) stories.push({ head: cs.foundation >= 0 ? `Charity casino raises ${NW.money(cs.foundation)}` : `Charity casino loses ${NW.money(-cs.foundation)}`, body: `${cs.rounds} rounds were played and ${NW.money(cs.wagered)} was wagered.${cs.best && cs.best.net > 0 ? ` The biggest win: ${NW.money(cs.best.net)} for ${nm(cs.best.by)}.` : ''}` });
     const L = NW.loans(s), coll = L.filter(l => l.status === 'collections'), favor = L.filter(l => l.status === 'favor');
     if (L.length) stories.push({ head: 'Thorne Capital does a brisk trade', body: `${L.filter(l => l.status !== 'offer' && l.status !== 'declined' && l.status !== 'withdrawn').length} loans at up to ${(STORY.nightwire.lending || {}).rateMax || 800}% interest.${favor.length ? ` ${favor.length} paid off with a favor.` : ''}${coll.length ? ` Sent to collections: ${coll.map(l => nm(l.borrower)).join(', ')}.` : ''}` });
+    /* the Curator's Hunt (NFC sidequest): who solved it first */
+    const huntWon = Object.entries((s.hunt || {}).won || {}).sort((a, b) => a[1] - b[1]), HN = ((STORY.nfc || {}).frame || {}).hunt;
+    if (HN && huntWon.length) stories.push({ head: `${nm(huntWon[0][0])} wins ${HN.title}`, body: `A card behind the painting in the vault led to three riddles. ${nm(huntWon[0][0])} solved them first${huntWon.length > 1 ? `, ahead of ${huntWon.length - 1} other${huntWon.length > 2 ? 's' : ''}` : ''}, and walked away with the Curator's reward.` });
     const dusty = Object.entries((STORY.vote || {}).people || {}).map(([id, w]) => G.byId(id) ? `${G.byId(id).name} voted ${w === 3 ? 'three' : w} times. Nobody noticed.` : '').filter(Boolean);
     const votes = Object.keys(Vote.ballots(s)).length;
-    return {
+    /* pronoun tags are filled in now, with tonight's choices, since the paper may be read where the story isn't loaded */
+    return JSON.parse(Pron.fill(JSON.stringify({
       at: Date.now(), closed: true, paper: 'The Harbor Ledger', edition: 'The day after the Ashgrove Gala',
       lead,
       stories, sources: dusty,
@@ -673,7 +719,7 @@ ${sign}` };
       results: Reveal.results(s).map(x => ({ who: x.who, win: !!x.win, why: x.why })),
       awards: Reveal.awards(s).map(a => ({ title: a.title, who: a.who, why: a.why })),
       cast: STORY.characters.filter(c => !G.noshow(s, c.id)).map(c => ({ name: c.name, role: c.role, player: players[c.id] || '', pronouns: Pron.of(c.id, s) || '' }))
-    };
+    })));
   }
   function revealRight(s) {
     const all = Reveal.slides(s), i = Reveal.step(s), cur = all[i];
@@ -901,16 +947,16 @@ ${sign}` };
     if ((t = q('[data-rvshow]'))) { rv.show = t.dataset.rvshow; $('#p1')._html = null; return render(); }
     if ((t = q('[data-rvmail]'))) {
       const [key, kind] = t.dataset.rvmail.split('|'), [id, plus] = key.split(':'), s = DB.get(), r0 = (s.rsvp || {})[id]; if (!r0) return;
-      const who = plus ? r0.plus : r0, ch = G.byId(who.cast); if (!ch || !who.email) return;
+      const who = plus ? r0.plus : r0, ch = chOf(who.cast); if (!ch || !who.email) return;
       const m = mail(s, who, ch, kind), base = 'rsvp/' + id + (plus ? '/plus' : '') + '/invite';
-      DB.update(Object.assign(kind === 'invite' ? { [base + '/sent']: Date.now() } : { [base + '/reminders']: (who.invite && who.invite.reminders || []).concat([Date.now()]) }, { ['players/' + ch.id + '/profile/guest']: String(who.first || '').trim().slice(0, 40) || null }));
+      DB.update(Object.assign(kind === 'invite' ? { [base + '/sent']: Date.now() } : { [base + '/reminders']: (who.invite && who.invite.reminders || []).concat([Date.now()]) }, { [guestPath(ch)]: String(who.first || '').trim().slice(0, 40) || null }));
       location.href = 'mailto:' + encodeURIComponent(who.email) + '?subject=' + encodeURIComponent(m.subject) + '&body=' + encodeURIComponent(m.body);
       return toast(kind === 'invite' ? 'Invite opened in your email' : 'Reminder opened in your email');
     }
     if ((t = q('[data-rvlink]'))) { navigator.clipboard && navigator.clipboard.writeText(t.dataset.rvlink); return toast('Personal link copied'); }
     if ((t = q('[data-rvbulk]'))) {
       const s = DB.get(), want = t.dataset.rvbulk, people = [];
-      Object.entries(s.rsvp || {}).forEach(([id, r]) => { if (r.archived || r.reply === 'no') return; [[r, ''], [r.plus, ':plus']].forEach(([w, k]) => { if (!w || !w.cast || !w.email || !G.byId(w.cast)) return; const st = stage(s, G.byId(w.cast)); if (want === 'unaccepted' ? !['accepted', 'ready'].includes(st) : st === 'accepted') people.push([id + k, w]); }); });
+      Object.entries(s.rsvp || {}).forEach(([id, r]) => { if (r.archived || r.reply === 'no') return; [[r, ''], [r.plus, ':plus']].forEach(([w, k]) => { if (!w || !w.cast || !w.email || !chOf(w.cast)) return; const st = stage(s, chOf(w.cast)); if (want === 'unaccepted' ? !['accepted', 'ready'].includes(st) : st === 'accepted') people.push([id + k, w]); }); });
       if (!people.length) return toast(want === 'unaccepted' ? 'Everyone cast has accepted' : 'Everyone who accepted has read their file');
       const u = {}; people.forEach(([key, w]) => { const [id, plus] = key.split(':'); u['rsvp/' + id + (plus ? '/plus' : '') + '/invite/reminders'] = (w.invite && w.invite.reminders || []).concat([Date.now()]); }); DB.update(u);
       const I = CONFIG.INVITE || {}, body = want === 'unaccepted'
@@ -982,13 +1028,19 @@ ${sign}` };
       /* cast a guest who replied as a character (the code word goes on their printed invitation) */
       const [id, plus] = t.dataset.rvcast.split(':'), ch = t.value || null, r0 = (DB.get().rsvp || {})[id], who = plus ? r0.plus : r0, u = { ['rsvp/' + id + (plus ? '/plus' : '') + '/cast']: ch };
       /* the invitation greets the guest by name before it reveals the character */
-      if (ch) u['players/' + ch + '/profile/guest'] = String(who.first || '').trim().slice(0, 40) || null;
-      Clock.log(u, 'host', ch ? `Cast ${who.first} ${who.last} as ${G.byId(ch).name}.` : `Uncast ${who.first} ${who.last}.`);
-      DB.update(u); return toast(ch ? `Cast as ${G.byId(ch).name}` : 'Casting cleared');
+      if (ch) u[guestPath(chOf(ch))] = String(who.first || '').trim().slice(0, 40) || null;
+      Clock.log(u, 'host', ch ? `Cast ${who.first} ${who.last} as ${chOf(ch).name}.` : `Uncast ${who.first} ${who.last}.`);
+      DB.update(u); return toast(ch ? `Cast as ${chOf(ch).name}` : 'Casting cleared');
     }
     if (t.id === 'bph') { const f = t.files && t.files[0]; if (f) Bebbit.shrink(f).then(src => { hb.photo = src; hb.err = ''; }).catch(err => { hb.err = err.message; }).then(() => { $('#p1')._html = null; document.activeElement.blur(); render(); }); return; }
     if (t.matches('[data-todo]')) DB.update({ ['todo/' + t.dataset.todo]: t.checked ? true : null });
     else if (t.matches('[data-len]')) { const v = Math.round(Number(t.value)); if (v >= 1 && v <= 120) { DB.update({ ['setup/len/' + t.dataset.len]: v }); toast('Phase length saved'); } }
+    else if (t.matches('[data-set="merge"]')) {
+      /* merge or split the two handler jobs (main host only); both co-hosts' terminals and books follow at once */
+      const on = t.checked, u = { 'setup/merge': on || null };
+      Clock.log(u, 'host', on ? 'Merged the two handler jobs: either handler code now runs every handler group.' : 'Split the handler jobs again.');
+      DB.update(u); toast(on ? 'Handlers merged' : 'Handlers split');
+    }
     else if (t.matches('[data-set="auto"]')) { DB.update({ 'setup/auto': t.checked }); toast(t.checked ? 'Auto-advance on' : 'Auto-advance off'); }
     else if (t.matches('[data-set="speed"]')) {
       /* keep the game clock where it is when the speed changes mid-phase */
@@ -1027,7 +1079,13 @@ ${sign}` };
   /* a pop-up when a player sends a note (not for notes already there when the terminal opened) */
   let seenNotes = null;
   DB.on(s => { const ks = Object.keys((s && s.asks) || {}); if (seenNotes) ks.filter(k => !seenNotes.has(k)).forEach(k => { const n = s.asks[k], c = n && G.byId(n.from); if (c && G.touches([n.from], scope())) toast('Note from ' + c.name + ': ' + String(n.text).slice(0, 80), 'gold'); }); seenNotes = new Set(ks); });
-  DB.on(render);
+  /* one-time tidy-up (Nov 26): change-request notes saved publicly before today move to the private
+     spot (changereq/{id}); the profile keeps only that they asked */
+  let tidied = false;
+  DB.loaded().then(() => { if (tidied || ME.role !== 'main') return; tidied = true; const s = DB.get(), u = {};
+    Object.entries(s.players || {}).forEach(([id, p]) => { const c = p && p.profile && p.profile.change; if (c && c.note) { u['changereq/' + id] = { note: c.note, at: c.at || Date.now() }; u['players/' + id + '/profile/change/note'] = null; } });
+    if (Object.keys(u).length) DB.update(u); });
+  DB.on(s => { Handlers.apply(s); render(s); });
   /* only the main host's terminal runs the clock, so two host screens never send a cue twice */
   setInterval(() => { if (ME) { if (ME.role === 'main') { Clock.tick(); if (typeof Vote !== 'undefined' && Vote.publish) Vote.publish(DB.get()); } render(); } }, 500);
 })();

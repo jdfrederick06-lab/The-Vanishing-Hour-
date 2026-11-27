@@ -7,7 +7,9 @@
 /* ---------- small helpers ---------- */
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
-const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+/* pronoun tags in the story text ({charlie:he}, {vivienne:her} ...) are filled in here, as anything is shown (see Pron.fill) */
+let PRON_FILL = null;
+const esc = s => { s = String(s ?? ''); if (PRON_FILL && s.indexOf('{') >= 0) s = PRON_FILL(s); return s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); };
 const uid = p => p + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 /** the copyright line on every page and printout (Jacob, Nov 25) */
 const COPYRIGHT = '© 2026 Jacob Frederick. All rights reserved.';
@@ -113,11 +115,15 @@ const Route = (() => {
     { at: 'vote/ballots', fn: (it, key) => ['p/' + key] },
     /* a note to the host: only the player who wrote it (and the hosts) */
     { at: 'asks', fn: it => orHost(it.from ? ['p/' + it.from] : []) },
+    /* what a guest wrote when asking for a different character: only that guest and the hosts (Nov 26) */
+    { at: 'changereq', fn: (it, key) => ['p/' + key] },
+    /* the Curator's Hunt (NFC sidequest): each player's progress is theirs alone; who finished is public */
+    { at: 'huntp', fn: (it, key) => ['p/' + key] },
     /* a Bebbit post is public, but who REALLY posted it is only for that person and anyone who can trace posts */
     { at: 'beb/posts', fn: () => ['pub'], fields: { real: it => it.real && G.byId(it.real) ? uniq(['p/' + it.real].concat(tracers())) : [] } }
   ];
   /* whole branches with one home (longest match wins); everything else is public */
-  const STATIC = [['nw/chat', 'g/crew'], ['fbi/detained', 'pub'], ['fbi', 'g/fbi'], ['log', 'h'], ['todo', 'h']];
+  const STATIC = [['nw/chat', 'g/crew'], ['fbi/detained', 'pub'], ['fbi', 'g/fbi'], ['log', 'h'], ['todo', 'h'], ['cohosts', 'h']];
   const under = (p, at) => p === at || p.startsWith(at + '/');
   function ruleFor(p) {
     const it = ITEMS.find(e => e.self ? under(p, e.at) : p.startsWith(e.at + '/'));
@@ -530,10 +536,57 @@ const Pron = {
   profile: (id, s) => ((((s || (typeof DB !== 'undefined' ? DB.get() : {})) || {}).players || {})[id] || {}).profile || null,
   of(id, s) { return Pron.fixed(id) || (Pron.profile(id, s) || {}).pronouns || ''; },
   /** a small tag to put after a name: " (she/her)" as HTML, or '' */
-  tag(id, s) { const p = Pron.of(id, s); return p ? ` <span class="pron">${esc(p)}</span>` : ''; }
+  tag(id, s) { const p = Pron.of(id, s); return p ? ` <span class="pron">${esc(p)}</span>` : ''; },
+  /* Story text names a character's pronouns with tags, so it reads right for whatever the player chose
+     (Nov 26). A tag is {id:word}, the word written as if the character were "he":
+       {charlie:he} {charlie:him} {charlie:his} {charlie:hers} (= his/hers/theirs) {charlie:himself}
+     and the verb that follows: {charlie:is} {charlie:was} {charlie:has} {charlie:does} {charlie:s} (says / say).
+     A capital letter ({charlie:He}) capitalises the result. Before the player picks, the story's
+     own default is used (STORY.pronounDefaults), then they/them. */
+  SETS: {
+    he: { he: 'he', him: 'him', his: 'his', hers: 'his', himself: 'himself', is: 'is', was: 'was', has: 'has', does: 'does', s: 's', es: 'es', ies: 'ies' },
+    she: { he: 'she', him: 'her', his: 'her', hers: 'hers', himself: 'herself', is: 'is', was: 'was', has: 'has', does: 'does', s: 's', es: 'es', ies: 'ies' },
+    they: { he: 'they', him: 'them', his: 'their', hers: 'theirs', himself: 'themself', is: 'are', was: 'were', has: 'have', does: 'do', s: '', es: '', ies: 'y' }
+  },
+  setFor(id, s) {
+    const p = String(Pron.of(id, s) || ((typeof STORY !== 'undefined' && STORY.pronounDefaults) || {})[id] || 'they/them').toLowerCase().trim();
+    const k = p.split('/')[0].trim();
+    if (Pron.SETS[k]) return Pron.SETS[k];
+    /* their own pronouns (e.g. xe/xem): subject and object as given, the rest kept simple and singular */
+    const [a, b] = p.split('/').map(x => x.trim()), c = G.byId(id), nm = c ? c.name.split(' ')[0] + "'s" : 'their';
+    return { he: a, him: b || a, his: nm, hers: nm, himself: (b || a) + 'self', is: 'is', was: 'was', has: 'has', does: 'does', s: 's', es: 'es', ies: 'ies' };
+  },
+  fill(text, s) {
+    return String(text).replace(/\{([a-z]+):([A-Za-z]+)\}/g, (m, id, w) => {
+      try { if (typeof G === 'undefined' || !G.byId(id)) return m; } catch (e) { return m; }
+      const set = Pron.setFor(id, s), v = set[w.toLowerCase()]; if (v == null) return m;
+      return w[0] === w[0].toUpperCase() ? v.charAt(0).toUpperCase() + v.slice(1) : v;
+    });
+  }
 };
+PRON_FILL = t => Pron.fill(t);
 
 
+
+/* ---------- the two co-host handlers, and merging them (Nov 26, Jacob) ----------
+   Co-hosts are cast from the RSVP list like players (rsvp/{id}/cohost = 'fbi' | 'crew').
+   If one can't make it, the main host flips Setup > Co-hosts > "Merge the handlers"
+   (setup/merge = true): both handler codes then see and run every handler group, and their host
+   book covers both jobs. Flip it back and each goes back to their own groups. */
+const Handlers = {
+  ROLES: ['fbi', 'crew'],
+  merged: s => !!((((s || (typeof DB !== 'undefined' ? DB.get() : {})) || {}).setup) || {}).merge,
+  /** bring STORY.hosts in line with the merge switch (call before drawing) */
+  apply(s) {
+    if (typeof STORY === 'undefined' || !STORY.hosts) return;
+    const on = Handlers.merged(s), hs = STORY.hosts.filter(h => Handlers.ROLES.includes(h.role));
+    hs.forEach(h => { if (!h._g) { h._g = (h.groups || []).slice(); h._l = h.label; } });
+    const both = [...new Set([].concat(...hs.map(h => h._g)))];
+    hs.forEach(h => { h.groups = on ? both.slice() : h._g.slice(); h.label = on ? 'Both handlers (merged)' : h._l; });
+  },
+  /** who is cast as each co-host, from the RSVP list: { fbi: {first,last,...}, crew: ... } */
+  cast(s) { const out = {}; Object.values(((s || DB.get()) || {}).rsvp || {}).forEach(r => { if (r && !r.archived && r.cohost) out[r.cohost] = r; if (r && !r.archived && r.plus && r.plus.cohost) out[r.plus.cohost] = r.plus; }); return out; }
+};
 /* ---------- a note to the host (Nov 25, Jacob) ----------
    Any player can write to the hosts at any time: from their invitation, and all night from the app.
    Saved at asks/{key} = { from, text, at, where }, which lives only in that player's private branch

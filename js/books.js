@@ -146,8 +146,9 @@
       const cues = (p.cues || []).filter(c => (c.to && touches(c.to)) || (!c.to && k === 'main'));
       const gs = games.filter(g => g.opens && ((g.opens.phase === p.id) || (g.opens.min != null && g.opens.min >= from && g.opens.min < to)));
       const mm = mems.filter(m => { const t = gameMin(m[0]); return t == null ? p.id === 'act2' : t >= from && t < to; });
-      const steps = k === 'main' ? [['You', G2.main], ['FBI handler', G2.fbi], ['Crew handler', G2.crew]] : [['You', G2[k]]];
-      const hints = Object.entries(G2.hints || {}).filter(([a]) => k === 'main' || (k === 'fbi' ? a === 'fbi' : a === 'crew' || a === 'guest' && false));
+      /* merged handlers (Setup > Co-hosts): a handler's book carries both handlers' steps */
+      const steps = k === 'main' ? [['You', G2.main], ['FBI handler', G2.fbi], ['Crew handler', G2.crew]] : Handlers.merged() ? [['FBI handler', G2.fbi], ['Crew handler', G2.crew]] : [['You', G2[k]]];
+      const hints = Object.entries(G2.hints || {}).filter(([a]) => k === 'main' || (Handlers.merged() ? a === 'fbi' || a === 'crew' : k === 'fbi' ? a === 'fbi' : a === 'crew'));
       return `<div class="bk-phase" id="ph-${p.id}"><div class="bk-ph"><span class="bk-time">${clockAt(from)}</span><b>${esc(p.name)}</b><span class="bk-len">${p.min} min · until ${clockAt(to)}</span></div>
         ${p.note ? `<p>${md(p.note)}</p>` : ''}${p.say ? `<p class="bk-say">Say: "${md(p.say)}"</p>` : ''}
         ${steps.filter(([, a]) => a && a.length).map(([who, a]) => `<div class="bk-steps"><h4>${esc(who)}</h4>${ul(a, true)}</div>`).join('')}
@@ -188,6 +189,17 @@
     }
 
     /* ===== Part 6: your players ===== */
+    /* the NFC tag and the Curator's Hunt (Nov 26): main host's book */
+    const TAG = (STORY.nfc || {}).frame;
+    if (TAG && !groups) {
+      const HU = TAG.hunt;
+      html += add('nfc', 'The NFC tag and the Curator\'s Hunt', `<p>${md(`**Where:** ${TAG.where}. It wakes up at the start of ${(STORY.phases.find(p => p.id === (TAG.opens || {}).phase) || {}).name || 'the night'}; before that, tapping it shows a blank sticker.`)}</p>
+        <p>${md('Write this link onto the tag with the free **NFC Tools** app (Write > Add a record > URL):')} <code>${esc(site + 'tap.html?t=frame')}</code></p>
+        <p>${md('Each group sees its own line when they tap it (FBI a lab note, the crew a warning, and so on). Every tap goes in your activity log.')}</p>` +
+        (HU ? `<h3>${esc(HU.title)}: a sidequest</h3><p>${md('Anyone who taps the tag also gets a curator\'s card with three riddles. **The first to solve all three** gets a true secret, ' + money(HU.first.money) + ' in their bank and a line in the morning paper. Everyone who finishes later gets ' + money(HU.later.money) + '.')}</p>` +
+          tbl(['Riddle', 'Answer', 'Your job'], HU.steps.map(st => [st.q, `**${st.a[0]}**`, st.place ? `Write **${st.a[0]}** on a small card and hide it: ${st.place}.` : 'Nothing: it\'s on the painting (make sure the signature shows **J. Ellery**).'])) +
+          `<p>${md('Players get a hint after two wrong answers. To check who has finished, tap the tag yourself: hosts see every riddle and the list of winners.')}</p>` : ''));
+    }
     html += partH(groups ? 'Your players' : 'The cast', 'Code words, and everything each player is trying to do');
     html += add('cast', groups ? 'Your groups and code words' : 'Cast and code words', tbl(['Character', 'Group', 'Cover role', 'Code word', 'Played by'], cast.map(c => [`**${c.name}**${Pron.of(c.id) ? ' (' + Pron.of(c.id) + ')' : ''}${c.key ? ' <span class="bk-key">key</span>' : ''}`, groupName(c.group), c.role, '`' + c.code + '`', names[c.id] || ''])) +
       `<p class="bk-note">"Key" players drive the story. If one is a no-show, mark them in Host > People; their mini-games pass to a backup by themselves.</p>`);
@@ -219,7 +231,7 @@
     toc.push(['dossiers', `Appendix · ${groups ? 'Your players\' dossiers' : 'All ' + cast.length + ' dossiers'}`, true]);
     html += `<div class="bk-part" id="dossiers"><small>Appendix</small><h1>${groups ? 'Your players\' dossiers' : 'Every dossier'}</h1><p>${cast.length} dossiers, each on its own page.</p></div>` + cast.map(c => dossierPage(c, names)).join('');
 
-    const cover = `<section class="bk-cover"><small>The Vanishing Hour · ${esc(CONFIG.EVENT)} · ${esc(CONFIG.SEASON)}</small><h1>Host book</h1><h3>${esc(H.label)}${H.role === 'main' ? ' · ' + esc(H.name) : ''}</h3>
+    const cover = `<section class="bk-cover"><small>The Vanishing Hour · ${esc(CONFIG.EVENT)} · ${esc(CONFIG.SEASON)}</small><h1>Host book</h1><h3>${esc(H.label)}${H.role === 'main' ? ' · ' + esc(H.name) : names['host:' + H.role] ? ' · ' + esc(names['host:' + H.role]) : ''}</h3>
       <p class="bk-conf">Confidential. The whole solution is inside.</p>
       <p>${esc(CONFIG.INVITE.DATE)} · ${esc(CONFIG.INVITE.TIME)} · ${esc(CONFIG.INVITE.PLACE)}</p>
       ${groups ? `<p>You look after: <b>${esc(groups.map(groupName).join(', '))}</b> (${cast.length} players).</p>` : ''}
@@ -294,5 +306,10 @@
   document.addEventListener('change', e => { const jp = e.target.closest('[data-jump]'); if (jp && jp.value) { const el = document.getElementById(jp.value); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); jp.value = ''; return; } });
   document.addEventListener('change', e => { const s = e.target.closest('[data-only]'); if (s) { only = s.value; history.replaceState(null, '', '?k=' + kind + (only !== 'all' ? '&only=' + only : '')); draw(); } });
   PrintLock.install();
-  DB.loaded().then(draw);
+  DB.loaded().then(() => {
+    Handlers.apply(DB.get());
+    /* a co-host opening their own book ticks "Read book" in the main host's RSVP tracker */
+    if (host.role !== 'main' && Handlers.ROLES.includes(host.role) && !((DB.get().cohosts || {})[host.role] || {}).book) DB.update({ ['cohosts/' + host.role + '/book']: Date.now() });
+    draw();
+  });
 })();

@@ -10,27 +10,38 @@
         with a museum wall label.
      4. Kindly reply: accept (choosing the character's pronouns), ask for another character, or
         regretfully decline. And a note to the host, which they can also send all night from the app.
-   Saved at players/{id}/profile = { guest, opened, accepted, declined, pronouns, change: { note, at }, dossier }
+   Saved at players/{id}/profile = { guest, opened, accepted, declined, pronouns, change: { at }, dossier }; the change note itself is private at changereq/{id}
    and asks/{key} for notes. The host sees all of it in Host terminal > RSVPs and Messages.
    ===================================================================== */
 (function () {
   /* the personal link carries the code word: you.html?as=CODE signs this tab in as that character */
   const AS = new URLSearchParams(location.search).get('as');
-  if (AS) { Session.signIn(AS); history.replaceState(null, '', location.pathname); }
-  const ME = Session.player();
+  const asKind = AS ? Session.signIn(AS) : null;
+  if (AS) history.replaceState(null, '', location.pathname);
+  /* a co-host's link (their host code, Nov 26): the same unveiling, but it reveals their host job.
+     Saved at cohosts/{role} (hosts only) instead of a player profile. */
+  const HME = asKind === 'host' ? G.hostByCode(AS) : (!asKind && !Session.player() ? Session.host() : null);
+  const HROLE = HME && Handlers.ROLES.includes(HME.role) ? HME.role : null;
+  if (HROLE) Handlers.apply(DB.get());
+  const HJOB = { fbi: 'FBI handler', crew: 'Crew handler' }[HROLE];
+  const hGroups = () => ((STORY.hosts.find(h => h.role === HROLE) || {}).groups || []);
+  const ME = HROLE ? { id: 'host:' + HROLE, cohost: HROLE, name: HJOB, role: 'Co-host',
+    profile: `You look after ${hGroups().map(g => STORY.groups[g].name).join(', ')}: ${STORY.characters.filter(c => hGroups().includes(c.group)).length} players. You keep their cues on time, answer their questions, and step in when they're stuck. Your host book walks you through every minute.` }
+    : asKind === 'host' ? null : Session.player();
   const root = $('#root');
   const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
   if (!ME) {
     root.innerHTML = `<main class="iv-wrap"><section class="iv-reply iv-done"><small class="iv-kick">${esc(CONFIG.TITLE)}</small><h3>This link didn't open</h3><p>Use the personal link in your invitation email, or sign in with your code word at the gala door.</p><a class="iv-btn" href="gala/">Go to the gala door</a></section><p class="iv-copy">${esc(COPYRIGHT)}</p></main>`;
     return;
   }
-  const first = ME.name.split(' ')[0];
-  const DOOR = G.door(ME);
-  const WORLD = { fbi: 'The FBI field office', bebbit: 'The gala floor', nightwire: 'The back rooms' }[DOOR] || '';
+  const first = HROLE ? HJOB : ME.name.split(' ')[0];
+  const DOOR = HROLE ? null : G.door(ME);
+  const WORLD = HROLE ? 'The host terminal, and wherever your players need you' : { fbi: 'The FBI field office', bebbit: 'The gala floor', nightwire: 'The back rooms' }[DOOR] || '';
   const INV = CONFIG.INVITE || {};
-  const prof = () => Pron.profile(ME.id) || {};
+  const prof = () => HROLE ? (((DB.get() || {}).cohosts || {})[HROLE] || {}) : (Pron.profile(ME.id) || {});
   const guest = () => String(prof().guest || '').trim();
-  const save = u => DB.update(Object.fromEntries(Object.entries(u).map(([k, v]) => ['players/' + ME.id + '/profile/' + k, v])));
+  const base = HROLE ? 'cohosts/' + HROLE + '/' : 'players/' + ME.id + '/profile/';
+  const save = u => DB.update(Object.fromEntries(Object.entries(u).map(([k, v]) => [base + k, v])));
   const OPTS = ['she/her', 'he/him', 'they/them'];
   let pick = null, other = '', mode = 'reply', sentNote = false, busy = false;
 
@@ -113,14 +124,34 @@
     return `<aside class="iv-label" aria-label="About your character">
       <b class="iv-lname">${esc(ME.name)}</b>
       <span class="iv-lrole">${esc(ME.role)}${pr ? ` · <em>${esc(pr)}</em>` : ''}</span>
-      <span class="iv-lmed">Portrait of a guest, 2027. Oil on canvas.</span>
+      <span class="iv-lmed">${HROLE ? 'Portrait of a host' : 'Portrait of a guest'}, 2027. Oil on canvas.</span>
       <p>${esc(ME.profile || '')}</p>
       <span class="iv-lroom">On view tonight: <b>${esc(WORLD)}</b></span>
     </aside>`;
   }
 
+  /* a co-host's reply card: accept (then the host book and terminal open up) or decline */
+  function coReply() {
+    const p = prof(), g = guest();
+    if (p.declined) return `<section class="iv-reply iv-done"><small class="iv-kick">Kindly reply</small>
+      <h3>Thanks for letting us know${g ? ', ' + esc(g) : ''}.</h3><p>You've told the host you can't co-host. No problem at all.</p>
+      <button type="button" class="iv-link" data-a="undecline">Changed your mind? Reply again</button></section>`;
+    if (p.accepted) return `<section class="iv-reply iv-done"><small class="iv-kick">Kindly reply</small>
+      <div class="iv-check" aria-hidden="true"><svg viewBox="0 0 52 52"><circle cx="26" cy="26" r="24"/><path d="M15 27l7 7 15-16"/></svg></div>
+      <h3>Thank you${g ? ', ' + esc(g) : ''}!</h3>
+      <p>You're the ${esc(HJOB)}. Your host book has everything, step by step, and it gives away the whole story, so keep it to yourself. Your host code word is your key to both.</p>
+      <a class="iv-btn" href="books.html">Open your host book</a>
+      <a class="iv-link" href="host.html">Open the host terminal</a></section>`;
+    return `<section class="iv-reply"><small class="iv-kick">Kindly reply</small>
+      <p>Co-hosting means arriving early, knowing the story (your host book explains it), and keeping your players moving on the night. You won't play a character.</p>
+      <div class="iv-choices">
+        <button type="button" class="iv-btn iv-yes" data-a="coaccept">I'll co-host</button>
+        <div class="iv-or"><button type="button" class="iv-link" data-a="codecline">I can't make it</button></div>
+      </div></section>`;
+  }
   /* the reply card */
   function reply() {
+    if (HROLE) return coReply();
     const p = prof(), fixed = Pron.fixed(ME.id), g = guest();
     if (p.declined) return `<section class="iv-reply iv-done"><small class="iv-kick">Kindly reply</small>
       <h3>We'll miss you${g ? ', ' + esc(g) : ''}.</h3>
@@ -137,7 +168,7 @@
       return `<section class="iv-reply"><small class="iv-kick">Kindly reply</small>
         <h3>${dec ? 'Regretfully declines' : 'Would like another character'}</h3>
         <p>${dec ? 'Sorry you can\'t make it. Anything you want the host to know? (Optional.)' : 'Tell the host what you\'d like instead. They\'ll be in touch.'}</p>
-        <textarea class="iv-field" id="note" maxlength="300" placeholder="${dec ? 'Optional' : 'For example: someone with fewer lines, or a part alongside friends of mine'}">${dec ? '' : esc((p.change || {}).note || '')}</textarea>
+        <textarea class="iv-field" id="note" maxlength="300" placeholder="${dec ? 'Optional' : 'For example: someone with fewer lines, or a part alongside friends of mine'}">${dec ? '' : esc((((DB.get() || {}).changereq || {})[ME.id] || {}).note || (p.change || {}).note || '')}</textarea>
         <div class="iv-row"><button type="button" class="iv-btn" data-a="${dec ? 'decline' : 'send'}">${dec ? 'Send my regrets' : 'Send my request'}</button><button type="button" class="iv-link" data-a="back">Back</button></div>
         <div class="iv-err" id="err" role="alert"></div></section>`;
     }
@@ -156,6 +187,7 @@
   }
   /* always there: a note to the host */
   function notes() {
+    if (HROLE) return '';
     const mine = HostNote.mine(ME.id);
     return `<details class="iv-reply iv-notes"${sentNote || mine.length ? ' open' : ''}><summary><span class="iv-kick">A note to the host</span><span class="iv-sum">Questions, ideas, anything at all</span></summary><div class="iv-nbody">
       <p>Only the hosts read it. You can send one from your phone all night, too.</p>
@@ -169,7 +201,7 @@
     const g = guest();
     if (step === 'veiled') return `<small class="iv-kick">${esc(CONFIG.TITLE)}</small><h2 class="iv-head">A private viewing${g ? ` for <span>${esc(g)}</span>` : ''}</h2>`;
     if (step === 'invite') return `<small class="iv-kick">${esc(CONFIG.TITLE)}</small><h2 class="iv-head">You're invited${g ? `, <span>${esc(g)}</span>` : ''}</h2>`;
-    return `<small class="iv-kick">${g ? esc(g) + ', tonight' : 'Tonight'} you will arrive as</small><h2 class="iv-head"><span>${esc(ME.name)}</span></h2>`;
+    return `<small class="iv-kick">${g ? esc(g) + ', tonight' : 'Tonight'} ${HROLE ? "you'll help run the night as" : 'you will arrive as'}</small><h2 class="iv-head"><span>${esc(ME.name)}</span></h2>`;
   }
   function below(step) {
     if (step === 'veiled') return `<button type="button" class="iv-btn iv-quiet" data-a="unveil">Unveil</button>`;
@@ -209,7 +241,7 @@
   function drawPan() { const pn = $('#pan'), w = $('#wall'); if (pn && w && w.classList.contains('portrait')) pn.innerHTML = reply() + notes(); }
   function unveil() {
     const w = $('#wall'); if (busy || !w || !w.classList.contains('veiled')) return;
-    busy = true; if (!prof().opened && !Session.hostDevice()) save({ opened: Date.now() });
+    busy = true; if (!prof().opened && (HROLE || !Session.hostDevice())) save({ opened: Date.now() });
     /* the cord falls, the two velvet panels sweep apart and gather at the sides, light and sparks */
     w.classList.add('opening'); setTimeout(sparks, calm ? 0 : 700);
     setTimeout(() => { set('invite'); const d = $('#drape'); d.tabIndex = -1; d.setAttribute('aria-hidden', 'true'); $('.iv-copy').insertAdjacentHTML('afterbegin', '<button type="button" class="iv-link" data-a="replay">Replay the unveiling</button><br>'); busy = false; }, calm ? 0 : 2600);
@@ -239,13 +271,15 @@
     if (act === 'undecline') { save({ declined: null }); mode = 'reply'; setTimeout(drawPan, 250); return; }
     if (act === 'send') {
       const note = ($('#note').value || '').trim(); if (!note) { $('#note').focus(); return err('Tell the host what you would like instead.'); }
-      save({ change: { note, at: Date.now() }, accepted: null, declined: null }); mode = 'reply'; setTimeout(drawPan, 250); return;
+      save({ change: { at: Date.now() }, accepted: null, declined: null }); DB.update({ ['changereq/' + ME.id]: { note, at: Date.now() } }); mode = 'reply'; setTimeout(drawPan, 250); return;
     }
     if (act === 'decline') {
       const note = ($('#note').value || '').trim();
       save({ declined: Date.now(), accepted: null }); if (note) HostNote.send(ME.id, 'Declining: ' + note, 'invite');
       mode = 'reply'; setTimeout(drawPan, 250); return;
     }
+    if (act === 'coaccept') { save({ accepted: Date.now(), declined: null }); setTimeout(drawPan, 250); return; }
+    if (act === 'codecline') { save({ declined: Date.now(), accepted: null }); setTimeout(drawPan, 250); return; }
     if (act === 'accept') {
       const fixed = Pron.fixed(ME.id), pr = fixed || (pick === 'other' ? (other || '').trim() : pick);
       if (!pr) return err(`Choose ${first}'s pronouns first.`);

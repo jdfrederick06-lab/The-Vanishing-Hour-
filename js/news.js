@@ -54,7 +54,20 @@
     </main>`;
     document.title = (n.lead.head || 'The Harbor Ledger') + ' · The Harbor Ledger';
   }
-  if (!signedIn()) return gate('The night is over. Enter your code word to read the morning paper.');
+  /* anyone can read the paper once it's out, no code word needed (Nov 26): the database lets anyone
+     read state/pub/news (one rule, see private/database.rules.json). If that rule isn't in place yet,
+     visitors get the code-word gate as before. */
+  function publicNews() {
+    if (CONFIG.BACKEND === 'local') return DB.loaded().then(() => DB.get().news || false);   /* false = not out yet, null = couldn't read */
+    try {
+      const app = firebase.apps.length ? firebase.app() : firebase.initializeApp(CONFIG.FIREBASE);
+      return firebase.database(app).ref('state/pub/news').once('value').then(s => s.val() || false, () => null);
+    } catch (e) { return Promise.resolve(null); }
+  }
+  if (!signedIn()) {
+    root.innerHTML = '<main class="np-gate"><div class="np-mast mini"><b>The Harbor Ledger</b></div><p>Fetching the morning paper…</p></main>';
+    return publicNews().then(n => n && n.lead ? paper(n) : gate(n === null ? 'The night is over. Enter your code word to read the morning paper.' : "The morning paper isn't out yet. Check back when the night is over."));
+  }
   DB.loaded().then(() => {
     const draw = () => { const n = DB.get().news; if (n && n.lead) paper(n); else root.innerHTML = `<main class="np-gate"><div class="np-mast mini"><b>The Harbor Ledger</b></div><p>The morning paper isn't out yet. Check back when the night is over.</p><a class="np-btn" href="app.html">Back to the game</a><small>${esc(COPYRIGHT)}</small></main>`; };
     draw(); DB.on(draw);

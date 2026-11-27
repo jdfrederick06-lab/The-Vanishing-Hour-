@@ -431,3 +431,24 @@ body.ev { margin: 0; background: #16161a; color: #e9e4d8; font-family: 'Inter', 
 /* the copyright line on every printed page (Nov 25) */
 @page { @bottom-center { content: "© 2026 Jacob Frederick. All rights reserved."; font: 7pt Inter, system-ui, sans-serif; color: #888; } }
 @media print { .ev-item { position: relative; } .ev-item::after { content: "© 2026 Jacob Frederick. All rights reserved."; position: absolute; left: 0; right: 0; bottom: .06in; text-align: center; font: 6pt Inter, system-ui, sans-serif; color: #aaa; } }
+/* the Curator's Hunt (NFC sidequest, Nov 26) */
+.hu { margin: 4px 0 14px; }
+.hu-card { position: relative; padding: 20px 18px 16px; border-radius: 6px; color: #2a2112; background: linear-gradient(170deg, #fbf6ea, #efe3c6); box-shadow: 0 0 0 1px #b99a55, 0 0 0 5px #fbf6ea, 0 0 0 6px #b99a55, 0 18px 40px -18px rgba(0,0,0,.8); }
+.hu-kick { display: block; text-align: center; font: 700 11px 'Inter', sans-serif; letter-spacing: .26em; text-transform: uppercase; color: #8a6a2c; }
+.hu-intro { margin: 10px 0 12px; font: italic 15px/1.55 'Libre Baskerville', Georgia, serif; color: #4a3b1d; text-align: center; }
+.hu-dots { display: flex; justify-content: center; gap: 8px; list-style: none; padding: 0; margin: 10px 0 12px; }
+.hu-dots li { width: 10px; height: 10px; border-radius: 50%; border: 1.5px solid #b99a55; }
+.hu-dots li.on { background: #b99a55; } .hu-dots li.now { box-shadow: 0 0 0 3px rgba(185,154,85,.3); }
+.hu-q { margin: 0 0 12px; font: 16px/1.5 'Libre Baskerville', Georgia, serif; }
+#hf { display: flex; gap: 8px; }
+.hu-in { flex: 1; min-width: 0; min-height: 46px; padding: 0 12px; border-radius: 8px; border: 1.5px solid #b99a55; background: #fffdf7; color: #2a2112; font: 700 16px 'Inter', sans-serif; letter-spacing: .08em; text-transform: uppercase; }
+.hu-in.bad { border-color: #b3443a; animation: huShake .35s; }
+@keyframes huShake { 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
+.hu-btn { min-height: 46px; padding: 0 18px; border: 0; border-radius: 8px; background: #2a2112; color: #f3dc9a; font: 700 15px 'Inter', sans-serif; cursor: pointer; }
+.hu-msg { min-height: 18px; margin: 8px 0 0; font: 600 13px 'Inter', sans-serif; color: #8a3a2c; }
+.hu-hint { margin: 4px 0 0; font: italic 13.5px 'Libre Baskerville', serif; color: #6b5a34; }
+.hu-done { display: block; margin: 10px 0 6px; text-align: center; font: italic 700 26px 'Libre Baskerville', Georgia, serif; color: #8a6a2c; }
+.hu-secret { margin: 8px 0; padding: 12px 14px; border-left: 3px solid #b99a55; background: rgba(185,154,85,.12); font: 15px/1.55 'Libre Baskerville', Georgia, serif; }
+.hu-money { margin: 8px 0 0; text-align: center; font: 700 14px 'Inter', sans-serif; color: #1d6b3a; }
+@media (prefers-reduced-motion: reduce) { .hu-in.bad { animation: none; } }
+.sc .who a { color: #d9b45a; }
